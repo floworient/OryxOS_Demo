@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'OryxOS',
   titleTemplate: ':title — OryxOS',
   description: 'The self-hosted Agent OS for the enterprise — describe a task in plain language, a team of agents delivers the result',
-  base: '/oryxos/',
+  base: '/',
   cleanUrls: true,
   appearance: 'force-light',
 
@@ -12,7 +12,7 @@ export default defineConfig({
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap' }],
     ['meta', { name: 'author', content: 'OryxOS' }],
     ['meta', { name: 'keywords', content: 'OryxOS, enterprise agent OS, agent operating system, natural language agents, multi-agent system, agent team, ReAct loop, LLM routing, agent memory, MCP, tool calling, self-hosted AI' }],
     ['meta', { name: 'robots', content: 'index, follow' }],
@@ -20,11 +20,9 @@ export default defineConfig({
     ['meta', { property: 'og:site_name', content: 'OryxOS' }],
     ['meta', { property: 'og:title', content: 'OryxOS — Enterprise Agent OS' }],
     ['meta', { property: 'og:description', content: 'The self-hosted Agent OS for the enterprise — describe a task in plain language, a team of agents delivers the result' }],
-    ['meta', { property: 'og:url', content: 'https://oryxos.robustmq.com' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'OryxOS — Enterprise Agent OS' }],
     ['meta', { name: 'twitter:description', content: 'The self-hosted Agent OS for the enterprise — describe a task in plain language, a team of agents delivers the result' }],
-    ['link', { rel: 'canonical', href: 'https://oryxos.robustmq.com' }],
   ],
 
   locales: {
@@ -36,8 +34,7 @@ export default defineConfig({
           { text: 'Home', link: '/' },
           { text: 'Docs', link: '/docs/what' },
           { text: 'Contribute', link: '/docs/contributing' },
-          { text: 'Demo', link: 'http://demo.robustmq.com:1524/admin/' },
-          { text: 'GitHub', link: 'https://github.com/oryx-labs/oryxos' },
+          { text: 'GitHub', link: 'https://github.com/winter8848123/OryxOS_Demo' },
         ],
         sidebar: {
           '/docs/': [
@@ -95,8 +92,7 @@ export default defineConfig({
           { text: '首页', link: '/zh/' },
           { text: '文档', link: '/zh/docs/what' },
           { text: '贡献', link: '/zh/docs/contributing' },
-          { text: 'Demo', link: 'http://demo.robustmq.com:1524/admin/' },
-          { text: 'GitHub', link: 'https://github.com/oryx-labs/oryxos' },
+          { text: 'GitHub', link: 'https://github.com/winter8848123/OryxOS_Demo' },
         ],
         sidebar: {
           '/zh/docs/': [
@@ -151,11 +147,7 @@ export default defineConfig({
     siteTitle: false,
     logo: '/logo.svg',
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/oryx-labs/oryxos' },
+      { icon: 'github', link: 'https://github.com/winter8848123/OryxOS_Demo' },
     ],
-  },
-
-  sitemap: {
-    hostname: 'https://oryxos.robustmq.com',
   },
 })

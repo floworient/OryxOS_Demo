@@ -23,7 +23,7 @@ Writing core code isn't the only kind of contribution. All of these are equally 
 - **Issues** — report a bug, propose an idea, join a discussion. Even "I didn't understand this part" is valuable feedback.
 - **Reviews** — go look at someone else's PR, leave a comment, drop an LGTM. This is the first step toward becoming a maintainer.
 
-> Not sure where to start? Look for issues labeled `good first issue` in [Issues](https://github.com/oryx-labs/oryxos/issues), or just open an issue saying "I'd like to help — where do I start?"
+> Not sure where to start? Look for issues labeled `good first issue` in [Issues](https://github.com/winter8848123/OryxOS_Demo/issues), or just open an issue saying "I'd like to help — where do I start?"
 
 ## Use AI — but own the result
 
@@ -122,7 +122,7 @@ We're just starting out. The thing we fear most isn't code that isn't good enoug
 
 ## Reach us
 
-- **Issues**: report bugs, propose ideas → [github.com/oryx-labs/oryxos/issues](https://github.com/oryx-labs/oryxos/issues)
-- **Pull Requests**: start contributing → [github.com/oryx-labs/oryxos/pulls](https://github.com/oryx-labs/oryxos/pulls)
+- **Issues**: report bugs, propose ideas → [github.com/winter8848123/OryxOS_Demo/issues](https://github.com/winter8848123/OryxOS_Demo/issues)
+- **Pull Requests**: start contributing → [github.com/winter8848123/OryxOS_Demo/pulls](https://github.com/winter8848123/OryxOS_Demo/pulls)
 
 Want to go further and become a maintainer? See the [Maintainer Guide](./maintainer). First time collaborating on GitHub? See [GitHub Contribution Basics](./github-workflow).

@@ -79,7 +79,7 @@ CI 全绿 + 拿到足够 Approve，maintainer 就会合并。你的名字从此�
 **同步最新的 main（rebase）**——PR 落后于主干、或有冲突时：
 
 ```bash
-git remote add upstream https://github.com/oryx-labs/oryxos.git   # 只需加一次
+git remote add upstream https://github.com/winter8848123/OryxOS_Demo.git   # 只需加一次
 git fetch upstream
 git rebase upstream/main
 # 有冲突就手动解决，然后：

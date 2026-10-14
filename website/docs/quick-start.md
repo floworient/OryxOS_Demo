@@ -126,16 +126,7 @@ Every API response is wrapped in this `{ code, message, data, timestamp }` envel
 
 ## Run with Docker
 
-Every release also ships a multi-arch container image (`linux/amd64` + `linux/arm64`) on GHCR — no Java 21 install, no tarball download:
-
-```bash
-docker run -d --name oryxos -p 8080:8080 -v oryxos-data:/data ghcr.io/oryx-labs/oryxos:latest
-curl http://localhost:8080/api/v1/health      # → {"code":0,…}
-```
-
-The container boots keyless (configure providers in the web console afterwards) and keeps **all state** — `config/`, the `.oryxos/` workspace, `oryxos.db`, logs — in the `/data` volume, so upgrading means pulling a new tag and recreating the container. The image runs as a non-root user and carries a built-in healthcheck against `/api/v1/health`; see `docker-compose.yml` at the repo root for a ready-to-use compose stack. To build the image locally from source: `make docker` (after `make build`).
-
-> Note: storage is single-node SQLite — run **one** container. Horizontal scaling requires the distributed storage track (roadmap A).
+This repository does not publish an official container image yet. Use the source build above for the current bootstrap release. A verified image address and deployment guide will be added when container publishing is available.
 
 ## What's next
 

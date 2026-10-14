@@ -79,7 +79,7 @@ You'll see these abbreviations in reviews. They aren't showing off — they're e
 **Sync to the latest main (rebase)** — when your PR is behind, or has conflicts:
 
 ```bash
-git remote add upstream https://github.com/oryx-labs/oryxos.git   # once
+git remote add upstream https://github.com/winter8848123/OryxOS_Demo.git   # once
 git fetch upstream
 git rebase upstream/main
 # resolve conflicts if any, then:

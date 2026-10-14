@@ -23,7 +23,7 @@ OryxOS 是**我们的**项目，刚刚起步。没有那么多规矩，也不需
 - **Issue**——报一个 bug、提一个想法、参与讨论。哪怕只是"这里我没看懂"，也是有价值的反馈。
 - **评审（Review）**——去别人的 PR 下面看一看、提提意见、点个 LGTM。这是成为 maintainer 的第一步。
 
-> 第一次不知道从哪下手？去 [Issues](https://github.com/oryx-labs/oryxos/issues) 找带 `good first issue` 标签的，或者直接开一个 issue 说"我想帮忙，从哪开始"。
+> 第一次不知道从哪下手？去 [Issues](https://github.com/winter8848123/OryxOS_Demo/issues) 找带 `good first issue` 标签的，或者直接开一个 issue 说"我想帮忙，从哪开始"。
 
 ## 用 AI 来做——但为结果负责
 
@@ -122,7 +122,7 @@ OryxOS 用 `mvn verify` 把关，本地过了才提，不要把红灯留给 CI �
 
 ## 找我们
 
-- **Issues**：报 bug、提想法 → [github.com/oryx-labs/oryxos/issues](https://github.com/oryx-labs/oryxos/issues)
-- **Pull Requests**：开始贡献 → [github.com/oryx-labs/oryxos/pulls](https://github.com/oryx-labs/oryxos/pulls)
+- **Issues**：报 bug、提想法 → [github.com/winter8848123/OryxOS_Demo/issues](https://github.com/winter8848123/OryxOS_Demo/issues)
+- **Pull Requests**：开始贡献 → [github.com/winter8848123/OryxOS_Demo/pulls](https://github.com/winter8848123/OryxOS_Demo/pulls)
 
 想更进一步、成为 maintainer？看[Maintainer 指南](./maintainer)。第一次用 GitHub 协作？看[GitHub 贡献入门](./github-workflow)。

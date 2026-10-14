@@ -218,7 +218,7 @@ const flowColumns = computed(() => [
     <section class="hero">
       <div class="hero-inner">
         <p class="hero-eyebrow">
-          <span class="eyebrow-comment">// </span>{{ t('开源 · 私有部署 · Apache 2.0', 'open-source · self-hosted · Apache 2.0') }}
+          <span class="eyebrow-comment">// </span>{{ t('Java 原生 · 私有部署 · 企业运行时', 'Java-native · self-hosted · enterprise runtime') }}
         </p>
 
         <h1 class="hero-headline">
@@ -239,7 +239,7 @@ const flowColumns = computed(() => [
             {{ t('快速开始', 'Get Started') }}
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
           </a>
-          <a class="btn-ghost" href="https://github.com/oryx-labs/oryxos" target="_blank" rel="noopener">
+          <a class="btn-ghost" href="https://github.com/winter8848123/OryxOS_Demo" target="_blank" rel="noopener">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.745 0 .268.18.58.688.482A10.019 10.019 0 0022 12c0-5.523-4.477-10-10-10z"/></svg>
             GitHub
           </a>
@@ -322,7 +322,7 @@ const flowColumns = computed(() => [
     </div>
 
     <!-- ── HOW IT WORKS ── -->
-    <section class="section section-dark">
+    <section class="section section-dark section-how">
       <div class="section-inner">
         <div class="section-header">
           <span class="section-label">{{ t('运行原理', 'HOW IT WORKS') }}</span>
@@ -336,7 +336,7 @@ const flowColumns = computed(() => [
     </section>
 
     <!-- ── CORE CAPABILITIES ── -->
-    <section class="section section-dark">
+    <section class="section section-dark section-core">
       <div class="section-inner">
         <div class="section-header">
           <span class="section-label">{{ t('核心能力', 'CORE CAPABILITIES') }}</span>
@@ -407,7 +407,7 @@ const flowColumns = computed(() => [
             <p class="cta-sub">{{ t('初始化工作区、配置 LLM Provider、开始对话。5 分钟搭起你的第一个 Agent，随时扩展到一群。', 'Initialize the workspace, configure an LLM provider, and start chatting. Your first agent in under 5 minutes — scale to a fleet whenever you\'re ready.') }}</p>
             <div class="cta-btns">
               <a class="btn-dark" :href="t('/zh/docs/what', '/docs/what')">{{ t('查看文档', 'Read the Docs') }}</a>
-              <a class="btn-dark-ghost" href="https://github.com/oryx-labs/oryxos" target="_blank" rel="noopener">GitHub</a>
+              <a class="btn-dark-ghost" href="https://github.com/winter8848123/OryxOS_Demo" target="_blank" rel="noopener">GitHub</a>
             </div>
           </div>
           <div class="cta-right">
@@ -443,7 +443,7 @@ const flowColumns = computed(() => [
         </div>
         <div class="footer-links">
           <a :href="t('/zh/docs/what', '/docs/what')" class="footer-link">{{ t('文档', 'Docs') }}</a>
-          <a href="https://github.com/oryx-labs/oryxos" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+          <a href="https://github.com/winter8848123/OryxOS_Demo" target="_blank" rel="noopener" class="footer-link">GitHub</a>
         </div>
       </div>
     </footer>
@@ -459,7 +459,7 @@ const flowColumns = computed(() => [
   min-height: 100vh;
   background: #000000;
   color: #fafafa;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Manrope', 'Noto Sans SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Override VitePress default page padding */
   margin: 0;
   padding: 0;
@@ -472,11 +472,11 @@ a { text-decoration: none; }
 ──────────────────────────────────────────────── */
 .hero {
   background: #000000;
-  padding: 96px 24px 80px;
+  padding: 112px 24px 104px;
   text-align: center;
 }
 .hero-inner {
-  max-width: 800px;
+  max-width: 840px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -487,23 +487,23 @@ a { text-decoration: none; }
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 13px;
   color: #888888;
-  margin: 0 0 32px;
-  letter-spacing: 0.02em;
+  margin: 0 0 36px;
+  letter-spacing: 0;
 }
 .eyebrow-comment { color: #f97316; }
 
 .hero-headline {
   font-size: clamp(40px, 7vw, 72px);
-  font-weight: 900;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  margin: 0 0 28px;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: 0;
+  margin: 0 0 32px;
 }
 .headline-tag {
   display: inline-block;
   font-size: 0.38em;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: #f97316;
   border: 1px solid rgba(249, 115, 22, 0.5);
@@ -517,10 +517,10 @@ a { text-decoration: none; }
 
 .hero-sub {
   font-size: 16px;
-  line-height: 1.75;
-  color: #888888;
-  max-width: 620px;
-  margin: 0 0 40px;
+  line-height: 1.9;
+  color: #a3a3a3;
+  max-width: 680px;
+  margin: 0 0 48px;
 }
 
 /* CTA Buttons */
@@ -529,7 +529,7 @@ a { text-decoration: none; }
   gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-bottom: 56px;
+  margin-bottom: 68px;
 }
 .btn-primary {
   display: inline-flex;
@@ -562,13 +562,13 @@ a { text-decoration: none; }
 /* Terminal */
 .terminal {
   width: 100%;
-  max-width: 680px;
+  max-width: 720px;
   border-radius: 10px;
   border: 1px solid #1e1e1e;
   background: #0a0a0a;
   overflow: hidden;
   text-align: left;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px #1e1e1e;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.62), 0 0 0 1px #1e1e1e;
 }
 .terminal-titlebar {
   display: flex;
@@ -641,7 +641,7 @@ a { text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 0;
+  padding: 32px 0;
 }
 .stat {
   display: flex;
@@ -673,34 +673,55 @@ a { text-decoration: none; }
 /* ────────────────────────────────────────────────
    SECTIONS BASE
 ──────────────────────────────────────────────── */
-.section { padding: 88px 24px; }
+.section { padding: 112px 24px; }
 .section-inner { max-width: 1040px; margin: 0 auto; }
 .section-dark { background: #000000; }
 .section-light { background: #fafafa; }
+.section-how { padding-bottom: 128px; }
+.section-core {
+  padding-top: 128px;
+  background: #080808;
+  border-top: 1px solid #1e1e1e;
+}
 .section-use-cases { border-top: 1px solid #1e1e1e; }
 
 .section-header {
   text-align: center;
-  margin-bottom: 56px;
+  max-width: 820px;
+  margin: 0 auto 68px;
 }
 .section-label {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-family: 'Manrope', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: #f97316;
-  display: block;
-  margin-bottom: 16px;
+  margin-bottom: 22px;
+}
+.section-label::before {
+  content: '';
+  width: 30px;
+  height: 3px;
+  border-radius: 2px;
+  background: #f97316;
+  flex-shrink: 0;
 }
 .label-dark { color: #000000; }
+.label-dark::before { background: #000000; }
 .section-h2 {
-  font-size: clamp(26px, 4vw, 42px);
-  font-weight: 800;
+  max-width: 820px;
+  margin: 0 auto;
+  font-size: clamp(34px, 4.6vw, 52px);
+  font-weight: 700;
   color: #fafafa;
-  margin: 0;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  letter-spacing: 0;
+  line-height: 1.18;
 }
 .section-h2.dark { color: #0a0a0a; }
 
@@ -770,22 +791,47 @@ a { text-decoration: none; }
    CORE CAPABILITIES
 ──────────────────────────────────────────────── */
 .caps-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: #1e1e1e;
-  border: 1px solid #1e1e1e;
-  border-radius: 12px;
-  overflow: hidden;
+  display: flex;
+  gap: 16px;
+  max-width: 980px;
+  margin: 0 auto;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: auto;
+  scrollbar-color: #f97316 #1c1c1c;
+  overscroll-behavior-inline: contain;
+  padding-bottom: 18px;
+}
+.caps-grid::-webkit-scrollbar {
+  height: 12px;
+}
+.caps-grid::-webkit-scrollbar-track {
+  background: #1c1c1c;
+  border: 1px solid #303030;
+  border-radius: 6px;
+}
+.caps-grid::-webkit-scrollbar-thumb {
+  min-width: 72px;
+  background: #f97316;
+  border: 2px solid #1c1c1c;
+  border-radius: 6px;
+}
+.caps-grid::-webkit-scrollbar-thumb:hover {
+  background: #fb923c;
 }
 .cap-card {
+  flex: 0 0 calc((100% - 32px) / 3);
+  min-width: 0;
   background: #111111;
-  padding: 32px 28px;
+  padding: 36px 32px;
+  border: 1px solid #242424;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
   transition: background 0.2s;
   cursor: default;
+  scroll-snap-align: start;
 }
 .cap-card:hover {
   background: #161616;
@@ -797,32 +843,34 @@ a { text-decoration: none; }
   font-size: 11px;
   font-weight: 700;
   color: #f97316;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
 }
 .cap-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: #fafafa;
   margin: 0;
   line-height: 1.2;
 }
 .cap-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: #888888;
-  line-height: 1.7;
+  line-height: 1.8;
   margin: 0;
 }
 .cap-code {
   background: #0a0a0a;
   border: 1px solid #1e1e1e;
   border-radius: 6px;
-  padding: 16px;
-  font-size: 12px;
-  line-height: 1.65;
+  padding: 14px;
+  font-size: 10px;
+  line-height: 1.7;
   color: #d4d4d4;
-  overflow-x: auto;
+  overflow-x: hidden;
   margin: 0;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   flex: 1;
 }
 .cap-code code {
@@ -836,20 +884,18 @@ a { text-decoration: none; }
 ──────────────────────────────────────────────── */
 .cases-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: #1e1e1e;
-  border: 1px solid #1e1e1e;
-  border-radius: 12px;
-  overflow: hidden;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 .case-card {
   background: #111111;
-  padding: 28px 24px;
+  padding: 32px 28px;
+  border: 1px solid #242424;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-left: 3px solid transparent;
+  gap: 12px;
   transition: border-color 0.2s, background 0.2s;
   cursor: default;
 }
@@ -865,15 +911,15 @@ a { text-decoration: none; }
   align-self: flex-end;
 }
 .case-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   color: #fafafa;
   margin: 0;
 }
 .case-desc {
-  font-size: 12px;
-  color: #666666;
-  line-height: 1.65;
+  font-size: 13px;
+  color: #777777;
+  line-height: 1.75;
   margin: 0;
 }
 
@@ -894,11 +940,11 @@ a { text-decoration: none; }
 }
 .cta-h2 {
   font-size: clamp(28px, 4vw, 48px);
-  font-weight: 900;
+  font-weight: 800;
   color: #000000;
   margin: 12px 0 16px;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
+  letter-spacing: 0;
+  line-height: 1.15;
 }
 .cta-sub {
   font-size: 15px;
@@ -1002,21 +1048,35 @@ a { text-decoration: none; }
    RESPONSIVE
 ──────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .caps-grid { grid-template-columns: 1fr; }
+  .caps-grid { gap: 14px; }
+  .cap-card { flex-basis: calc((100% - 14px) / 2); }
   .cases-grid { grid-template-columns: repeat(2, 1fr); }
   .cta-grid { grid-template-columns: 1fr; gap: 40px; }
 }
 
 @media (max-width: 768px) {
-  .hero { padding: 72px 20px 64px; }
+  .hero { padding: 80px 20px 72px; }
   .hero-headline { font-size: clamp(36px, 10vw, 56px); }
-  .section { padding: 64px 20px; }
+  .section { padding: 80px 20px; }
+  .section-how { padding-bottom: 88px; }
+  .section-core { padding-top: 88px; }
+  .section-header { margin-bottom: 48px; }
+  .section-label {
+    gap: 10px;
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+  .section-label::before { width: 24px; }
+  .section-h2 { font-size: clamp(30px, 9vw, 42px); }
   .stats-inner { flex-wrap: wrap; gap: 24px; justify-content: center; }
   .stat-divider { display: none; }
   .stat { flex: none; width: 80px; }
   .flow { gap: 0; overflow-x: auto; }
   .flow-col { min-width: 130px; }
-  .caps-grid { grid-template-columns: 1fr; }
+  .cap-card {
+    flex-basis: min(88%, 420px);
+    padding: 30px 24px;
+  }
   .cases-grid { grid-template-columns: 1fr; }
   .cta-grid { grid-template-columns: 1fr; }
   .footer-inner { flex-direction: column; gap: 20px; text-align: center; }
@@ -1060,20 +1120,18 @@ a { text-decoration: none; }
 .roadmap-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: #1e1e1e;
-  border: 1px solid #1e1e1e;
-  border-radius: 12px;
-  overflow: hidden;
+  gap: 16px;
 }
 
 .roadmap-card {
   background: #111111;
   padding: 32px 28px;
+  border: 1px solid #242424;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  border-left: 3px solid transparent;
   transition: background 0.2s;
 }
 
