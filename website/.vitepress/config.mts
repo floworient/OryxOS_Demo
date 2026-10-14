@@ -1,15 +1,17 @@
 import { defineConfig } from 'vitepress'
 
+const siteBase = process.env.ORYXOS_SITE_BASE ?? '/'
+
 export default defineConfig({
   title: 'OryxOS',
   titleTemplate: ':title — OryxOS',
   description: 'The self-hosted Agent OS for the enterprise — describe a task in plain language, a team of agents delivers the result',
-  base: process.env.ORYXOS_SITE_BASE ?? '/',
+  base: siteBase,
   cleanUrls: true,
   appearance: true,
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${siteBase}favicon.svg` }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap' }],
