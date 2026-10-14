@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OryxOS 是面向企业私有化部署的 Java Agent OS。">
+  <title>OryxOS - Java 原生企业级 Agent OS</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="OryxOS 首页">
+      <img src="/images/oryxos-logo.svg" alt="" width="36" height="36">
+      <span>OryxOS</span>
+    </a>
+    <nav aria-label="主要导航">
+      <a href="#why">项目定位</a>
+      <a href="#architecture">架构</a>
+      <a href="#start">快速开始</a>
+      <a href="/swagger-ui/index.html">API</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <img class="hero-logo" src="/images/oryxos-logo.svg" alt="OryxOS 羚羊标志" width="144" height="144">
+        <p class="eyebrow">JAVA-NATIVE AGENT RUNTIME</p>
+        <h1 id="hero-title">OryxOS</h1>
+        <p class="hero-lead">让企业 Agent 在自己的基础设施里，安全、持续、可治理地运行。</p>
+        <p class="hero-copy">统一模型接入、ReAct 执行、记忆、工具、渠道与审计。业务团队只需定义 Agent 和能力，平台团队掌控运行边界。</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#start">开始体验 <span aria-hidden="true">→</span></a>
+          <a class="button button-secondary" href="#architecture">查看架构</a>
+        </div>
+      </div>
+      <div class="signal-row" aria-label="项目特性">
+        <span><strong>Java 21</strong> 企业技术栈</span>
+        <span><strong>Private First</strong> 数据留在内部</span>
+        <span><strong>Open Runtime</strong> 模型与工具解耦</span>
+      </div>
+    </section>
+
+    <section class="intro section" id="why" aria-labelledby="why-title">
+      <div class="section-heading">
+        <p class="eyebrow">WHY ORYXOS</p>
+        <h2 id="why-title">不是再造一个聊天机器人，<br>而是提供 Agent 的运行底座。</h2>
+        <p>框架解决如何编写 Agent，编排平台解决如何画流程。OryxOS 专注运行时：让一组常驻 Agent 共享可靠、可审计的企业基础设施。</p>
+      </div>
+      <div class="value-grid">
+        <article>
+          <span class="index">01</span>
+          <h3>企业掌控</h3>
+          <p>私有部署，凭证、记忆和执行记录留在企业环境，可接入既有安全与运维体系。</p>
+        </article>
+        <article>
+          <span class="index">02</span>
+          <h3>统一运行</h3>
+          <p>CLI、Web、企业 IM 与定时任务共享同一个 Agent 运行时和一致的执行语义。</p>
+        </article>
+        <article>
+          <span class="index">03</span>
+          <h3>开放连接</h3>
+          <p>通过 Provider、MCP 和 Java Tool 连接模型与业务系统，不绑定单一厂商。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="capabilities" aria-labelledby="capabilities-title">
+      <div class="section capabilities-inner">
+        <div class="section-heading compact">
+          <p class="eyebrow">RUNTIME CAPABILITIES</p>
+          <h2 id="capabilities-title">一套内核，承载完整 Agent 生命周期</h2>
+        </div>
+        <div class="capability-list">
+          <div><strong>Provider</strong><span>连接云端与本地模型</span></div>
+          <div><strong>ReAct</strong><span>掌控推理与工具执行</span></div>
+          <div><strong>Memory</strong><span>沉淀会话与长期记忆</span></div>
+          <div><strong>Tool</strong><span>安全调用企业能力</span></div>
+          <div><strong>Channel</strong><span>统一终端、API 与 IM</span></div>
+          <div><strong>Audit</strong><span>记录完整执行链路</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="architecture section" id="architecture" aria-labelledby="architecture-title">
+      <div class="section-heading architecture-copy">
+        <p class="eyebrow">ARCHITECTURE</p>
+        <h2 id="architecture-title">清晰边界，渐进扩展</h2>
+        <p>所有入口收敛到统一执行链路，核心能力通过模块边界解耦。先把单节点运行时做扎实，再面向治理与分布式场景演进。</p>
+      </div>
+      <figure>
+        <img src="/images/oryxos-architecture.svg" alt="OryxOS 分层架构图">
+        <figcaption>接入层、Agent 层、引擎层、能力层与基础设施层共同组成 OryxOS 运行时。</figcaption>
+      </figure>
+    </section>
+
+    <section class="start" id="start" aria-labelledby="start-title">
+      <div class="section start-inner">
+        <div>
+          <p class="eyebrow">GET STARTED</p>
+          <h2 id="start-title">一个 JAR，启动 OryxOS</h2>
+          <p>项目当前处于工程引导阶段。你可以构建全部模块、运行 CLI，并启动 Spring Boot 聚合应用。</p>
+        </div>
+        <div class="terminal" aria-label="快速启动命令">
+          <div class="terminal-title"><span></span><span></span><span></span><b>oryxos / terminal</b></div>
+          <pre><code><span class="prompt">$</span> ./mvnw clean package
+
+<span class="prompt">$</span> java -jar oryxos-cli/target/oryxos-cli-0.1.0-SNAPSHOT-exec.jar
+OryxOS 0.1.0-SNAPSHOT
+
+<span class="prompt">$</span> java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT.jar</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" href="#top">
+      <img src="/images/oryxos-logo.svg" alt="" width="30" height="30">
+      <span>OryxOS</span>
+    </a>
+    <p>Built for enterprise-owned agents.</p>
+  </footer>
+</body>
+</html>

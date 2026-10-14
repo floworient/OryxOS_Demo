@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">OryxOS architecture</title>
+  <desc id="desc">CLI, REST API, enterprise IM and scheduler enter AgentService, which coordinates context, ReAct, providers, tools, memory and persistent audit storage.</desc>
+  <defs>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#10243e" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#55708f"/>
+    </marker>
+    <style>
+      .title { font: 700 30px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #152238; }
+      .subtitle { font: 400 15px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #62748a; }
+      .section { font: 600 14px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #62748a; letter-spacing: 1px; }
+      .label { font: 600 17px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #152238; }
+      .small { font: 400 13px "Segoe UI", "Microsoft YaHei", sans-serif; fill: #53677f; }
+      .line { fill: none; stroke: #55708f; stroke-width: 2; marker-end: url(#arrow); }
+      .audit { fill: none; stroke: #8a6b22; stroke-width: 2; stroke-dasharray: 6 5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="#f7f9fc"/>
+  <text x="60" y="54" class="title">OryxOS Architecture</text>
+  <text x="60" y="81" class="subtitle">统一入口、统一 Agent 执行链路、统一工具审计</text>
+
+  <text x="60" y="126" class="section">TRIGGERS</text>
+  <g filter="url(#shadow)">
+    <rect x="60" y="145" width="210" height="76" rx="8" fill="#ffffff" stroke="#9bb6d3"/>
+    <rect x="350" y="145" width="210" height="76" rx="8" fill="#ffffff" stroke="#9bb6d3"/>
+    <rect x="640" y="145" width="210" height="76" rx="8" fill="#ffffff" stroke="#9bb6d3"/>
+    <rect x="930" y="145" width="210" height="76" rx="8" fill="#ffffff" stroke="#9bb6d3"/>
+  </g>
+  <text x="165" y="179" text-anchor="middle" class="label">CLI</text>
+  <text x="165" y="201" text-anchor="middle" class="small">交互式会话</text>
+  <text x="455" y="179" text-anchor="middle" class="label">REST API</text>
+  <text x="455" y="201" text-anchor="middle" class="small">业务系统集成</text>
+  <text x="745" y="179" text-anchor="middle" class="label">企业 IM</text>
+  <text x="745" y="201" text-anchor="middle" class="small">飞书 / 企微 / 钉钉</text>
+  <text x="1035" y="179" text-anchor="middle" class="label">Scheduler</text>
+  <text x="1035" y="201" text-anchor="middle" class="small">定时自动触发</text>
+
+  <path class="line" d="M165 221 V258 H530"/>
+  <path class="line" d="M455 221 V258 H560"/>
+  <path class="line" d="M745 221 V258 H640"/>
+  <path class="line" d="M1035 221 V258 H670"/>
+
+  <g filter="url(#shadow)">
+    <rect x="430" y="258" width="340" height="92" rx="8" fill="#dcecff" stroke="#4380bd" stroke-width="2"/>
+  </g>
+  <text x="600" y="297" text-anchor="middle" class="label">AgentService</text>
+  <text x="600" y="322" text-anchor="middle" class="small">所有触发方式共享同一条执行链路</text>
+
+  <path class="line" d="M520 350 V390 H300 V420"/>
+  <path class="line" d="M680 350 V390 H870 V420"/>
+
+  <text x="60" y="402" class="section">RUNTIME</text>
+  <g filter="url(#shadow)">
+    <rect x="100" y="420" width="400" height="118" rx="8" fill="#e9f7ef" stroke="#55a475"/>
+    <rect x="700" y="420" width="400" height="118" rx="8" fill="#fff3df" stroke="#cf9341"/>
+  </g>
+  <text x="300" y="458" text-anchor="middle" class="label">ContextLoader</text>
+  <text x="300" y="484" text-anchor="middle" class="small">Agent 指令 · Bootstrap · Skill 元数据</text>
+  <text x="300" y="507" text-anchor="middle" class="small">Memory · Session History</text>
+  <text x="900" y="458" text-anchor="middle" class="label">ReActLoop</text>
+  <text x="900" y="484" text-anchor="middle" class="small">Reason → Act → Observe</text>
+  <text x="900" y="507" text-anchor="middle" class="small">迭代控制 · 消息累积 · 终止判断</text>
+
+  <path class="line" d="M210 538 V585"/>
+  <path class="line" d="M390 538 V585"/>
+  <path class="line" d="M810 538 V585"/>
+  <path class="line" d="M990 538 V585"/>
+
+  <g filter="url(#shadow)">
+    <rect x="60" y="585" width="250" height="88" rx="8" fill="#ffffff" stroke="#67a982"/>
+    <rect x="345" y="585" width="250" height="88" rx="8" fill="#ffffff" stroke="#67a982"/>
+    <rect x="630" y="585" width="250" height="88" rx="8" fill="#ffffff" stroke="#d29c55"/>
+    <rect x="915" y="585" width="225" height="88" rx="8" fill="#ffffff" stroke="#d29c55"/>
+  </g>
+  <text x="185" y="621" text-anchor="middle" class="label">Agent Directory</text>
+  <text x="185" y="646" text-anchor="middle" class="small">AGENT.md / Skills / Scripts</text>
+  <text x="470" y="621" text-anchor="middle" class="label">MemoryService</text>
+  <text x="470" y="646" text-anchor="middle" class="small">Session / Long-term Memory</text>
+  <text x="755" y="621" text-anchor="middle" class="label">ProviderService</text>
+  <text x="755" y="646" text-anchor="middle" class="small">LLM Provider 显式路由</text>
+  <text x="1027" y="621" text-anchor="middle" class="label">ToolExecutor</text>
+  <text x="1027" y="646" text-anchor="middle" class="small">Built-in / MCP / Java Tool</text>
+
+  <path class="audit" d="M470 673 V686 H535 V696"/>
+  <path class="audit" d="M755 673 V686 H635 V696"/>
+  <path class="audit" d="M1027 673 V686 H735 V696"/>
+  <g filter="url(#shadow)">
+    <rect x="435" y="696" width="400" height="48" rx="8" fill="#fff8d9" stroke="#c6a13b"/>
+  </g>
+  <text x="570" y="726" text-anchor="middle" class="label">Storage &amp; Audit</text>
+  <text x="730" y="726" text-anchor="middle" class="small">SQLite / PostgreSQL</text>
+</svg>

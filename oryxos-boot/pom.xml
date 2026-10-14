@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>io.oryxos</groupId><artifactId>oryxos-parent</artifactId><version>0.1.0-SNAPSHOT</version></parent>
+    <artifactId>oryxos-boot</artifactId>
+    <name>OryxOS Boot</name>
+    <dependencies>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-core</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-persona</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-provider</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-memory</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-storage</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-knowledge</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-tool</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-channel-cli</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-channel-feishu</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-channel-wecom</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-channel-dingtalk</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-web</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-cli</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter</artifactId></dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions><execution><goals><goal>repackage</goal></goals></execution></executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
