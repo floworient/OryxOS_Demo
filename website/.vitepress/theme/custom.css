@@ -1,8 +1,8 @@
 /* ─── Brand tokens ────────────────────────────────────────────── */
 :root {
-  --vp-nav-bg-color: rgba(0, 0, 0, 0.92);
-  --vp-local-nav-bg-color: #000000;
-  --vp-sidebar-bg-color: #000000;
+  --vp-nav-bg-color: rgba(255, 255, 255, 0.92);
+  --vp-local-nav-bg-color: #ffffff;
+  --vp-sidebar-bg-color: #ffffff;
   --vp-c-brand-1: #c2550a;
   --vp-c-brand-2: #ea6a00;
   --vp-c-brand-3: #f97316;
@@ -10,6 +10,30 @@
 
   --vp-font-family-base: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-soft: #f6f8fb;
+  --vp-c-bg-mute: #edf1f6;
+
+  --vp-c-text-1: #152238;
+  --vp-c-text-2: #475569;
+  --vp-c-text-3: #64748b;
+
+  --vp-c-divider: #dbe3ec;
+  --vp-c-border: #dbe3ec;
+
+  --site-nav-bg: rgba(255, 255, 255, 0.92);
+  --site-menu-bg: #ffffff;
+  --site-menu-hover: #f1f5f9;
+  --site-code-bg: #f6f8fb;
+  --site-code-text: #334155;
+  --site-shadow: 0 8px 28px rgba(15, 23, 42, 0.12);
+}
+
+.dark {
+  --vp-nav-bg-color: rgba(0, 0, 0, 0.92);
+  --vp-local-nav-bg-color: #000000;
+  --vp-sidebar-bg-color: #000000;
 
   --vp-c-bg: #000000;
   --vp-c-bg-soft: #111111;
@@ -21,23 +45,24 @@
 
   --vp-c-divider: #222222;
   --vp-c-border: #222222;
+
+  --site-nav-bg: rgba(0, 0, 0, 0.92);
+  --site-menu-bg: #111111;
+  --site-menu-hover: #1a1a1a;
+  --site-code-bg: #0d0d0d;
+  --site-code-text: #d4d4d4;
+  --site-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 
-/* ─── Global black background ─────────────────────────────────── */
+/* ─── Global theme surface ────────────────────────────────────── */
 html, body, #app {
-  background: #000000 !important;
-}
-
-/* ─── Hide dark mode toggle ──────────────────────────────────── */
-.VPNavBarAppearance,
-.VPSwitchAppearance {
-  display: none !important;
+  background: var(--vp-c-bg) !important;
 }
 
 /* ─── Nav ─────────────────────────────────────────────────────── */
 .VPNav {
-  border-bottom: 1px solid #1e1e1e !important;
-  background: rgba(0, 0, 0, 0.92) !important;
+  border-bottom: 1px solid var(--vp-c-divider) !important;
+  background: var(--site-nav-bg) !important;
   backdrop-filter: blur(12px) !important;
 }
 
@@ -46,12 +71,16 @@ html, body, #app {
 }
 
 .VPNavBarTitle .logo {
-  height: 36px;
-  width: auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
 }
 
 .VPNavBarTitle .title {
-  color: #f5f5f5 !important;
+  color: var(--vp-c-text-1) !important;
+  gap: 10px;
+  font-family: 'Manrope', 'Inter', sans-serif;
+  font-weight: 800;
 }
 
 .VPNavBarTitle .title:hover {
@@ -61,7 +90,7 @@ html, body, #app {
 .VPNavBarMenu .VPNavBarMenuLink {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #a3a3a3 !important;
+  color: var(--vp-c-text-2) !important;
   transition: color 0.15s;
 }
 
@@ -77,29 +106,29 @@ html, body, #app {
 .VPMenu,
 .VPFlyout > .menu,
 .VPNavBarMenuGroup > .menu {
-  background: #111111 !important;
-  border: 1px solid #222222 !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6) !important;
+  background: var(--site-menu-bg) !important;
+  border: 1px solid var(--vp-c-border) !important;
+  box-shadow: var(--site-shadow) !important;
 }
 
 .VPMenu .item .VPMenuLink,
 .VPMenu .item .link,
 .VPFlyout .VPMenuLink,
 .VPFlyout .link {
-  color: #f5f5f5 !important;
+  color: var(--vp-c-text-1) !important;
 }
 
 .VPMenu .item .VPMenuLink:hover,
 .VPMenu .item .link:hover,
 .VPFlyout .VPMenuLink:hover,
 .VPFlyout .link:hover {
-  background: #1a1a1a !important;
+  background: var(--site-menu-hover) !important;
   color: #f97316 !important;
 }
 
 /* ─── Content page ──────────── */
 .VPDoc {
-  background: #000000 !important;
+  background: var(--vp-c-bg) !important;
 }
 
 .VPDoc .container {
@@ -115,7 +144,7 @@ html, body, #app {
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.2;
-  color: #f5f5f5;
+  color: var(--vp-c-text-1);
   margin-bottom: 0.5rem;
 }
 
@@ -123,21 +152,21 @@ html, body, #app {
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  border-top: 1px solid #222222;
+  border-top: 1px solid var(--vp-c-divider);
   padding-top: 2rem;
   margin-top: 2rem;
-  color: #f5f5f5;
+  color: var(--vp-c-text-1);
 }
 
 .VPDoc h3 {
   font-size: 1rem;
   font-weight: 600;
-  color: #f5f5f5;
+  color: var(--vp-c-text-1);
 }
 
 .VPDoc p {
   line-height: 1.75;
-  color: #a3a3a3;
+  color: var(--vp-c-text-2);
 }
 
 .VPDoc a {
@@ -152,19 +181,19 @@ html, body, #app {
 .vp-code-group,
 div[class*='language-'] {
   border-radius: 8px !important;
-  border: 1px solid #222222 !important;
-  background: #0d0d0d !important;
+  border: 1px solid var(--vp-c-border) !important;
+  background: var(--site-code-bg) !important;
 }
 
 div[class*='language-'] pre,
 div[class*='language-'] pre code {
-  background: #0d0d0d !important;
+  background: var(--site-code-bg) !important;
 }
 
 div[class*='language-'] code,
 div[class*='language-'] code span {
   font-size: 0.82rem;
-  color: #d4d4d4 !important;
+  color: var(--site-code-text) !important;
 }
 
 div[class*='language-'] > span.lang {
@@ -177,8 +206,8 @@ div[class*='language-'] > button.copy {
 
 /* Inline code */
 :not(pre) > code {
-  background: #111111 !important;
-  border: 1px solid #222222 !important;
+  background: var(--vp-c-bg-soft) !important;
+  border: 1px solid var(--vp-c-border) !important;
   border-radius: 4px !important;
   padding: 0.1em 0.35em !important;
   font-size: 0.85em !important;
@@ -193,18 +222,18 @@ div[class*='language-'] > button.copy {
 }
 
 .vp-doc table th {
-  background: #111111;
+  background: var(--vp-c-bg-soft);
   font-weight: 600;
-  color: #f5f5f5;
+  color: var(--vp-c-text-1);
   text-align: left;
   padding: 0.5rem 1rem;
-  border-bottom: 2px solid #222222;
+  border-bottom: 2px solid var(--vp-c-divider);
 }
 
 .vp-doc table td {
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid #1a1a1a;
-  color: #a3a3a3;
+  border-bottom: 1px solid var(--vp-c-divider);
+  color: var(--vp-c-text-2);
 }
 
 .vp-doc table tr:last-child td {
@@ -217,12 +246,12 @@ div[class*='language-'] > button.copy {
 }
 
 .VPSidebar {
-  background: #000000 !important;
-  border-right: 1px solid #1a1a1a !important;
+  background: var(--vp-sidebar-bg-color) !important;
+  border-right: 1px solid var(--vp-c-divider) !important;
 }
 
 .VPSidebarItem .item .link {
-  color: #a3a3a3 !important;
+  color: var(--vp-c-text-2) !important;
 }
 
 .VPSidebarItem .item .link:hover {
@@ -256,13 +285,13 @@ div[class*='language-'] > button.copy {
 .VPHome {
   padding-bottom: 0 !important;
   padding-top: 0 !important;
-  background: #000000 !important;
+  background: var(--vp-c-bg) !important;
 }
 
 .VPPage,
 .VPContent,
 .VPLayout {
-  background: #000000 !important;
+  background: var(--vp-c-bg) !important;
   padding-bottom: 0 !important;
 }
 
@@ -274,4 +303,109 @@ div[class*='language-'] > button.copy {
 /* Hide VitePress default footer — custom footer in Home.vue */
 .VPFooter {
   display: none !important;
+}
+
+/* ─── Custom home light theme ────────────────────────────────── */
+html:not(.dark) .home {
+  background: #f8fafc;
+  color: #152238;
+}
+
+html:not(.dark) .hero,
+html:not(.dark) .section-dark {
+  background: #f8fafc;
+}
+
+html:not(.dark) .hero-eyebrow,
+html:not(.dark) .hero-sub {
+  color: #526179;
+}
+
+html:not(.dark) .headline-white,
+html:not(.dark) .section-h2,
+html:not(.dark) .footer-logo {
+  color: #152238;
+}
+
+html:not(.dark) .btn-ghost {
+  border-color: #cbd5e1;
+  color: #152238;
+  background: #ffffff;
+}
+
+html:not(.dark) .stats-bar {
+  background: #eef3f8;
+  border-color: #dbe3ec;
+}
+
+html:not(.dark) .stat-label {
+  color: #64748b;
+}
+
+html:not(.dark) .stat-divider {
+  background: #cbd5e1;
+}
+
+html:not(.dark) .section-core {
+  background: #eef4fa;
+  border-color: #dbe3ec;
+}
+
+html:not(.dark) .section-use-cases,
+html:not(.dark) .section-roadmap {
+  border-color: #dbe3ec;
+}
+
+html:not(.dark) .caps-grid {
+  scrollbar-color: #f97316 #dbe3ec;
+}
+
+html:not(.dark) .caps-grid::-webkit-scrollbar-track {
+  background: #dbe3ec;
+  border-color: #cbd5e1;
+}
+
+html:not(.dark) .caps-grid::-webkit-scrollbar-thumb {
+  border-color: #dbe3ec;
+}
+
+html:not(.dark) .cap-card,
+html:not(.dark) .case-card,
+html:not(.dark) .roadmap-card {
+  background: #ffffff;
+  border-color: #dbe3ec;
+  box-shadow: 0 10px 30px rgba(15, 35, 65, 0.05);
+}
+
+html:not(.dark) .cap-card:hover,
+html:not(.dark) .case-card:hover,
+html:not(.dark) .roadmap-card--active {
+  background: #f7faff;
+}
+
+html:not(.dark) .cap-title,
+html:not(.dark) .case-title,
+html:not(.dark) .roadmap-title {
+  color: #152238;
+}
+
+html:not(.dark) .cap-desc,
+html:not(.dark) .case-desc,
+html:not(.dark) .roadmap-item {
+  color: #526179;
+}
+
+html:not(.dark) .case-num,
+html:not(.dark) .roadmap-status {
+  color: #64748b;
+}
+
+html:not(.dark) .footer {
+  background: #ffffff;
+  border-color: #dbe3ec;
+}
+
+html:not(.dark) .footer-tagline,
+html:not(.dark) .footer-link {
+  color: #64748b;
 }

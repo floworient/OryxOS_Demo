@@ -235,7 +235,7 @@ const flowColumns = computed(() => [
         </p>
 
         <div class="hero-ctas">
-          <a class="btn-primary" :href="t('/zh/docs/what', '/docs/what')">
+          <a class="btn-primary" :href="withBase(t('/zh/docs/what', '/docs/what'))">
             {{ t('快速开始', 'Get Started') }}
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h10M8 3l4 4-4 4"/></svg>
           </a>
@@ -406,7 +406,7 @@ const flowColumns = computed(() => [
             <h2 class="cta-h2">{{ t('从一个 Agent 到一群 Agent 的运行底座。', 'From one agent to a fleet.') }}</h2>
             <p class="cta-sub">{{ t('初始化工作区、配置 LLM Provider、开始对话。5 分钟搭起你的第一个 Agent，随时扩展到一群。', 'Initialize the workspace, configure an LLM provider, and start chatting. Your first agent in under 5 minutes — scale to a fleet whenever you\'re ready.') }}</p>
             <div class="cta-btns">
-              <a class="btn-dark" :href="t('/zh/docs/what', '/docs/what')">{{ t('查看文档', 'Read the Docs') }}</a>
+              <a class="btn-dark" :href="withBase(t('/zh/docs/what', '/docs/what'))">{{ t('查看文档', 'Read the Docs') }}</a>
               <a class="btn-dark-ghost" href="https://github.com/winter8848123/OryxOS_Demo" target="_blank" rel="noopener">GitHub</a>
             </div>
           </div>
@@ -438,11 +438,14 @@ const flowColumns = computed(() => [
     <footer class="footer">
       <div class="footer-inner">
         <div class="footer-brand">
-          <span class="footer-logo">Oryx<strong>OS</strong></span>
+          <div class="footer-logo-wrap">
+            <img :src="withBase('/logo.svg')" alt="OryxOS" class="footer-logo-mark">
+            <span class="footer-logo">Oryx<strong>OS</strong></span>
+          </div>
           <span class="footer-tagline">{{ t('分布式 Agent Harness OS · 私有部署', 'Distributed Agent Harness OS · Self-hosted') }}</span>
         </div>
         <div class="footer-links">
-          <a :href="t('/zh/docs/what', '/docs/what')" class="footer-link">{{ t('文档', 'Docs') }}</a>
+          <a :href="withBase(t('/zh/docs/what', '/docs/what'))" class="footer-link">{{ t('文档', 'Docs') }}</a>
           <a href="https://github.com/winter8848123/OryxOS_Demo" target="_blank" rel="noopener" class="footer-link">GitHub</a>
         </div>
       </div>
@@ -1025,6 +1028,16 @@ a { text-decoration: none; }
   justify-content: space-between;
 }
 .footer-brand { display: flex; flex-direction: column; gap: 4px; }
+.footer-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.footer-logo-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
 .footer-logo {
   font-size: 18px;
   font-weight: 400;
@@ -1209,4 +1222,5 @@ a { text-decoration: none; }
 @media (max-width: 900px) {
   .roadmap-grid { grid-template-columns: 1fr; }
 }
+
 </style>

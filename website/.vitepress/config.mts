@@ -4,9 +4,9 @@ export default defineConfig({
   title: 'OryxOS',
   titleTemplate: ':title — OryxOS',
   description: 'The self-hosted Agent OS for the enterprise — describe a task in plain language, a team of agents delivers the result',
-  base: '/',
+  base: process.env.ORYXOS_SITE_BASE ?? '/',
   cleanUrls: true,
-  appearance: 'force-light',
+  appearance: true,
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
@@ -144,7 +144,7 @@ export default defineConfig({
   },
 
   themeConfig: {
-    siteTitle: false,
+    siteTitle: 'OryxOS',
     logo: '/logo.svg',
     socialLinks: [
       { icon: 'github', link: 'https://github.com/winter8848123/OryxOS_Demo' },
