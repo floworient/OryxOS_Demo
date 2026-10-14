@@ -26,7 +26,7 @@
 import { computed } from 'vue'
 import { useData, useRoute, withBase } from 'vitepress'
 
-const { isDark, lang } = useData()
+const { isDark, lang, site } = useData()
 const route = useRoute()
 
 const isChinese = computed(() => lang.value.toLowerCase().startsWith('zh'))
@@ -40,7 +40,11 @@ const themeTitle = computed(() =>
 )
 
 const languageLink = computed(() => {
-  const currentPath = route.path || '/'
+  const base = site.value.base.replace(/\/$/, '')
+  const routePath = route.path || '/'
+  const currentPath = base && routePath.startsWith(`${base}/`)
+    ? routePath.slice(base.length)
+    : routePath
 
   if (isChinese.value) {
     const englishPath = currentPath.replace(/^\/zh(?=\/|$)/, '') || '/'
