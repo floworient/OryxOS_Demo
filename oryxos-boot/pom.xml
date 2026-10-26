@@ -19,12 +19,17 @@
         <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-web</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-cli</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
+        <dependency><groupId>io.micrometer</groupId><artifactId>micrometer-registry-prometheus</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit-junit5</artifactId><scope>test</scope></dependency>
     </dependencies>
     <build>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration><classifier>exec</classifier></configuration>
                 <executions><execution><goals><goal>repackage</goal></goals></execution></executions>
             </plugin>
         </plugins>

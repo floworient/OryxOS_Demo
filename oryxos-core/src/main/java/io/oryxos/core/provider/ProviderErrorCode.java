@@ -1,0 +1,16 @@
+package io.oryxos.core.provider;
+
+public enum ProviderErrorCode {
+    UNKNOWN_PROVIDER,
+    DUPLICATE_PROVIDER,
+    INVALID_CONFIG,
+    MISSING_CREDENTIAL,
+    AUTH_FAILED,
+    RATE_LIMITED,
+    TIMEOUT,
+    NETWORK_ERROR,
+    EMPTY_RESPONSE,
+    INVALID_TOOL_SCHEMA,
+    AUDIT_PERSISTENCE_FAILED,
+    INTERNAL
+}
