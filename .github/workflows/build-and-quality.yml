@@ -42,7 +42,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: 扫描密钥
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
 
   dependency-scan:
     if: github.event_name == 'pull_request'
