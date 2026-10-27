@@ -64,6 +64,22 @@ class AgentLoaderTest {
     }
 
     @Test
+    void bomPrefixedAgentMarkdownLoads() throws Exception {
+        Path agentDir = Files.createDirectories(workspace.resolve("agents/weather"));
+        Files.writeString(agentDir.resolve("AGENT.md"), ((char) 0xFEFF) + """
+                ---
+                name: weather
+                description: 说明
+                identity: {agent_name: 天气助手, prompt: 提供准确天气}
+                provider: {name: p, model: m}
+                ---
+                正文
+                """);
+
+        assertThat(new AgentLoader().loadAll(workspace)).hasSize(1);
+    }
+
+    @Test
     void rejectsSettingsOutsideIntegerRangeInsteadOfOverflowing() throws Exception {
         Path agentDir = Files.createDirectories(workspace.resolve("agents/overflow"));
         Files.writeString(agentDir.resolve("AGENT.md"), """

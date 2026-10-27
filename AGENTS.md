@@ -69,11 +69,12 @@ CLI、HTTP、IM 和定时触发最终复用 `AgentService` 处理链路；接入
 - 一个 `.oryxos/agents/<name>/` 目录定义一个业务 Agent，至少包含 `AGENT.md`。
 - `AGENT.md` 的 YAML frontmatter 派生 `Profile`，Markdown 正文作为任务指令注入 system prompt。
 - Agent 目录是运行定义和上下文来源，不是可执行 Tool；OryxOS 不把自然语言正文解析为固定工作流。
-- 公共 Skill 实体位于 `.oryxos/skills/<name>/`。Agent 通过自身 `skills/<name>` 中受控的相对软连接选择可见 Skill。
-- 软连接集合是 Skill 绑定的唯一真相源，不再使用 frontmatter `skills:` 维护另一份绑定。
-- 每轮只注入已绑定 Skill 的名称、描述和本地路径；完整 `SKILL.md`、参考资料与脚本不预载，正文由 `read_file` 按需读取。
+- 公共 Skill 实体位于 `.oryxos/skills/<name>/`。Agent 通过自身 `skills/<binding>.link` 相对引用文件选择可见 Skill。
+- `.link` 引用文件集合是 Skill 绑定的唯一真相源，不再使用 frontmatter `skills:` 维护另一份绑定。
+- 旧原生软连接明确提示迁移，不隐式兼容或自动修改。后续文件工具必须复用 `.link` 绑定解析结果限制可见性，不得仅凭公共根边界放行未绑定 Skill。
+- 每轮只注入已绑定 Skill 的名称、描述和已校验的公共 `SKILL.md` 真实读取路径；完整 `SKILL.md`、参考资料与脚本不预载，正文由 `read_file` 按需读取。
 - Bootstrap 与 Agent 正文按方案全量加载；`ContextLoader` 每次读取，不自行增加缓存。修改正文应在后续上下文构建时生效。
-- 校验真实路径和软连接目标的访问边界；兼容 Windows 环境时不能通过复制目录或放宽路径校验偷偷改变绑定语义。
+- `.link` 是普通 UTF-8 文件，只包含一条相对于其父目录的 Skill 目录路径，由运行时解析，不需要管理员权限或系统设置。目标真实路径必须在本工作区公共 `skills/` 根内；拒绝绝对/盘符/UNC 路径、断引用和现存操作系统链接逃逸，不复制目录，不放宽边界。
 - 删除被引用的公共 Skill 默认拒绝，并返回引用它的 Agent。
 - `.oryxos/agents/` 是 Agent 定义的唯一真相源。实现生命周期 API 和监听器时复用同一套校验、派生、注册和注销逻辑。
 - Agent 删除按技术方案归档整个目录；生成 API 返回可预览草稿，不直接落盘注册。

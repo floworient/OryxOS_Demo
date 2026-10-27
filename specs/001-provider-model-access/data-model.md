@@ -1,5 +1,7 @@
 # Phase 1 Data Model: 核心契约与 Provider 接入
 
+> 2026-10-27 绑定契约修订：用户批准以 Agent `skills/<binding>.link` 普通相对引用文件替代原生软连接。本文较早的软连接表述保留为历史记录，当前以宪章2.0.0及项目内部Skill引用设计为准；Skill仍不进入Profile字段。
+
 **Date**: 2026-10-22 | **Plan**: [plan.md](./plan.md) | **Spec**: [spec.md](./spec.md)
 
 本 feature 只有一个持久化实体（`llm_calls`），另有 Provider、完整 Profile、OryxTool/Tool Schema 等内存态模型。配置契约见 [contracts/provider-config.md](./contracts/provider-config.md)。

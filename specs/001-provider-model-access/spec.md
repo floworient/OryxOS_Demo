@@ -1,5 +1,7 @@
 # Feature Specification: 核心契约与 Provider 接入
 
+> 2026-10-27 绑定契约修订：用户批准以 Agent `skills/<binding>.link` 普通相对引用文件替代原生软连接。本文较早的软连接表述保留为历史记录，当前以宪章2.0.0及项目内部Skill引用设计为准；Skill仍不进入Profile字段。
+
 **Feature Branch**: `001-provider-model-access`
 
 **Created**: 2026-10-21

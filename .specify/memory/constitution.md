@@ -1,9 +1,10 @@
 <!--
 Sync Impact Report
-- Version change: 无版本（模板） → 1.0.0
-- Modified principles: 无（首次制定，共 6 条原则）
-- Added sections: Core Principles（I–VI）、技术基线与约束、开发工作流与质量门禁、Governance
+- Version change: 1.0.0 → 2.0.0
+- Modified principles: II 工具调用统一受控（Skill绑定由原生软连接改为项目.link相对引用）
+- Added sections: 修订记录
 - Removed sections: 无
+- Authorization: 用户于2026-10-27明确确认项目内部Skill引用设计及宪章同步修订
 - Deferred TODOs: 无
 -->
 
@@ -27,7 +28,7 @@ Spring AI 的自动工具执行 MUST 保持关闭，实际工具调用统一交�
 
 所有 Tool 调用，无论来自内置工具、Plugin Skill + MCP、自定义 MCP Server 还是 Java `@Tool`，MUST 经过统一的注册、可见性校验、执行编排和审计，不得建立绕过 `ToolExecutor` 的执行通道。
 
-工具可见性 MUST 由 Agent 目录下 `skills/` 的受控相对软连接唯一决定；`AGENT.md` frontmatter 不得再维护第二份绑定清单。每轮只注入已绑定 Skill 的名称、描述和本地路径，正文与附属资源由 `read_file` 按需读取。
+Skill 可见性 MUST 由 Agent 目录下 `skills/<binding>.link` 普通 UTF-8 相对引用文件集合唯一决定；每个文件仅含一条相对于其父目录的目标 Skill 目录路径，目标真实路径 MUST 位于当前工作区公共 `skills/` 根内。`AGENT.md` frontmatter 不得维护第二份绑定清单。函数工具仍按 Profile.tools 控制可见性。每轮只注入已绑定 Skill 的名称、描述和已校验的公共 SKILL.md 可读取路径，正文与附属资源由 `read_file` 按需读取。绑定解析 MUST NOT 依赖管理员权限、修改系统设置或复制公共 Skill；原生链接给出迁移提示，不隐式回退。
 
 被引用的公共 Skill MUST NOT 被直接删除；删除请求返回引用它的 Agent 列表。
 
@@ -100,4 +101,9 @@ Session 历史、`tool_invocations` 和 `llm_calls` MUST 在核心阶段即持�
 - 版本策略：MAJOR 为治理原则删除或不兼容重定义；MINOR 为新增原则或实质性扩展；PATCH 为澄清、措辞修正等非语义调整。
 - 宪章条款的例外 MUST 在对应 spec 或 plan 中显式记录，不得静默绕过。
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-21
+## 修订记录
+
+- 1.0.0（2026-10-21）：首次制定六项原则，原 Skill 绑定使用受控相对软连接。
+- 2.0.0（2026-10-27）：经用户明确批准，改用统一跨平台的 .link 项目引用。此为绑定表示的不兼容变更，故提升 MAJOR；公共实体单一来源、唯一绑定源、渐进加载和真实路径边界均保留，其他原则不变。
+
+**Version**: 2.0.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-27

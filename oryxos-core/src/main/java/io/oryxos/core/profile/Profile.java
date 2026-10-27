@@ -42,5 +42,10 @@ public record Profile(
     }
 
     public record Settings(int maxIterations, int maxHistoryTurns) {
+        public Settings {
+            if (maxIterations <= 0 || maxHistoryTurns <= 0) {
+                throw new IllegalArgumentException("settings 必须为正整数");
+            }
+        }
     }
 }

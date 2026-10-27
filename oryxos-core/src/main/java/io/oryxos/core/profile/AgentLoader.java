@@ -92,6 +92,9 @@ public final class AgentLoader {
 
     private static Map<String, Object> parseFrontmatter(Path source) throws IOException {
         String content = Files.readString(source);
+        if (!content.isEmpty() && content.charAt(0) == 0xFEFF) {
+            content = content.substring(1);
+        }
         String[] lines = content.split("\\R", -1);
         require(lines.length >= 3 && "---".equals(lines[0].trim()), "frontmatter", "缺少起始边界");
         int end = -1;

@@ -1,4 +1,4 @@
-# Specification Quality Checklist: ReAct 循环与 CLI 链路
+# Specification Quality Checklist: 第 17 节 ReAct 运行内核
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-10-21
@@ -31,7 +31,8 @@
 
 ## Notes
 
-- 会话本阶段为进程内保存，跨重启恢复明确列入后续持久化能力，避免与 US-5 范围重叠。
-- Agent 管理命令（profile create/list/show/delete）不在本 feature 范围，已在 Assumptions 说明。
-- 工具重试只覆盖明确可重试的失败；安全拒绝与参数错误不重试，避免把拦截当作瞬时故障反复尝试。
-- 未使用 [NEEDS CLARIFICATION]：默认 Agent 选择、历史截断单位、重试上限均有文档依据或合理默认。
+- 2026-10-26 speckit-specify 按本节课件重做范围检查，16/16 通过；speckit-clarify 复核 16/16，无回退。
+- 用户已确认 Flyway、Skill 元数据预载，并于2026-10-27进一步批准 .link 项目引用替代原生软连接；实现细节归 plan/contracts，规范需求聚焦行为。
+- Session 本节提供保存和恢复，避免旧草案的内存态假设与现行宪章冲突。
+- 默认 10 次模型调用、最近 20 个完整用户轮次；重试仅明确可重试失败，最多额外三次。
+- CLI、初始化、HTTP 工具和真实天气 Demo 留后续；不将桩测试冒充真实验证。

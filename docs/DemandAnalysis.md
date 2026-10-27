@@ -141,8 +141,8 @@ API 覆盖六类操作：
 
 | 术语 | 定义 |
 |------|------|
-| **Agent（智能体）** | 一个具象的业务智能体，定义本体是一个目录 `.oryxos/agents/<name>/`：`AGENT.md`（frontmatter 是运行配置、正文是任务指令）加可选 `skills/` 公共 Skill 软连接、`scripts/` 脚本、`REFERENCE.md` 参考。一个目录就是一个完整可用的业务 Agent，不是写代码写出来的 |
-| **Profile（配置）** | 底座内部的运行时宿主配置对象，决定一个 Agent"怎么跑"：绑定的 LLM Provider、可用 Tool 列表、Channel、Tool Policy 和定时规则。它不再是一份单独手写的 YAML——`AgentLoader.deriveProfile()` 把 `AGENT.md` 的 frontmatter 派生成 `Profile`；Skill 绑定由 Agent 本地 `skills/` 软连接集合独立表达 |
+| **Agent（智能体）** | 一个具象的业务智能体，定义本体是一个目录 `.oryxos/agents/<name>/`：`AGENT.md`（frontmatter 是运行配置、正文是任务指令）加可选 `skills/` 公共 Skill `.link` 引用、`scripts/` 脚本、`REFERENCE.md` 参考。一个目录就是一个完整可用的业务 Agent，不是写代码写出来的 |
+| **Profile（配置）** | 底座内部的运行时宿主配置对象，决定一个 Agent"怎么跑"：绑定的 LLM Provider、可用 Tool 列表、Channel、Tool Policy 和定时规则。它不再是一份单独手写的 YAML——`AgentLoader.deriveProfile()` 把 `AGENT.md` 的 frontmatter 派生成 `Profile`；Skill 绑定由 Agent 本地 `skills/` 下的 `.link` 引用文件集合独立表达 |
 | **Provider（供应商）** | LLM API 服务的抽象，实现统一接口让 Agent 不感知具体调的是哪家模型 |
 | **ReAct 循环** | Agent 的核心工作机制，Reason + Act。LLM 思考是否调用工具，调用后看结果，再决定下一步，直到给出最终响应 |
 | **Tool（工具）** | Agent 可以调用的外部能力。内置 Tool 是 OryxOS 自带的（文件、Shell、HTTP、通知推送）；Plugin Tool 是业务方自己写的 |
@@ -152,7 +152,7 @@ API 覆盖六类操作：
 | **Session（会话）** | 用户和 Agent 一次对话的上下文容器，包含对话历史、当前上下文、临时变量 |
 | **Sandbox（沙箱）** | 工具执行的隔离环境。核心阶段是应用层白名单校验，扩展阶段补容器级隔离 |
 | **Tool Policy（工具策略）** | 控制 Agent 可用工具的允许或拒绝规则，在 Profile 级别配置 |
-| **Skill（技能）** | 公共实体存 `.oryxos/skills/<name>/`，Agent 通过自身 `skills/<name>` 相对软连接选择可见集合。`ContextLoader` 每轮只注入已绑定 Skill 的 name、description 和本地读取路径；正文与附属资源经 `read_file`/`shell` 按需进入上下文。Skill 不是 Tool，不进 `ToolRegistry` |
+| **Skill（技能）** | 公共实体存 `.oryxos/skills/<name>/`，Agent 通过自身 `skills/<binding>.link` 相对引用文件选择可见集合。`ContextLoader` 每轮只注入已绑定 Skill 的 name、description 和公共 SKILL.md 真实读取路径；正文与附属资源经 `read_file`/`shell` 按需进入上下文。Skill 不是 Tool，不进 `ToolRegistry` |
 | **Bootstrap（引导文件）** | 加载到系统提示词中的上下文文件：AGENTS.md（项目级 agent 行为说明）、SOUL.md（agent 人格定义）、USER.md（用户偏好） |
 | **Workspace（工作区）** | OryxOS 实例的工作目录，默认是 `.oryxos/`，包含 Agent 目录、全局 Skill 库、Bootstrap 文件、记忆、会话、产出物、日志的子目录 |
 
@@ -211,7 +211,7 @@ oryxos init   # 在当前目录下创建 .oryxos/ 工作区
 
 ```
 .oryxos/
-├── agents/            # 每个子目录 = 一个 Agent（AGENT.md + skills/软连接 + scripts/ REFERENCE.md）
+├── agents/            # 每个子目录 = 一个 Agent（AGENT.md + skills/*.link + scripts/ REFERENCE.md）
 ├── skills/            # 公共 Skill 实体库（每个子目录一个 SKILL.md + 可选附属资源）
 ├── output/            # Agent 产出物
 ├── memory/
@@ -230,7 +230,7 @@ oryxos init   # 在当前目录下创建 .oryxos/ 工作区
 
 ### 5.2 定义一个 Agent：AGENT.md
 
-一个目录 = 一个 Agent。`.oryxos/agents/<name>/AGENT.md` 由两部分组成：**frontmatter** 是这个 Agent 自己的 profile（用哪个 Provider/模型、能用哪些 Tool、绑定哪个 Channel、要不要定时），**正文**是任务指令。`AgentLoader.deriveProfile()` 把 frontmatter 派生成底座认识的 `Profile`。Agent 的 Skill 绑定不写进 frontmatter，而由同目录 `skills/` 下的相对软连接表达。
+一个目录 = 一个 Agent。`.oryxos/agents/<name>/AGENT.md` 由两部分组成：**frontmatter** 是这个 Agent 自己的 profile（用哪个 Provider/模型、能用哪些 Tool、绑定哪个 Channel、要不要定时），**正文**是任务指令。`AgentLoader.deriveProfile()` 把 frontmatter 派生成底座认识的 `Profile`。Agent 的 Skill 绑定不写进 frontmatter，而由同目录 `skills/` 下的相对 `.link` 引用文件表达。
 
 **AGENT.md frontmatter 结构：**
 
@@ -513,7 +513,7 @@ OryxOS 作为开源项目，需要一个独立的主页作为对外门面，讲�
 - **Memory 语义检索**：集成向量数据库（Milvus、Qdrant、Weaviate、PostgreSQL pgvector），按语义相似度匹配
 - **情景记忆**：补齐 Memory 第三层，记录任务过程中修改的文件、决策、成果
 - **Memory Wiki**：结构化 claim/evidence、矛盾检测、新鲜度管理
-- **Skill 库增强**：公共 Skill 实体 + Agent 本地软连接绑定 + 元数据发现/正文按需加载在核心阶段落地；扩展阶段补语义推荐、版本管理和企业审查流程
+- **Skill 库增强**：公共 Skill 实体 + Agent 本地 `.link` 引用绑定 + 元数据发现/正文按需加载在核心阶段落地；扩展阶段补语义推荐、版本管理和企业审查流程
 
 ### 6.3 工具和安全层
 

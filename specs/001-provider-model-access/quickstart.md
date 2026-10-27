@@ -1,5 +1,7 @@
 # Quickstart: 验证核心契约与 Provider 接入
 
+> 2026-10-27 绑定契约修订：用户批准以 Agent `skills/<binding>.link` 普通相对引用文件替代原生软连接。本文较早的软连接表述保留为历史记录，当前以宪章2.0.0及项目内部Skill引用设计为准；Skill仍不进入Profile字段。
+
 **Date**: 2026-10-22 | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
 
 本 feature 没有面向最终用户的命令入口。验证分两条路径：**无密钥路径**（默认，CI 可跑）和**真实调用路径**（需要 DashScope 凭据与网络）。

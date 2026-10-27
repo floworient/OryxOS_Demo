@@ -2,7 +2,7 @@
 
 > 文档状态：项目定义基线  
 > 项目版本：`0.1.0-SNAPSHOT`  
-> 更新日期：2026-10-14
+> 更新日期：2026-10-27
 
 ## 1. 文档目的
 
@@ -89,7 +89,7 @@ Profile 是 Agent 的运行时配置对象，包含 Provider、模型、可见 T
 
 ### 6.3 Skill
 
-公共 Skill 位于 `.oryxos/skills/<name>/`。Agent 通过自身 `skills/<name>` 下受控的相对软连接选择可见 Skill，软连接集合是绑定关系的唯一真相源。
+公共 Skill 位于 `.oryxos/skills/<name>/`。`.link` 是普通 UTF-8 单行相对路径文件，由 OryxOS 解析，不依赖操作系统软连接权限。Agent 通过自身 `skills/<binding>.link` 相对引用文件选择可见 Skill，`.link` 引用文件集合是绑定关系的唯一真相源。
 
 每轮只向模型注入已绑定 Skill 的名称、描述和本地路径；完整 `SKILL.md`、参考资料与脚本由 Agent 通过 `read_file` 按需读取。
 

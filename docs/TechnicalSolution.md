@@ -293,7 +293,7 @@ OryxOS 内部统一的 Tool 抽象接口。内置 Tool、`@Tool` 注解的 Plugi
 
 OryxOS **主推**的接入方式。业务方不写代码，只写一个 Agent 目录描述要做的事，LLM 自己理解任务、自己组合调用 MCP 工具。
 
-定义一个 Agent = 写一个目录 `.oryxos/agents/<name>/`：`AGENT.md` = frontmatter（运行配置）加任务说明正文，外加可选的 `skills/` 公共 Skill 软连接、`scripts/*.py`、`REFERENCE.md`。一个目录就是一个自足的 Agent。
+定义一个 Agent = 写一个目录 `.oryxos/agents/<name>/`：`AGENT.md` = frontmatter（运行配置）加任务说明正文，外加可选的 `skills/` 公共 Skill `.link` 引用、`scripts/*.py`、`REFERENCE.md`。一个目录就是一个自足的 Agent。
 
 加载走三层渐进式披露：`AGENT.md` 正文常驻；当前 Agent 绑定 Skill 的 name/description/本地路径每轮注入；Skill 正文、参考与脚本经底座 `read_file`/`shell` 按需读取或运行。OryxOS 不解析任务步骤、不做工作流引擎。
 
@@ -476,7 +476,7 @@ Web Service 是 OryxOS 的对外完整门面，业务系统通过 REST API 接�
 
 ```
 .oryxos/
-├── agents/            # 每个子目录 = 一个 Agent（AGENT.md + skills/软连接 + scripts/ REFERENCE.md）
+├── agents/            # 每个子目录 = 一个 Agent（AGENT.md + skills/*.link + scripts/ REFERENCE.md）
 ├── skills/            # 公共 Skill 实体库（SKILL.md + 可选附属资源）
 ├── memory/
 │   └── MEMORY.md      # 长期记忆
@@ -501,7 +501,7 @@ Web Service 是 OryxOS 的对外完整门面，业务系统通过 REST API 接�
 
 > **调整说明：** Bootstrap 与 `AGENT.md` 正文全量注入；Agent `skills/` 绑定的公共 Skill 每轮只注入 name/description/本地路径，正文与附属资源不预载，经 `read_file`/`shell` 按需取。
 
-**`ContextLoader` 模块。** 按 Profile 的 `bootstrap` 字段读取 Bootstrap，同时现读 Agent 自己 `AGENT.md` 正文；每次组装 prompt 时重新扫描 Agent `skills/` 的相对软连接，验证真实目标位于公共 Skill 根，只注入 Skill frontmatter 的 name/description 与 Agent 本地绝对读取路径。Skill 正文、脚本和参考不在这里预载，由模型经 `read_file`/`shell` 现取。全部无缓存，修改或重新绑定后下一轮立即生效。
+**`ContextLoader` 模块。** 按 Profile 的 `bootstrap` 字段读取 Bootstrap，同时现读 Agent 自己 `AGENT.md` 正文；每次组装 prompt 时重新扫描 Agent `skills/<binding>.link` 普通 UTF-8 引用文件。每个文件只含一条相对于其父目录的 Skill 目录路径，例如 `../../../skills/news`；不创建系统链接，不依赖管理员权限。先验证公共根词法边界，再验证目标目录和 `SKILL.md` 的真实路径边界。只注入 Skill frontmatter 的 name/description 与公共 `SKILL.md` 的真实可读取路径，不输出不存在的 Agent 本地目录别名。Skill 正文、脚本和参考不预载，由模型经 `read_file`/`shell` 现取；文件工具必须复用相同绑定解析结果限制资源可见性。引用、元数据和正文全部无缓存，修改或重新绑定后下一轮生效。旧原生链接明确提示迁移，不自动修改业务文件。
 
 ### 8.4 Channel 接入
 
@@ -694,11 +694,11 @@ mvn clean package
 **底座 / Agent 两层，分清楚。** 这是这一章最关键的一条：
 
 - **底座 = 系统基础能力**：Provider、ReAct、内置 Tool（`read_file`/`shell`/`http_get`/`notify`/`save_memory`…）、Memory、Sandbox、定时、Web（第 1~10 章）。所有 Agent 共享。
-- **Agent = 一个目录** `.oryxos/agents/<name>/`：`AGENT.md`（frontmatter = profile；正文 = 任务指令）+ 可选 `skills/` 公共 Skill 软连接、`scripts/`、`REFERENCE.md`。Agent 目录决定全部运行配置和可见资源。
+- **Agent = 一个目录** `.oryxos/agents/<name>/`：`AGENT.md`（frontmatter = profile；正文 = 任务指令）+ 可选 `skills/` 公共 Skill `.link` 引用、`scripts/`、`REFERENCE.md`。Agent 目录决定全部运行配置和可见资源。
 
 **借 Anthropic Agent Skills 的形态、但定义的是 Agent。** Anthropic 把这种目录叫一个 Skill（Claude 这个大 Agent 的一项可加载能力）；我们借的是目录的**形态**，不是命名——在 OryxOS，**一个目录 = 一个 Agent**。每个 Agent 独立自足，只调用底座的系统基础能力。
 
-> **宪章 v2.0.0 修订：公共实体与 Agent 绑定分离。** Skill 内容存 `.oryxos/skills/<name>/`；Agent 通过自身 `skills/<name>` 下的受控相对软连接选择可见集合。软连接集合是唯一绑定真相源，不再使用 frontmatter `skills:`。公共 CRUD 保留，但删除被引用 Skill 默认拒绝并返回引用 Agent。
+> **宪章 v2.0.0 修订：公共实体与 Agent 绑定分离。** Skill 内容存 `.oryxos/skills/<name>/`；Agent 通过自身 `skills/<binding>.link` 相对引用文件选择可见集合。`.link` 引用文件集合是唯一绑定真相源，不再使用 frontmatter `skills:`。公共 CRUD 保留，但删除被引用 Skill 默认拒绝并返回引用 Agent。
 
 **派生 Profile**：底座（第 1~10 章的一切）都吃 `Profile`，所以 `AgentLoader.deriveProfile(agentDir)` 把 `AGENT.md` 的 frontmatter 映射成一个 `Profile`，让 Agent 目录**零改动复用整台底座**。
 
@@ -710,7 +710,7 @@ mvn clean package
 
 核心阶段走文件系统，一步到位：
 
-1. 在 `.oryxos/agents/<name>/` 放一个目录：至少一份 `AGENT.md`；需要 Skill 就在 `skills/` 创建指向公共实体的相对软连接，需要脚本则放 `scripts/`。
+1. 在 `.oryxos/agents/<name>/` 放一个目录：至少一份 `AGENT.md`；需要 Skill 就在 `skills/` 创建指向公共实体的相对 `.link` 引用文件，需要脚本则放 `scripts/`。
 2. 启动时 `AgentLoader` 扫 `.oryxos/agents/`，对每个目录 `deriveProfile` → `ProfileRegistry.register`；有 `schedules` 的交 `AgentScheduler`。
 3. 运行时：正文与已绑定 Skill 元数据进 system prompt，Skill 正文/参考/脚本按需经 `read_file`/`shell` 取用；`ContextLoader` 每次现扫、不缓存。
 
@@ -747,7 +747,7 @@ mvn clean package
 
 ## 12. 关键流程
 
-早期按"一个 Demo 验证一个能力"拆过五个流程，现改成三个每日自动运行的端到端流程：天气 = 光杆 `AGENT.md`、科技日报 = `AGENT.md` + 公共 Skill 软连接、GitHub 日报 = `AGENT.md` + `scripts/`。
+早期按"一个 Demo 验证一个能力"拆过五个流程，现改成三个每日自动运行的端到端流程：天气 = 光杆 `AGENT.md`、科技日报 = `AGENT.md` + 公共 Skill `.link` 引用、GitHub 日报 = `AGENT.md` + `scripts/`。
 
 ### 12.1 Demo 一：每日天气（光杆 AGENT.md）
 
@@ -769,14 +769,14 @@ mvn clean package
 
 **场景：** 每天早上 9 点，Agent 自动汇总当日科技新闻并推送，日报内容会体现用户之前提过的关注方向。业务方全程不写 Java 代码。
 
-1. 业务方创建 `.oryxos/agents/daily-tech-digest/AGENT.md`，并把 `skills/digest-format` 绑定为指向 `.oryxos/skills/digest-format/` 的相对软连接；需要新闻聚合 MCP 就在 `mcp_servers.yaml` 配一条
+1. 业务方创建 `.oryxos/agents/daily-tech-digest/AGENT.md`，并把 `skills/digest-format.link` 的内容设置为相对于该文件父目录的路径，目标为 `.oryxos/skills/digest-format/`（内容为 `../../../skills/digest-format`）；需要新闻聚合 MCP 就在 `mcp_servers.yaml` 配一条
 2. 用户此前说过"更关注 AI 和芯片方向"，DeepSeek 调 `save_memory` 写入 `MEMORY.md` 归档区
-3. 到点后 system prompt 注入 `AGENT.md` 正文、记忆，以及 digest-format 的 name/description/本地绝对路径；组稿规范正文不预载
-4. LLM 根据描述命中该 Skill，调用 `read_file("<agent绝对路径>/skills/digest-format/SKILL.md")`，正文此时才作为工具结果进入上下文
+3. 到点后 system prompt 注入 `AGENT.md` 正文、记忆，以及 digest-format 的 name/description/公共 SKILL.md 真实读取路径；组稿规范正文不预载
+4. LLM 根据描述命中该 Skill，调用 `read_file("<workspace绝对路径>/skills/digest-format/SKILL.md")`，正文此时才作为工具结果进入上下文
 5. LLM 按规范调新闻工具（`http_get` 或新闻 MCP，`McpToolAdapter` 转发）拉当日科技新闻；因为看到记忆里的偏好，组稿时自然侧重 AI 和芯片方向——OryxOS 不解析任务步骤
 6. LLM 调内置 `notify(content="...")` 推送，`ToolExecutor` 写 `tool_invocations`
 
-**验收要点：** prompt 只有 Skill 元数据、没有正文；`tool_invocations` 有对 Agent 本地软连接路径的 `read_file`；未绑定 Skill 不可见；日报体现记忆偏好。
+**验收要点：** prompt 只有 Skill 元数据、没有正文；`tool_invocations` 有对 Agent 已绑定公共 SKILL.md 真实路径的 `read_file`；未绑定 Skill 不可见；日报体现记忆偏好。
 
 涉及 Agent 目录子指令（`read_file` 按需读）+ 能力四方式二（MCP）+ 内置 `NotifyTools` + 能力三（Memory）+ 定时任务。
 

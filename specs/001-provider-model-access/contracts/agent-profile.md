@@ -1,5 +1,7 @@
 # 契约：AGENT.md frontmatter → Profile
 
+> 2026-10-27 绑定契约修订：用户批准以 Agent `skills/<binding>.link` 普通相对引用文件替代原生软连接。本文较早的软连接表述保留为历史记录，当前以宪章2.0.0及项目内部Skill引用设计为准；Skill仍不进入Profile字段。
+
 **Type**: 工作区文件契约 | **Consumer**: `AgentLoader`
 
 第 16 节采用当前架构修订：`.oryxos/agents/<name>/AGENT.md` 是 Agent 配置与指令的唯一真相源，不创建 `.oryxos/profiles/*.yaml`。
