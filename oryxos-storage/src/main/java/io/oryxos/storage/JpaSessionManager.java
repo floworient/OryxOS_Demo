@@ -3,6 +3,7 @@ package io.oryxos.storage;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import io.oryxos.core.session.Session;
 import io.oryxos.core.session.SessionManager;
+import io.oryxos.core.session.SessionSummary;
 import io.oryxos.storage.entity.SessionEntity;
 import io.oryxos.storage.repository.SessionRepository;
 import java.util.ArrayList;
@@ -28,6 +29,13 @@ public class JpaSessionManager implements SessionManager {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Session getOrCreate(String channel, String userId, String profileName) {
+        Session candidate = new Session(channel, userId, profileName);
+        return find(candidate.id()).orElse(candidate);
+    }
+
+    @Override
     @Transactional
     public void save(Session session) {
         try {
@@ -50,6 +58,14 @@ public class JpaSessionManager implements SessionManager {
         catch (RuntimeException exception) {
             throw new IllegalStateException("会话恢复失败 sessionId=" + sessionId, exception);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SessionSummary> list() {
+        return repository.findAllByOrderByLastActiveAtDescIdAsc().stream()
+                .map(SessionEntity::summary)
+                .toList();
     }
 
     private static Map<String, Object> encode(Message message) {

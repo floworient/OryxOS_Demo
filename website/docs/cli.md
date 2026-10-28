@@ -1,337 +1,80 @@
 # CLI Reference
 
-The `oryxos` command provides sub-commands for workspace management, profile operations, interactive chat, and server control. All commands are implemented with Picocli and run on Java 21.
+OryxOS currently exposes 12 business commands. The only complete executable artifact is the Boot exec JAR:
 
 ```bash
-oryxos <command> [options]
+java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar --help
 ```
 
-**Global flags** (accepted by all commands):
+The examples below use `oryxos` as shorthand. Every command supports `-h/--help`; the root also supports `-V/--version`.
 
-| Flag | Description |
-|------|-------------|
-| `--help`, `-h` | Show usage for the command |
-| `--version`, `-V` | Print version plus JVM/OS info |
+## Workspace
 
----
+Every command resolves the workspace in this order: `-Doryxos.root=<path>` → `ORYXOS_ROOT` → `.oryxos/` under the current directory.
 
-## Workspace root
-
-By default OryxOS reads and writes the `.oryxos` workspace in the current directory. The root is configurable:
-
-| Mechanism | Applies to | Notes |
-|-----------|-----------|-------|
-| `ORYXOS_ROOT` (env var) | all commands | Light commands read it directly; `serve`/`gateway` pick it up through Spring relaxed binding |
-| `-Doryxos.root=<path>` (JVM system property) | all commands | Highest precedence for light commands |
-| `oryxos.root` in `application.yml` | `serve` / `gateway` only | Not read by the light commands (`init`/`status`/`profile`) — they never boot Spring, so use the env var or system property for them |
-
-Resolution order for the light commands is: `-Doryxos.root` → `ORYXOS_ROOT` → default `.oryxos`. The configured root is auto-added to the file sandbox whitelist at runtime, so relocating the workspace never breaks file tools.
-
-```bash
-# Point every command at a custom workspace
-ORYXOS_ROOT=/data/ws oryxos init
-ORYXOS_ROOT=/data/ws oryxos status
-```
-
----
-
-## Getting started
-
-### init
-
-Initialize the workspace (default `.oryxos/`) in the current directory. Creates the directory structure and the default bootstrap files. Safe to run multiple times — existing files are never overwritten. This is a light command: it does not boot Spring, and it honors `ORYXOS_ROOT` / `-Doryxos.root`.
+`init`, `status`, and the four `profile` commands are light commands: they do not start Spring and need no model credentials. `init` safely fills in `agents/`, `skills/`, `output/`, `memory/`, `sessions/`, `logs/`, the three bootstrap files, and `memory/MEMORY.md`. Existing content is never overwritten and Flyway remains responsible for the database.
 
 ```bash
 oryxos init
-# Or into a custom workspace root:
-ORYXOS_ROOT=/data/ws oryxos init
-```
-
-What gets created:
-
-```text
-.oryxos/
-├── agents/       # one sub-directory per agent (AGENT.md + optional skills/ scripts/ REFERENCE.md)
-├── memory/       # global long-term memory (per-agent MEMORY.md lives under agents/<name>/)
-├── sessions/     # reserved (session state lives in SQLite)
-├── logs/
-├── AGENTS.md     # bootstrap: project-level agent behavior
-├── SOUL.md       # bootstrap: agent persona
-└── USER.md       # bootstrap: user preferences (read-only)
-```
-
-The `oryxos.db` SQLite database is created on first run of a heavy command (`serve`/`gateway`/`chat`), not by `init`.
-
-### status
-
-Print the workspace and data-file state: whether the workspace is initialized, how many agents live under `agents/`, and whether the SQLite database exists. Like `init`, this is a light command — it does not boot Spring and honors `ORYXOS_ROOT` / `-Doryxos.root`.
-
-```bash
 oryxos status
 ```
 
-```text
-Workspace .oryxos/  : initialized
-Agent directory     : 3
-SQLite database     : oryxos.db present
-```
+## The 12 commands
 
----
+| Command | Behavior |
+| --- | --- |
+| `oryxos init` | Safely and idempotently initialize the workspace |
+| `oryxos status` | Report root, initialization, agent count, and database state |
+| `oryxos chat [--profile <name>]` | Multi-turn chat through `AgentService`; defaults to `default`; `/quit` or EOF exits |
+| `oryxos serve [--port <1..65535>]` | Start the existing HTTP service; default port 8080 |
+| `oryxos gateway` | Start the aggregate runtime and report components actually wired |
+| `oryxos profile list` | List active agents in name order |
+| `oryxos profile create <name>` | Create a minimal `AGENT.md` accepted by `AgentLoader` |
+| `oryxos profile show <name>` | Print `AGENT.md` unchanged |
+| `oryxos profile delete <name>` | Move the entire agent directory into `archive/`; no permanent deletion |
+| `oryxos provider list` | Print `NAME/TYPE/MODEL/BASE_URL` without credentials |
+| `oryxos tool list` | Print names and descriptions from the real `runtimeTools` map |
+| `oryxos session list` | Print session summaries, newest activity first |
 
-## Chat
+`profile`, `provider`, `tool`, and `session` are help groups, not additional business commands.
 
-### chat
+## Profile safety and archival
 
-Start an interactive multi-turn conversation with an agent. Runs a ReAct Loop on each message and prints the final response to the terminal. Type `/quit` or press `Ctrl-D` to end the session.
-
-```bash
-oryxos chat [--profile <name>]
-```
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--profile <name>` | `default` | Profile to use for this session |
-
-Example:
-
-```bash
-oryxos chat --profile ops-agent
-```
-
-```text
-[ops-agent] > check disk usage
-[tool: shell] df -h
-/dev/sda1  200G  84G  116G  42%  /
-Disk usage on /dev/sda1 is 42% (84G of 200G used). You have 116G free.
-
-[ops-agent] > /quit
-Session archived. Goodbye.
-```
-
-The session is persisted to SQLite and restored on subsequent `chat` invocations with the same profile and user context.
-
----
-
-## Server
-
-### serve
-
-Start the HTTP API server. It exposes the REST API under `/api/v1` and serves the web admin console at `/admin/`. Runs synchronously with Java 21 virtual threads — no separate thread pool tuning required. As a heavy command, `serve` boots Spring and reads its workspace root from `oryxos.root` in `application.yml` (Spring relaxed binding also honors the `ORYXOS_ROOT` env var).
+The only active definition is `<workspace>/agents/<name>/AGENT.md`. Names are 1–64 ASCII letters, digits, dots, underscores, or hyphens and must start with a letter or digit. Path traversal, absolute paths, Windows device names, and operating-system links are rejected.
 
 ```bash
-oryxos serve [--port <port>]
+oryxos profile create daily-weather
+oryxos profile show daily-weather
+oryxos profile delete daily-weather
+# Prints a path such as archive/daily-weather-1793164800000
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--port <port>` | `8080` | TCP port to bind |
+## Provider configuration and inspection
 
-```bash
-oryxos serve --port 9090
+`provider list` uses a configuration-only context and does not construct a `ChatModel`, so inspection does not require credentials. Declarations may be placed in `application.yaml` at the workspace root:
+
+```yaml
+oryxos:
+  providers:
+    - name: qwen
+      type: DASHSCOPE
+      model: qwen-plus
+      base-url: https://dashscope.aliyuncs.com
+      api-key: ${ALIYUN_API_KEY:}
 ```
 
-```text
-OryxOS API server starting...
-Listening on http://0.0.0.0:9090
-Admin console: http://0.0.0.0:9090/admin/
-```
+Output never includes `api-key` or its expanded value. `tool list` and `session list` lazily start the required runtime/storage context and close it after the query.
 
-Press `Ctrl-C` to stop.
+## Runtime boundaries
 
-### gateway
+`serve` and `gateway` reuse the existing Spring Boot, Web, Session, and audit chain. The Feishu, WeCom, and DingTalk modules currently provide module boundaries only and have no runnable `ChannelAdapter` beans, so `gateway` does not claim those future channels are available. A shutdown hook closes contexts on `Ctrl-C`.
 
-Start OryxOS in daemon mode (full runtime, resident). Intended for production multi-agent deployments; multi-channel mounting is an extension-phase feature. Like `serve`, it boots Spring and reads its workspace root from `oryxos.root` (env `ORYXOS_ROOT` honored via relaxed binding). Press `Ctrl-C` to stop.
+## Exit codes
 
-```bash
-oryxos gateway
-```
+| Code | Meaning |
+| --- | --- |
+| `0` | Success, including an empty list |
+| `1` | Runtime, configuration, IO, or external-resource failure |
+| `2` | Unknown command, missing argument, or invalid argument |
 
----
-
-## Agent (profile) management
-
-Each agent is one directory under `<workspace>/agents/<name>/`, holding an `AGENT.md` (YAML frontmatter = the agent's profile: identity, provider, tools, settings; body = task instructions) plus optional `skills/`, `scripts/`, and `REFERENCE.md`. One directory = one agent — there is no `.oryxos/profiles/` directory. The `profile` sub-commands are light (no Spring) and read/write these `AGENT.md` files directly, honoring `ORYXOS_ROOT` / `-Doryxos.root`.
-
-### profile list
-
-List all agents found under `<workspace>/agents/` (one line per agent directory).
-
-```bash
-oryxos profile list
-```
-
-```text
-default
-ops-agent
-reviewer
-```
-
-### profile create
-
-Scaffold a new agent directory with a minimal `AGENT.md` template. Existing agents are not overwritten.
-
-```bash
-oryxos profile create <name>
-```
-
-```bash
-oryxos profile create code-reviewer
-# Created .oryxos/agents/code-reviewer/AGENT.md
-```
-
-### profile show
-
-Print the full contents of an agent's `AGENT.md`.
-
-```bash
-oryxos profile show <name>
-```
-
-```bash
-oryxos profile show ops-agent
-```
-
-### profile delete
-
-Remove an agent's entire directory from the workspace.
-
-```bash
-oryxos profile delete <name>
-```
-
----
-
-## Inspection
-
-### provider list
-
-List the providers declared for this instance. The light CLI command reads them straight from the packaged `application.yml` (`oryxos.providers`), printing each provider's name and base URL. (At runtime, providers are managed as a dynamic registry backed by SQLite, seeded from these declarations.)
-
-```bash
-oryxos provider list
-```
-
-```text
-deepseek     https://api.deepseek.com
-qwen         https://dashscope.aliyuncs.com/compatible-mode/v1
-```
-
-### tool list
-
-List the built-in tools. Once the `ToolRegistry` is wired at runtime this reflects the live registry (built-in plus MCP tools).
-
-```bash
-oryxos tool list
-```
-
-```text
-Built-in tools:
-  read_file
-  write_file
-  list_dir
-  shell
-  http_get
-  http_post
-  save_memory
-  recall_memory
-  notify
-```
-
-### session list
-
-List sessions stored in the SQLite database (`oryxos.db` in the current directory), newest first. Columns: session id, profile name, status, last active time.
-
-```bash
-oryxos session list
-```
-
-```text
-cli:user-001:ops-agent                   ops-agent        active    2025-06-01 10:05
-cli:user-002:default                      default          active    2025-06-01 09:30
-```
-
----
-
-## User management
-
-Manage admin accounts for the management console (`/admin/**`) Basic Auth. Accounts are stored in the `web_users` SQLite table; passwords are BCrypt-hashed and never stored in plaintext. Changes take effect immediately — no server restart is required for new accounts to work.
-
-> Basic Auth is opt-in. It is disabled by default (`oryxos.web.auth.enabled=false`, assuming a trusted internal network). Enable it in `config/application.yml`, then create at least one account before starting `serve` — otherwise startup is blocked with a clear error.
-
-### user add
-
-Create an account. Prompts for a password twice (input is not echoed); the password must be at least 8 characters and the two entries must match.
-
-```bash
-oryxos user add <username>
-```
-
-```bash
-oryxos user add admin
-# Password (>= 8 chars): ********
-# Confirm: ********
-# Created user 'admin'
-```
-
-### user list
-
-List all accounts. **Never prints passwords or hashes.**
-
-```bash
-oryxos user list
-```
-
-```text
-USERNAME                 ENABLED  ROLE             CREATED_AT
-admin                    true     VIEWER           2026-07-22T10:30:00Z
-alice                    true     EDITOR           2026-07-22T11:00:00Z
-```
-
-The `ROLE` column (039 authorization) is the account's current role; an account holding several roles shows them comma-separated, and an empty role field shows `-`.
-
-### user role
-
-Set an account's role (039 authorization): `VIEWER` (read-only) / `EDITOR` (do work and manage assets) / `ADMIN` (manage members, channels, policies, workspace settings). They nest, and the value is case-insensitive. The command **replaces** the role — one role per invocation, never appended; an invalid role name fails with a clear error.
-
-```bash
-oryxos user role <username> <VIEWER|EDITOR|ADMIN>
-```
-
-```bash
-oryxos user role admin ADMIN
-# Role of 'admin' set to ADMIN
-```
-
-New accounts default to `VIEWER`, so doing real work requires an explicit promotion. Roles are re-resolved from the database on every request with no caching, so a change or revocation takes effect on the **very next request**. For how to turn authorization on, what each tier may do, and the permission ceiling on API keys, see the "Authorization (RBAC)" section of [Authentication](./auth.md).
-
-### user passwd
-
-Change an account's password. Prompts for the new password twice (not echoed).
-
-```bash
-oryxos user passwd <username>
-```
-
-### user disable
-
-Disable an account without deleting it. A disabled account cannot log in (Basic Auth returns 401).
-
-```bash
-oryxos user disable <username>
-```
-
-### user enable
-
-Re-enable a previously disabled account (symmetric to `disable`).
-
-```bash
-oryxos user enable <username>
-```
-
-### user delete
-
-Delete an account permanently.
-
-```bash
-oryxos user delete <username>
-```
+Normal results go to stdout; errors and usage failures go to stderr. Exception messages are redacted and stack traces are not printed by default.

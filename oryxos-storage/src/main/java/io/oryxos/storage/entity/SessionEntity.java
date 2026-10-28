@@ -1,6 +1,7 @@
 package io.oryxos.storage.entity;
 
 import io.oryxos.core.session.Session;
+import io.oryxos.core.session.SessionSummary;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -57,6 +58,10 @@ public class SessionEntity {
 
     public String messagesJson() {
         return messagesJson;
+    }
+
+    public SessionSummary summary() {
+        return new SessionSummary(id, profileName, status, lastActiveAt);
     }
 
     public Session restore(List<Message> messages) {

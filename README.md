@@ -189,33 +189,35 @@ schedules:
 ./mvnw clean package
 ```
 
-该命令编译并打包 Maven 聚合工程中的 14 个模块。打包完成后，可直接运行 CLI 并查看版本：
+该命令编译并打包 Maven 聚合工程中的 14 个模块。完整 CLI 与 Spring 运行时统一由 Boot exec JAR 提供：
 
 ```bash
-java -jar oryxos-cli/target/oryxos-cli-0.1.0-SNAPSHOT-exec.jar
-java -jar oryxos-cli/target/oryxos-cli-0.1.0-SNAPSHOT-exec.jar --version
+java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar --help
+java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar --version
 ```
 
-启动 Spring Boot 聚合应用：
+当前提供 `init`、`status`、`chat`、`serve`、`gateway`、四条 `profile` 命令，以及 `provider/tool/session list`，共 12 条业务命令。工作区按 `-Doryxos.root` → `ORYXOS_ROOT` → 当前目录 `.oryxos/` 解析；`profile delete` 会归档整个 Agent 目录，不做永久删除。完整用法见[中文 CLI 参考](website/zh/docs/cli.md)。
+
+启动现有 HTTP 服务：
 
 ```bash
-java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT.jar
+java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar serve --port 8080
 ```
 
 启动完成后访问 [http://localhost:8080](http://localhost:8080) 查看 OryxOS 项目首页，API 文档位于 [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)。
 
-当前 CLI 的业务子命令和完整 Web 运行配置尚未实现，因此 `oryxos init`、`oryxos chat` 等最终用户命令暂不作为可用功能提供。
+飞书、企微和钉钉模块当前尚无可运行的渠道适配器；`gateway` 只报告实际装配的 HTTP/Channel 组件，不把模块标记类当作已实现渠道。
 
 <a id="roadmap"></a>
 
 ## 路线图
 
 - [x] **Project Bootstrap**：建立 Maven 14 模块工程、依赖关系和 Java 21 构建基线。
-- [ ] **Foundation**：实现核心契约和 Provider 抽象，跑通模型调用。
-- [ ] **Agent Runtime**：实现 ReAct Loop、`ToolExecutor`、CLI 和基础 Session。
+- [x] **Foundation**：实现核心契约和 Provider 抽象，跑通模型调用。
+- [x] **Agent Runtime**：实现 ReAct Loop、`ToolExecutor`、12 条 CLI 命令和基础 Session。
 - [ ] **Memory & Tools**：实现长期记忆、内置 Tool、MCP Client 和应用层 Sandbox。
 - [ ] **Web API**：提供 REST API、OpenAPI 和统一错误响应。
-- [ ] **Persistence & Audit**：完成 SQLite 持久化、Flyway 迁移和调用审计。
+- [x] **Persistence & Audit**：完成 SQLite 持久化、Flyway 迁移和调用审计。
 - [ ] **Multi-Agent Runtime**：支持多 Agent、动态调度和端到端示例。
 - [ ] **Enterprise Integration**：增加知识库、人格和飞书、企业微信、钉钉渠道。
 - [ ] **Governance**：完善 Agent 生命周期、向量检索、SSO、多租户和 Tool Policy。
