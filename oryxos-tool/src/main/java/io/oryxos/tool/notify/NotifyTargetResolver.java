@@ -1,9 +1,8 @@
 package io.oryxos.tool.notify;
 
 import io.oryxos.core.notify.NotifyChannel;
-import io.oryxos.tool.sandbox.ActionType;
+import io.oryxos.tool.sandbox.HttpRequestAction;
 import io.oryxos.tool.sandbox.Sandbox;
-import io.oryxos.tool.sandbox.SandboxAction;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -41,7 +40,7 @@ public final class NotifyTargetResolver {
         catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException("通知渠道目标地址非法", exception);
         }
-        URI approved = sandbox.enforce(new SandboxAction(ActionType.HTTP_REQUEST, requested));
+        URI approved = sandbox.enforce(new HttpRequestAction(requested));
         Map<String, String> config = new LinkedHashMap<>(channel.config());
         config.put("url", approved.toASCIIString());
         return new NotifyTarget(channel.type(), config);

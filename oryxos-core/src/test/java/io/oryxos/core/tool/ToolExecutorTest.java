@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import io.oryxos.core.audit.ToolInvocationRecord;
 import io.oryxos.core.audit.ToolInvocationRecorder;
+import io.oryxos.core.interaction.UserInteractionContext;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.core.profile.ProfileContext;
 import io.oryxos.core.provider.ToolCallIntent;
@@ -73,6 +74,23 @@ class ToolExecutorTest {
     @AfterEach
     void clear() {
         ProfileContext.clear();
+        UserInteractionContext.clear();
+    }
+
+    @Test
+    void propagatesAndClearsUserInteractionInWorkerThread() throws Exception {
+        profile();
+        var interaction = (io.oryxos.core.interaction.UserInteraction) question -> "回答";
+        UserInteractionContext.set(interaction);
+        var worker = Executors.newSingleThreadExecutor();
+        try (var executor = new ToolExecutor(registry(tool(() -> {
+            assertThat(UserInteractionContext.current()).isSameAs(interaction);
+            return new ToolResult(true, "ok", null, false);
+        })), (p, call) -> { }, records::add, worker, Duration.ofSeconds(2), millis -> { })) {
+            assertThat(executor.execute("s", intent).success()).isTrue();
+            assertThat(worker.submit(UserInteractionContext::current).get()).isNull();
+        }
+        assertThat(UserInteractionContext.current()).isSameAs(interaction);
     }
 
     @Test

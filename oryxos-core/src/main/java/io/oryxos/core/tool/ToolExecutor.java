@@ -5,6 +5,8 @@ import io.oryxos.core.audit.ToolInvocationRecord;
 import io.oryxos.core.audit.ToolInvocationRecorder;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.core.profile.ProfileContext;
+import io.oryxos.core.interaction.UserInteraction;
+import io.oryxos.core.interaction.UserInteractionContext;
 import io.oryxos.core.provider.ToolCallIntent;
 import java.time.Duration;
 import java.time.Instant;
@@ -110,12 +112,17 @@ public final class ToolExecutor implements AutoCloseable {
         catch (RuntimeException exception) {
             return failed("工具安全检查拒绝");
         }
+        UserInteraction interaction = UserInteractionContext.current();
         var future = worker.submit(() -> {
             ProfileContext.set(profile);
+            if (interaction != null) {
+                UserInteractionContext.set(interaction);
+            }
             try {
                 return tool.execute(call.argumentsJson());
             }
             finally {
+                UserInteractionContext.clear();
                 ProfileContext.clear();
             }
         });

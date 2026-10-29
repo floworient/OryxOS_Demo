@@ -5,12 +5,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 public class ContextLoader {
 
@@ -18,8 +14,11 @@ public class ContextLoader {
 
     private final Path workspace;
 
+    private final SkillBindingResolver skillBindings;
+
     public ContextLoader(Path workspace) {
         this.workspace = workspace.toAbsolutePath().normalize();
+        this.skillBindings = new SkillBindingResolver(workspace);
     }
 
     public String load(Profile profile) {
@@ -53,7 +52,11 @@ public class ContextLoader {
                     content.append('\n').append(Files.readString(checked(path, root)));
                 }
             }
-            appendSkills(content, parent(source), root);
+            for (SkillBinding skill : skillBindings.resolve(profile)) {
+                content.append("\nSkill: ").append(skill.name())
+                        .append("\nDescription: ").append(skill.description())
+                        .append("\nPath: ").append(skill.definitionFile());
+            }
             return content.toString();
         }
         catch (IOException | RuntimeException exception) {
@@ -86,107 +89,4 @@ public class ContextLoader {
         throw new IOException("缺少 frontmatter 结束边界");
     }
 
-    private static void appendSkills(StringBuilder content, Path agent, Path root) throws IOException {
-        Path bindings = agent.resolve("skills");
-        if (Files.notExists(bindings, LinkOption.NOFOLLOW_LINKS)) {
-            return;
-        }
-        if (!Files.isDirectory(bindings, LinkOption.NOFOLLOW_LINKS)) {
-            throw new IOException("Skill 绑定目录必须为普通目录: " + bindings);
-        }
-        checked(bindings, agent);
-        Path lexicalRoot = root.resolve("skills").normalize();
-        Path publicRoot = null;
-        try (var entries = Files.list(bindings)) {
-            for (Path entry : entries.sorted().toList()) {
-                Path relative = referenceTarget(entry);
-                Path declared = parent(entry).resolve(relative).normalize();
-                if (!declared.startsWith(lexicalRoot) || declared.equals(lexicalRoot)) {
-                    throw new IOException("Skill 引用目标越出公共目录: " + entry);
-                }
-                if (publicRoot == null) {
-                    publicRoot = checked(lexicalRoot, root);
-                }
-                Path target = checked(declared, publicRoot);
-                if (!Files.isDirectory(target)) {
-                    throw new IOException("Skill 目标不是目录: " + entry);
-                }
-                Path skill = checked(target.resolve("SKILL.md"), target);
-                Map<?, ?> metadata = metadata(skill);
-                String name = field(metadata, "name");
-                String description = field(metadata, "description");
-                content.append("\nSkill: ").append(name).append("\nDescription: ").append(description)
-                        .append("\nPath: ").append(skill);
-            }
-        }
-    }
-
-    private static Path referenceTarget(Path entry) throws IOException {
-        if (Files.isSymbolicLink(entry)) {
-            throw new IOException("原生 Skill 软连接请迁移为普通 .link 相对引用文件: " + entry);
-        }
-        String name = java.util.Objects.requireNonNull(entry.getFileName()).toString();
-        if (!Files.isRegularFile(entry, LinkOption.NOFOLLOW_LINKS)
-                || !name.endsWith(".link") || name.length() <= 5 || Files.size(entry) > 4096) {
-            throw new IOException("Skill 绑定必须是小于等于4096字节的普通 .link 文件: " + entry);
-        }
-        String text = Files.readString(entry);
-        if (text.startsWith("\ufeff")) {
-            text = text.substring(1);
-        }
-        text = text.strip();
-        if (text.isEmpty() || text.lines().count() != 1 || text.startsWith("/") || text.startsWith("\\")
-                || text.indexOf(':') >= 0) {
-            throw new IOException("Skill 引用必须仅含一条相对路径，禁止绝对、盘符和UNC路径: " + entry);
-        }
-        Path relative = Path.of(text.replace('\\', '/'));
-        if (relative.isAbsolute()) {
-            throw new IOException("Skill 引用禁止绝对路径: " + entry);
-        }
-        return relative;
-    }
-
-    private static Map<?, ?> metadata(Path skill) throws IOException {
-        StringBuilder yamlText = new StringBuilder();
-        try (var reader = Files.newBufferedReader(skill)) {
-            String first = reader.readLine();
-            if (first != null && !first.isEmpty() && first.charAt(0) == 0xFEFF) {
-                first = first.substring(1);
-            }
-            if (!"---".equals(first)) {
-                throw new IOException("Skill 缺少 frontmatter: " + skill);
-            }
-            String line;
-            boolean ended = false;
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().equals("---")) {
-                    ended = true;
-                    break;
-                }
-                yamlText.append(line).append('\n');
-                if (yamlText.length() > 65536) {
-                    throw new IOException("Skill 元数据过长: " + skill);
-                }
-            }
-            if (!ended) {
-                throw new IOException("Skill 元数据边界缺失: " + skill);
-            }
-        }
-        var options = new LoaderOptions();
-        options.setAllowDuplicateKeys(false);
-        options.setMaxAliasesForCollections(10);
-        options.setNestingDepthLimit(10);
-        Object data = new Yaml(new SafeConstructor(options)).load(yamlText.toString());
-        if (!(data instanceof Map<?, ?> map)) {
-            throw new IOException("Skill 元数据非法: " + skill);
-        }
-        return map;
-    }
-
-    private static String field(Map<?, ?> metadata, String name) throws IOException {
-        if (!(metadata.get(name) instanceof String value) || value.isBlank()) {
-            throw new IOException("Skill 元数据字段非法: " + name);
-        }
-        return value;
-    }
 }

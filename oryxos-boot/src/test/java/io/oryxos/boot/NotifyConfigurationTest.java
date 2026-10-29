@@ -8,9 +8,8 @@ import io.oryxos.core.tool.OryxTool;
 import io.oryxos.tool.builtin.NotifyTools;
 import io.oryxos.tool.notify.NotifyAdapterRegistry;
 import io.oryxos.tool.notify.NotifyChannelAdapter;
-import io.oryxos.tool.sandbox.ActionType;
+import io.oryxos.tool.sandbox.HttpRequestAction;
 import io.oryxos.tool.sandbox.Sandbox;
-import io.oryxos.tool.sandbox.SandboxAction;
 import io.oryxos.storage.config.StorageConfiguration;
 import java.net.URI;
 import java.nio.file.Path;
@@ -45,7 +44,7 @@ class NotifyConfigurationTest {
             OryxTool notify = context.getBean(NotifyTools.class);
             assertThat(notify.getName()).isEqualTo("notify");
             assertThatThrownBy(() -> context.getBean(Sandbox.class).enforce(
-                    new SandboxAction(ActionType.HTTP_REQUEST, URI.create("https://example.com"))))
+                    new HttpRequestAction(URI.create("https://example.com"))))
                     .isInstanceOf(SecurityException.class);
         }
     }

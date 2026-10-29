@@ -10,13 +10,13 @@
 - [x] T002 [P] 在 `oryxos-tool/src/test/java/io/oryxos/tool/registry/DefaultToolRegistryTest.java` 覆盖重复注册、稳定顺序和三来源可见性
 - [x] T003 在 `oryxos-tool/src/main/java/io/oryxos/tool/registry/DefaultToolRegistry.java` 实现注册与可见性规则
 - [x] T004 在 `PromptBuilderTest`、`ToolExecutorTest` 添加同源可见性与拒绝执行测试并迁移实现
-- [ ] T005 在 core 增加 `UserInteraction`、`UserInteractionContext`，验证虚拟线程传播与 finally 清理
+- [x] T005 在 core 增加 `UserInteraction`、`UserInteractionContext`，验证虚拟线程传播与 finally 清理
 
 ## Phase 2: Skill 边界与强类型 Sandbox
 
-- [ ] T006 从 `ContextLoader` 抽取 `SkillBindingResolver`、`SkillBinding`，保持 `.link` 每轮解析语义
-- [ ] T007 在 `oryxos-tool/src/test/java/io/oryxos/tool/sandbox/WhitelistSandboxTest.java` 覆盖 Agent 根、绑定 Skill 只读、未绑定/链接逃逸、Shell/HTTP 拒绝
-- [ ] T008 扩展 `Sandbox` 为文件、Shell、HTTP 强类型 action，并迁移 `NotifyTools`
+- [x] T006 从 `ContextLoader` 抽取 `SkillBindingResolver`、`SkillBinding`，保持 `.link` 每轮解析语义
+- [x] T007 在 `oryxos-tool/src/test/java/io/oryxos/tool/sandbox/WhitelistSandboxTest.java` 覆盖 Agent 根、绑定 Skill 只读、未绑定/链接逃逸、Shell/HTTP 拒绝
+- [x] T008 扩展 `Sandbox` 为文件、Shell、HTTP 强类型 action，并迁移 `NotifyTools`
 
 ## Phase 3: 文件工具
 
