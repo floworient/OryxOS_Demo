@@ -82,6 +82,7 @@ public final class WhitelistSandbox implements Sandbox {
             throw new SecurityException("文件路径非法");
         }
         try {
+            java.util.List<SkillBinding> bindings = skillBindings.resolve(action.profile());
             Path agent = action.profile().sourcePath().getParent().toRealPath();
             Path candidate = requested.isAbsolute() ? requested.normalize() : agent.resolve(requested).normalize();
             if (action.mode() == FileAccessMode.WRITE) {
@@ -95,7 +96,10 @@ public final class WhitelistSandbox implements Sandbox {
                 rejectLinks(candidate, agent);
                 return real;
             }
-            for (SkillBinding binding : skillBindings.resolve(action.profile())) {
+            if (action.mode() == FileAccessMode.WORKING_DIRECTORY) {
+                throw new SecurityException("Shell 工作目录只允许当前 Agent 目录");
+            }
+            for (SkillBinding binding : bindings) {
                 if (within(real, binding.directory())) {
                     rejectLinks(candidate, binding.directory());
                     return real;

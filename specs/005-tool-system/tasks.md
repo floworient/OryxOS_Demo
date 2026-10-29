@@ -26,10 +26,10 @@
 
 ## Phase 4: Shell 与 HTTP
 
-- [ ] T012 [P] 编写 `ShellToolsTest`，覆盖 alias、argv 直传、双流排水、超时及进程树终止
-- [ ] T013 实现 `ShellTools` 与命令白名单配置，模型输入不得直接选择 executable
-- [ ] T014 [P] 编写 `HttpToolsTest`，覆盖 GET/POST、敏感 header、白名单、重定向、超时和 body 上限
-- [ ] T015 实现 `HttpTools`，拒绝自动重定向与自动重试，确保拒绝用例零网络请求
+- [x] T012 [P] 编写 `ShellToolsTest`，覆盖 alias、argv 直传、双流排水、超时及进程树终止
+- [x] T013 实现 `ShellTools` 与命令白名单配置，模型输入不得直接选择 executable
+- [x] T014 [P] 编写 `HttpToolsTest`，覆盖 GET/POST、敏感 header、白名单、重定向、超时和 body 上限
+- [x] T015 实现 `HttpTools`，拒绝自动重定向与自动重试，确保拒绝用例零网络请求
 
 ## Phase 5: Java Tool 与 MCP
 
