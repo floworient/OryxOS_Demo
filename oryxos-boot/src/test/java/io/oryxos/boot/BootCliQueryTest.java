@@ -6,7 +6,11 @@ import io.oryxos.core.session.Session;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.session.SessionSummary;
 import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.ToolRegistration;
+import io.oryxos.core.tool.ToolRegistry;
 import io.oryxos.core.tool.ToolResult;
+import io.oryxos.core.tool.ToolSource;
+import io.oryxos.tool.registry.DefaultToolRegistry;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -77,7 +81,7 @@ class BootCliQueryTest {
     @SpringBootConfiguration
     static class ToolApplication {
         @Bean("runtimeTools")
-        Map<String, OryxTool> runtimeTools() {
+        ToolRegistry runtimeTools() {
             OryxTool tool = new OryxTool() {
                 public String getName() { return "天气"; }
 
@@ -87,15 +91,17 @@ class BootCliQueryTest {
 
                 public ToolResult execute(String input) { return new ToolResult(true, "晴", null, false); }
             };
-            return Map.of(tool.getName(), tool);
+            var registry = new DefaultToolRegistry();
+            registry.register(new ToolRegistration(tool, ToolSource.BUILTIN, "builtin"));
+            return registry;
         }
     }
 
     @SpringBootConfiguration
     static class EmptyToolApplication {
         @Bean("runtimeTools")
-        Map<String, OryxTool> runtimeTools() {
-            return Map.of();
+        ToolRegistry runtimeTools() {
+            return new DefaultToolRegistry();
         }
     }
 

@@ -9,10 +9,13 @@ import io.oryxos.core.profile.Profile;
 import io.oryxos.core.profile.ProfileContext;
 import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.ToolRegistration;
 import io.oryxos.core.tool.ToolExecutor;
 import io.oryxos.core.tool.ToolResult;
+import io.oryxos.core.tool.ToolSource;
 import io.oryxos.storage.config.StorageConfiguration;
 import io.oryxos.tool.builtin.NotifyTools;
+import io.oryxos.tool.registry.DefaultToolRegistry;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.List;
@@ -67,7 +70,9 @@ class NotifyToolAuditIT {
                 channels.create(new NotifyChannelService.CreateCommand("failing", "webhook",
                         "http://127.0.0.1:" + port + "/fail", null, Map.of()));
                 OryxTool notify = context.getBean(NotifyTools.class);
-                try (var executor = new ToolExecutor(Map.of("notify", notify), (profile, call) -> { },
+                var registry = new DefaultToolRegistry();
+                registry.register(new ToolRegistration(notify, ToolSource.BUILTIN, "builtin"));
+                try (var executor = new ToolExecutor(registry, (profile, call) -> { },
                         context.getBean(ToolInvocationRecorder.class))) {
                     assertThat(execute(executor, "session-notify", "call-notify",
                             "{\"content\":\"hello\",\"channel\":\"team\"}").success()).isTrue();

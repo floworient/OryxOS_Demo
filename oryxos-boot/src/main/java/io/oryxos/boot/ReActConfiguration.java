@@ -11,16 +11,17 @@ import io.oryxos.core.provider.ProviderService;
 import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.ToolRegistration;
+import io.oryxos.core.tool.ToolRegistry;
+import io.oryxos.core.tool.ToolSource;
 import io.oryxos.core.tool.ToolExecutor;
 import io.oryxos.provider.ToolSchemaAdapter;
+import io.oryxos.tool.registry.DefaultToolRegistry;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiConsumer;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,15 +30,12 @@ import org.springframework.context.annotation.Configuration;
 public class ReActConfiguration {
 
     @Bean
-    Map<String, OryxTool> runtimeTools(List<OryxTool> registered) {
-        var tools = new LinkedHashMap<String, OryxTool>();
+    ToolRegistry runtimeTools(List<OryxTool> registered) {
+        var tools = new DefaultToolRegistry();
         for (OryxTool tool : registered) {
-            if (tool.getName() == null || tool.getName().isBlank()
-                    || tools.putIfAbsent(tool.getName(), tool) != null) {
-                throw new IllegalArgumentException("工具名称为空或重复");
-            }
+            tools.register(new ToolRegistration(tool, ToolSource.BUILTIN, "builtin"));
         }
-        return Map.copyOf(tools);
+        return tools;
     }
 
     @Bean
@@ -46,13 +44,13 @@ public class ReActConfiguration {
     }
 
     @Bean
-    PromptBuilder promptBuilder(ContextLoader loader, @Qualifier("runtimeTools") Map<String, OryxTool> tools) {
+    PromptBuilder promptBuilder(ContextLoader loader, ToolRegistry tools) {
         return new PromptBuilder(loader, tools, new ToolSchemaAdapter()::adapt,
                 (session, profile) -> "", Clock.systemDefaultZone());
     }
 
     @Bean(destroyMethod = "close")
-    ToolExecutor toolExecutor(@Qualifier("runtimeTools") Map<String, OryxTool> tools,
+    ToolExecutor toolExecutor(ToolRegistry tools,
             ObjectProvider<BiConsumer<Profile, ToolCallIntent>> policies, ToolInvocationRecorder recorder) {
         BiConsumer<Profile, ToolCallIntent> policy = policies.getIfUnique(() -> (profile, call) -> {
             throw new SecurityException("尚未配置工具安全策略");

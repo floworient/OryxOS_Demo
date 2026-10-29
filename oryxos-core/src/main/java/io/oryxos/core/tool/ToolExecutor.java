@@ -20,7 +20,7 @@ import org.springframework.ai.util.json.JsonParser;
 
 public final class ToolExecutor implements AutoCloseable {
 
-    private final Map<String, OryxTool> tools;
+    private final ToolRegistry tools;
 
     private final BiConsumer<Profile, ToolCallIntent> policy;
 
@@ -32,15 +32,15 @@ public final class ToolExecutor implements AutoCloseable {
 
     private final LongConsumer sleeper;
 
-    public ToolExecutor(Map<String, OryxTool> tools, BiConsumer<Profile, ToolCallIntent> policy,
+    public ToolExecutor(ToolRegistry tools, BiConsumer<Profile, ToolCallIntent> policy,
             ToolInvocationRecorder recorder) {
         this(tools, policy, recorder, Executors.newVirtualThreadPerTaskExecutor(),
                 Duration.ofSeconds(60), ToolExecutor::sleep);
     }
 
-    public ToolExecutor(Map<String, OryxTool> tools, BiConsumer<Profile, ToolCallIntent> policy,
+    public ToolExecutor(ToolRegistry tools, BiConsumer<Profile, ToolCallIntent> policy,
             ToolInvocationRecorder recorder, ExecutorService worker, Duration timeout, LongConsumer sleeper) {
-        this.tools = Map.copyOf(tools);
+        this.tools = java.util.Objects.requireNonNull(tools);
         this.policy = java.util.Objects.requireNonNull(policy);
         this.recorder = java.util.Objects.requireNonNull(recorder);
         this.worker = worker;
@@ -56,11 +56,11 @@ public final class ToolExecutor implements AutoCloseable {
             long started = System.nanoTime();
             ToolResult result;
             try {
-                OryxTool tool = named ? tools.get(toolName) : null;
+                OryxTool tool = named && profile != null ? visibleTool(profile, toolName) : null;
                 if (!named) {
                     result = failed("工具调用名称非法");
                 }
-                else if (profile == null || tool == null || !profile.tools().contains(toolName)) {
+                else if (profile == null || tool == null) {
                     result = failed("工具未注册或当前 Agent 不可见");
                 }
                 else if (call.id() == null || call.id().isBlank() || !validInput(call.argumentsJson())) {
@@ -93,6 +93,14 @@ public final class ToolExecutor implements AutoCloseable {
             }
             sleeper.accept(100L << attempt);
         }
+    }
+
+    private OryxTool visibleTool(Profile profile, String toolName) {
+        return tools.visibleTo(profile).stream()
+                .filter(registration -> registration.name().equals(toolName))
+                .map(ToolRegistration::tool)
+                .findFirst()
+                .orElse(null);
     }
 
     private ToolResult checkedExecute(Profile profile, ToolCallIntent call, OryxTool tool) {

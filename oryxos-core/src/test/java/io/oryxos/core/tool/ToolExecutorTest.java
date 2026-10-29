@@ -3,6 +3,7 @@ package io.oryxos.core.tool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
 import io.oryxos.core.audit.ToolInvocationRecord;
@@ -13,7 +14,7 @@ import io.oryxos.core.provider.ToolCallIntent;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CountDownLatch;
@@ -58,6 +59,17 @@ class ToolExecutorTest {
         };
     }
 
+    private ToolRegistry registry(OryxTool tool) {
+        var registration = new ToolRegistration(tool, ToolSource.BUILTIN, "builtin");
+        var registry = mock(ToolRegistry.class);
+        when(registry.find("lookup")).thenReturn(Optional.of(registration));
+        when(registry.visibleTo(any(Profile.class))).thenAnswer(invocation -> {
+            Profile current = invocation.getArgument(0);
+            return current.tools().contains("lookup") ? List.of(registration) : List.of();
+        });
+        return registry;
+    }
+
     @AfterEach
     void clear() {
         ProfileContext.clear();
@@ -67,7 +79,7 @@ class ToolExecutorTest {
     void successExecutesOncePropagatesContextAndPersistsAudit() throws Exception {
         var current = profile();
         var worker = Executors.newSingleThreadExecutor();
-        try (var executor = new ToolExecutor(Map.of("lookup", tool(() -> {
+        try (var executor = new ToolExecutor(registry(tool(() -> {
             assertThat(ProfileContext.current()).isSameAs(current);
             return new ToolResult(true, "晴", null, false);
         })), (p, call) -> { }, records::add, worker, Duration.ofSeconds(2), millis -> { })) {
@@ -89,7 +101,7 @@ class ToolExecutorTest {
     @Test
     void unavailableInvisibleInvalidAndDeniedToolsNeverExecute() {
         var lookup = tool(() -> new ToolResult(true, "ok", null, false));
-        try (var executor = new ToolExecutor(Map.of("lookup", lookup),
+        try (var executor = new ToolExecutor(registry(lookup),
                 (p, call) -> { throw new SecurityException("secret-token"); }, records::add)) {
             assertThat(executor.execute("s", intent).success()).isFalse();
             profile();
@@ -114,7 +126,7 @@ class ToolExecutorTest {
     void retryableFailureHasFourAttemptsAndExponentialBackoff() {
         profile();
         var waits = new ArrayList<Long>();
-        try (var executor = new ToolExecutor(Map.of("lookup",
+        try (var executor = new ToolExecutor(registry(
                 tool(() -> new ToolResult(false, "", "暂时不可用", true))),
                 (p, call) -> { }, records::add, Executors.newVirtualThreadPerTaskExecutor(),
                 Duration.ofSeconds(2), waits::add)) {
@@ -128,7 +140,7 @@ class ToolExecutorTest {
     @Test
     void thrownFailuresAreAuditedWithoutSecretOrRetry() {
         profile();
-        try (var executor = new ToolExecutor(Map.of("lookup",
+        try (var executor = new ToolExecutor(registry(
                 tool(() -> { throw new IllegalStateException("secret-token"); })),
                 (p, call) -> { }, records::add)) {
             assertThat(executor.execute("s", intent).errorMessage()).doesNotContain("secret-token");
@@ -140,7 +152,7 @@ class ToolExecutorTest {
     @Test
     void nullOrBlankToolNameIsAuditedAsFailureInsteadOfAbortingTheTurn() {
         profile();
-        try (var executor = new ToolExecutor(Map.of("lookup",
+        try (var executor = new ToolExecutor(registry(
                 tool(() -> new ToolResult(true, "ok", null, false))), (p, call) -> { }, records::add)) {
             assertThat(executor.execute("s", new ToolCallIntent("x", null, "{}")).success()).isFalse();
             assertThat(executor.execute("s", new ToolCallIntent("x", "  ", "{}")).success()).isFalse();
@@ -156,7 +168,7 @@ class ToolExecutorTest {
     @Test
     void trailingJsonTokensAreRejectedBeforeToolExecution() {
         profile();
-        try (var executor = new ToolExecutor(Map.of("lookup",
+        try (var executor = new ToolExecutor(registry(
                 tool(() -> new ToolResult(true, "ok", null, false))), (p, call) -> { }, records::add)) {
             assertThat(executor.execute("s", new ToolCallIntent("x", "lookup", "{} {}" )).success()).isFalse();
         }
@@ -168,7 +180,7 @@ class ToolExecutorTest {
     void auditFailureIsNotSwallowedOrRetried() {
         profile();
         ToolInvocationRecorder failing = record -> { throw new IllegalStateException("db down"); };
-        try (var executor = new ToolExecutor(Map.of("lookup",
+        try (var executor = new ToolExecutor(registry(
                 tool(() -> new ToolResult(true, "ok", null, false))), (p, call) -> { }, failing)) {
             assertThatThrownBy(() -> executor.execute("s", intent))
                     .isInstanceOf(IllegalStateException.class).hasMessageContaining("审计");
@@ -195,7 +207,7 @@ class ToolExecutorTest {
                 stopped.countDown();
             }
         });
-        try (var executor = new ToolExecutor(Map.of("lookup", lookup), (p, call) -> { }, records::add,
+        try (var executor = new ToolExecutor(registry(lookup), (p, call) -> { }, records::add,
                 Executors.newVirtualThreadPerTaskExecutor(), Duration.ofMillis(300), millis -> { })) {
             assertThat(executor.execute("s", intent).errorMessage()).contains("超时");
             assertThat(started.await(1, TimeUnit.SECONDS)).isTrue();

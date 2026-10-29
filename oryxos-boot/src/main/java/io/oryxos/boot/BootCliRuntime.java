@@ -9,6 +9,7 @@ import io.oryxos.cli.ToolInfo;
 import io.oryxos.core.agent.AgentService;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.ToolRegistry;
 import io.oryxos.provider.ProviderProperties;
 import java.io.PrintWriter;
 import java.io.Reader;
@@ -91,9 +92,9 @@ public final class BootCliRuntime implements CliRuntime, AutoCloseable {
     public List<ToolInfo> tools(Path workspace) {
         SpringApplication application = queryApplication(workspace);
         try (var context = application.run(workspaceArgument(workspace))) {
-            Map<?, ?> registered = context.getBean("runtimeTools", Map.class);
-            return registered.values().stream()
-                    .map(OryxTool.class::cast)
+            ToolRegistry registered = context.getBean(ToolRegistry.class);
+            return registered.registrations().stream()
+                    .map(registration -> registration.tool())
                     .map(tool -> new ToolInfo(tool.getName(), tool.getDescription()))
                     .sorted(java.util.Comparator.comparing(ToolInfo::name))
                     .toList();

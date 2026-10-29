@@ -3,11 +3,11 @@ package io.oryxos.core.context;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.core.session.Session;
 import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.ToolRegistry;
 import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.springframework.ai.chat.messages.Message;
@@ -21,7 +21,7 @@ public class PromptBuilder {
 
     private final ContextLoader loader;
 
-    private final Map<String, OryxTool> tools;
+    private final ToolRegistry tools;
 
     private final Function<OryxTool, ToolCallback> schemas;
 
@@ -29,10 +29,10 @@ public class PromptBuilder {
 
     private final Clock clock;
 
-    public PromptBuilder(ContextLoader loader, Map<String, OryxTool> tools,
+    public PromptBuilder(ContextLoader loader, ToolRegistry tools,
             Function<OryxTool, ToolCallback> schemas, BiFunction<Session, Profile, String> memory, Clock clock) {
         this.loader = loader;
-        this.tools = Map.copyOf(tools);
+        this.tools = java.util.Objects.requireNonNull(tools);
         this.schemas = schemas;
         this.memory = memory;
         this.clock = clock;
@@ -58,13 +58,9 @@ public class PromptBuilder {
             }
         }
         messages.addAll(history.subList(start, history.size()));
-        var callbacks = profile.tools().stream().map(name -> {
-            OryxTool tool = tools.get(name);
-            if (tool == null) {
-                throw new IllegalStateException("Agent " + profile.name() + " 引用了未注册工具: " + name);
-            }
-            return schemas.apply(tool);
-        }).toList();
+        var callbacks = tools.visibleTo(profile).stream()
+                .map(registration -> schemas.apply(registration.tool()))
+                .toList();
         return new Prompt(messages, ToolCallingChatOptions.builder().toolCallbacks(callbacks)
                 .internalToolExecutionEnabled(false).build());
     }
