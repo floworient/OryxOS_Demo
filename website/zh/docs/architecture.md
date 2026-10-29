@@ -41,7 +41,7 @@ Agent 可在运行时创建、更新、移除——无需重启。
 Provider 和通知渠道不再是静态配置——两者都存储在 SQLite 中，通过 CRUD 端点管理。
 
 - **Provider**（`providers` 表）— `ProviderApiController` 暴露创建/列表/查询/更新/删除。运行时引擎按 Provider 名称动态解析 `ChatModel`；模型按 `(name | apiKey | baseUrl)` 构建并缓存，因此修改 key 或 base URL 会在下次调用时重建模型。`oryxos.providers[]` 配置在首次启动时**种入**该表，之后以数据库为准。宪法原则三（显式的 `provider name → ChatModel` 映射）保持不变——只是这张映射表变得可在运行时修改。`mock` Provider 是内置的假模型，无需 key 或 URL。
-- **通知渠道**（`notify_channels` 表）— `NotifyChannelApiController` 暴露同样的 CRUD。渠道有一个 `type`（`feishu` | `wecom` | `dingtalk` | `webhook`）和一个 URL。`notify` 工具**按名称**引用渠道（在 `AGENT.md` 正文里，例如「发到 team-lark」）；工具把已注册的渠道解析成对应的适配器和 URL。frontmatter 里不再有 `notify_channels` 字段。
+- **通知渠道**（`notify_channels` 表）— `NotifyChannelApiController` 暴露同样的 CRUD。当前只接受已实现的 `webhook` 类型；`notify` 工具**按名称**引用渠道（在 `AGENT.md` 正文里，例如「发到 team-webhook」），发送前解析环境变量并经过 HTTP 白名单校验，再由显式 Adapter 注册表路由。飞书、企微和钉钉专用出站 Adapter 尚未实现，frontmatter 里也不再有 `notify_channels` 字段。
 
 ## 可配置的工作区根目录
 

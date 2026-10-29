@@ -41,7 +41,7 @@ Agents can be created, updated, and removed at runtime — no restart required.
 Providers and notify channels are no longer static config — both are stored in SQLite and managed through CRUD endpoints.
 
 - **Providers** (`providers` table) — `ProviderApiController` exposes create/list/get/update/delete. At runtime the engine resolves the `ChatModel` dynamically by provider name; models are built and cached by `(name | apiKey | baseUrl)`, so editing a key or base URL rebuilds the model on the next call. The `oryxos.providers[]` config is *seeded* into the table on first startup, after which the database is authoritative. Constitution principle III (an explicit `provider name → ChatModel` map) is preserved — the map is simply runtime-mutable. The `mock` provider is a built-in fake model needing no key or URL.
-- **Notify channels** (`notify_channels` table) — `NotifyChannelApiController` exposes the same CRUD. A channel has a `type` (`feishu` | `wecom` | `dingtalk` | `webhook`) and a URL. The `notify` tool references a channel **by name** (in the `AGENT.md` body, e.g. "notify team-lark"); the tool resolves the registered channel to its adapter and URL. There is no `notify_channels` field in the frontmatter.
+- **Notify channels** (`notify_channels` table) — `NotifyChannelApiController` exposes the same CRUD. The current release accepts only the implemented `webhook` type. The `notify` tool references a channel **by name** (in the `AGENT.md` body, e.g. "notify team-webhook"), resolves environment variables, enforces the HTTP allowlist, and routes through an explicit adapter registry. Dedicated Feishu, WeCom, and DingTalk outbound adapters are not implemented, and there is no `notify_channels` field in the frontmatter.
 
 ## Configurable Workspace Root
 

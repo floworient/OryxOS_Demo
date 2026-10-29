@@ -379,9 +379,7 @@ null
 
 ## Notify channels
 
-Notify channels are managed dynamically and stored in SQLite (the `notify_channels` table). Password-like sensitive keys in `config` (`password/secret/token/api_key`, etc.) are stored encrypted (022, `enc:v1:` prefix); query endpoints echo them only as masks (`****` + last 4 chars), and submitting the mask unchanged (or blank) on edit keeps the original value — same interaction as the provider api-key. The `notify` tool references a channel **by name** in natural language inside an `AGENT.md` body (e.g. "发到 team-lark"); the tool resolves the registered channel to its adapter and URL. There is no `notify_channels` field in the AGENT.md frontmatter.
-
-`type` is one of `feishu` | `wecom` | `dingtalk` | `webhook` (each backed by an adapter).
+Notify channels are managed dynamically and stored in SQLite's `notify_channels` table. Only `webhook` is currently supported. Real URLs and sensitive config values are returned as `****` plus their last four characters, while `${ENV_VAR}` placeholders remain visible. On update, null, blank, or the current mask preserves the existing secret. This version does not claim database-field encryption; prefer `${ENV_VAR}` in production. There is no `notify_channels` field in AGENT.md frontmatter.
 
 ### Create a notify channel
 
@@ -390,20 +388,22 @@ Notify channels are managed dynamically and stored in SQLite (the `notify_channe
 ```json
 // request — CreateNotifyChannelRequest
 {
-  "name": "team-lark",
-  "type": "feishu",
-  "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx",
-  "description": "team Lark group"
+  "name": "team-webhook",
+  "type": "webhook",
+  "url": "${TEAM_WEBHOOK_URL}",
+  "description": "team notification",
+  "config": {}
 }
 ```
 
 ```json
 // data — NotifyChannelView
 {
-  "name": "team-lark",
-  "type": "feishu",
-  "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx",
-  "description": "team Lark group"
+  "name": "team-webhook",
+  "type": "webhook",
+  "url": "${TEAM_WEBHOOK_URL}",
+  "description": "team notification",
+  "config": {}
 }
 ```
 
@@ -414,7 +414,7 @@ Notify channels are managed dynamically and stored in SQLite (the `notify_channe
 ```json
 // data — NotifyChannelView[]
 [
-  { "name": "team-lark", "type": "feishu", "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx", "description": "team Lark group" }
+  { "name": "team-webhook", "type": "webhook", "url": "${TEAM_WEBHOOK_URL}", "description": "team notification", "config": {} }
 ]
 ```
 
@@ -424,7 +424,7 @@ Notify channels are managed dynamically and stored in SQLite (the `notify_channe
 
 ```json
 // data — NotifyChannelView
-{ "name": "team-lark", "type": "feishu", "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx", "description": "team Lark group" }
+{ "name": "team-webhook", "type": "webhook", "url": "${TEAM_WEBHOOK_URL}", "description": "team notification", "config": {} }
 ```
 
 ### Update a notify channel
@@ -441,8 +441,7 @@ Notify channels are managed dynamically and stored in SQLite (the `notify_channe
 **DELETE** `/api/v1/notify-channels/{name}`
 
 ```json
-// data
-null
+No response body (HTTP 204).
 ```
 
 ---

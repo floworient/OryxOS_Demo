@@ -379,9 +379,7 @@ null
 
 ## 通知渠道
 
-通知渠道动态管理，持久化在 SQLite（`notify_channels` 表）。config 中密码类敏感项（`password/secret/token/api_key` 等名录）落库加密（022，`enc:v1:` 前缀）；查询接口对这些项只回显掩码（`****`+末 4 位），编辑时掩码原样提交或留空 = 保持原值（与 Provider 的 api-key 交互范式一致）。config 中密码类敏感项（`password/secret/token/api_key` 等名录）落库加密（022，`enc:v1:` 前缀）；查询接口对这些项只回显掩码（`****`+末 4 位），编辑时掩码原样提交或留空 = 保持原值（与 Provider 的 api-key 交互范式一致）。`notify` 工具在 `AGENT.md` 正文里以自然语言**按名字**引用渠道（例如"发到 team-lark"），工具据此解析出已注册渠道的适配器和 URL。AGENT.md frontmatter 里没有 `notify_channels` 字段。
-
-`type` 取 `feishu` | `wecom` | `dingtalk` | `webhook`（各由一个适配器实现）。
+通知渠道动态管理，持久化在 SQLite（`notify_channels` 表）。当前只支持 `webhook`；真实 URL 与敏感 config 在查询响应中显示为 `****` 加末 4 位，`${ENV_VAR}` 占位符原样显示。编辑时 URL 或敏感值留空、为 null 或提交当前掩码会保留旧值。当前版本不会宣称数据库字段已加密，生产环境建议优先使用 `${ENV_VAR}`。`AGENT.md` frontmatter 中没有 `notify_channels` 字段。
 
 ### 创建通知渠道
 
@@ -390,20 +388,22 @@ null
 ```json
 // 请求 —— CreateNotifyChannelRequest
 {
-  "name": "team-lark",
-  "type": "feishu",
-  "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx",
-  "description": "团队飞书群"
+  "name": "team-webhook",
+  "type": "webhook",
+  "url": "${TEAM_WEBHOOK_URL}",
+  "description": "团队通知",
+  "config": {}
 }
 ```
 
 ```json
 // data —— NotifyChannelView
 {
-  "name": "team-lark",
-  "type": "feishu",
-  "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx",
-  "description": "团队飞书群"
+  "name": "team-webhook",
+  "type": "webhook",
+  "url": "${TEAM_WEBHOOK_URL}",
+  "description": "团队通知",
+  "config": {}
 }
 ```
 
@@ -414,7 +414,7 @@ null
 ```json
 // data —— NotifyChannelView[]
 [
-  { "name": "team-lark", "type": "feishu", "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx", "description": "团队飞书群" }
+  { "name": "team-webhook", "type": "webhook", "url": "${TEAM_WEBHOOK_URL}", "description": "团队通知", "config": {} }
 ]
 ```
 
@@ -424,7 +424,7 @@ null
 
 ```json
 // data —— NotifyChannelView
-{ "name": "team-lark", "type": "feishu", "url": "https://open.larksuite.com/open-apis/bot/v2/hook/xxxx", "description": "团队飞书群" }
+{ "name": "team-webhook", "type": "webhook", "url": "${TEAM_WEBHOOK_URL}", "description": "团队通知", "config": {} }
 ```
 
 ### 更新通知渠道
@@ -441,8 +441,7 @@ null
 **DELETE** `/api/v1/notify-channels/{name}`
 
 ```json
-// data
-null
+无响应体（HTTP 204）。
 ```
 
 ---

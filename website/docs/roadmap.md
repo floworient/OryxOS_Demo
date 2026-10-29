@@ -12,7 +12,7 @@ Get the five core capabilities working on a single node:
 - REST API: all capabilities exposed, responses in a unified envelope
 - Web admin console at `/admin/`: agent management, schedules, sessions, tools, and runtime views — *done*
 - Dynamic provider registry: SQLite-backed provider CRUD, re-key at runtime — *done*
-- Notify channels: SQLite-backed CRUD (Feishu / WeCom / DingTalk / webhook) — *done*
+- Notify channels: SQLite CRUD, generic webhook text delivery, sandbox enforcement, and audit — *done*; dedicated Feishu / WeCom / DingTalk outbound adapters remain future work
 - Scheduled tasks: per-agent schedules with management and execution history — *done*
 - Workspace file browser over REST — *done*
 - MCP integration: connect any community MCP server with zero code

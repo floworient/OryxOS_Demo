@@ -64,22 +64,9 @@ About two dozen tools ship with OryxOS core — a set of **universal primitives*
 
 `notify` pushes a message to a **notify channel referenced by name**. The tool takes a `channel` argument (the channel's registered name) plus the `content` to send; it resolves that name to a registered channel, picks the adapter for the channel's type, and delivers to the channel's URL.
 
-Notify channels are managed as first-class resources — created, edited, and deleted via the **`/api/v1/notify-channels`** API or the web admin console (the "Notify 渠道" page), and stored in the SQLite `notify_channels` table. Each channel has a `name`, a `type`, a `url`, and an optional `description`. Supported types:
+Notify channels are first-class resources managed through **`/api/v1/notify-channels`** and stored in SQLite's `notify_channels` table. The current implementation supports only the `webhook` type. In line with lesson 19, it performs one `POST application/json` request with a `{"content":"..."}` body. Dedicated Feishu, WeCom, DingTalk, and rich-text adapters are not implemented yet.
 
-| Type | Delivers to |
-| --- | --- |
-| `feishu` | Feishu / Lark group webhook |
-| `wecom` | WeCom (企业微信) group webhook |
-| `dingtalk` | DingTalk group webhook |
-| `slack` | Slack incoming webhook or bot token + channel_id |
-| `discord` | Discord incoming webhook or bot token + channel_id |
-| `telegram` | Telegram Bot API sendMessage |
-| `whatsapp` | WhatsApp Cloud API (24h window / templates) |
-| `teams` | Microsoft Teams incoming webhook |
-| `gchat` | Google Chat incoming webhook |
-| `mattermost` | Mattermost incoming webhook |
-| `matrix` | Matrix Client-Server send |
-| `webhook` | Generic HTTP webhook |
+The URL may be an absolute HTTP(S) URL or a complete `${ENV_VAR}` placeholder. Environment variables are resolved only at send time, then checked against `oryxos.http.allowed-domains`. The allowlist is empty by default, so outbound delivery is denied until explicitly allowed. If `channel` is omitted or blank, the earliest-created channel is used.
 
 An agent references a channel **by name from its `AGENT.md` body**, in plain language — for example, "call notify and send the report to `team-lark`". There is **no `notify_channels` field in AGENT.md frontmatter**; the channel is resolved at call time from the registry, so channels can be added or re-pointed without touching any agent.
 

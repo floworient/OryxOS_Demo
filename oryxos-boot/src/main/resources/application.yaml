@@ -53,3 +53,7 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui
+
+oryxos:
+  http:
+    allowed-domains: []

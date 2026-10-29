@@ -64,22 +64,9 @@ OryxOS 核心内置约两打工具——一组精心挑选的**通用原语**，
 
 `notify` 向一个**按名引用的通知渠道**推送消息。工具接收 `channel` 参数（渠道的注册名）和要发送的 `content`；它把这个名字解析为已注册的渠道，按渠道类型选择适配器，投递到渠道配置的 URL。
 
-通知渠道是一等资源——通过 **`/api/v1/notify-channels`** 接口或 Web 管理台的「Notify 渠道」页面增删改，存于 SQLite 的 `notify_channels` 表。每个渠道有 `name`、`type`、`url` 和可选的 `description`。支持的类型：
+通知渠道是一等资源——通过 **`/api/v1/notify-channels`** 接口增删改，存于 SQLite 的 `notify_channels` 表。当前只实现 `webhook` 类型，按第 19 节契约发送一次 `POST application/json`，正文为 `{"content":"..."}`；专用飞书、企微、钉钉及富文本适配器尚未实现。
 
-| 类型 | 投递到 |
-| --- | --- |
-| `feishu` | 飞书 / Lark 群机器人 webhook |
-| `wecom` | 企业微信群机器人 webhook |
-| `dingtalk` | 钉钉群机器人 webhook |
-| `slack` | Slack Incoming Webhook 或 Bot Token + channel_id |
-| `discord` | Discord Incoming Webhook 或 Bot Token + channel_id |
-| `telegram` | Telegram Bot API sendMessage |
-| `whatsapp` | WhatsApp Cloud API（会话窗 / 模板） |
-| `teams` | Microsoft Teams Incoming Webhook |
-| `gchat` | Google Chat Incoming Webhook |
-| `mattermost` | Mattermost Incoming Webhook |
-| `matrix` | Matrix Client-Server 发信 |
-| `webhook` | 通用 HTTP webhook |
+URL 可以写成完整 HTTP(S) 地址或完整的 `${ENV_VAR}` 占位符。发送前运行时才解析环境变量，并由 `oryxos.http.allowed-domains` 白名单校验；白名单默认为空，未显式放行时拒绝外发。省略或留空 `channel` 时使用最早创建的渠道。
 
 Agent 在其 **`AGENT.md` 正文**里用自然语言按名引用渠道——例如「调用 notify，把报告发到 `team-lark`」。**AGENT.md frontmatter 中没有 `notify_channels` 字段**；渠道在调用时从注册表解析，因此增加或改指渠道都不用动任何 Agent。
 

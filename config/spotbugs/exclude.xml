@@ -1,2 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<FindBugsFilter/>
+<FindBugsFilter>
+    <!-- Registry 是依赖注入端口，不是由服务对外暴露的数据表示。 -->
+    <Match>
+        <Class name="io.oryxos.core.notify.NotifyChannelService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- EntityManager 是由 Spring 管理的基础设施依赖。 -->
+    <Match>
+        <Class name="io.oryxos.storage.JpaNotifyChannelRegistry"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- 下列字段均为构造器注入的协作对象，不作为数据表示返回。 -->
+    <Match>
+        <Or>
+            <Class name="io.oryxos.tool.builtin.NotifyTools"/>
+            <Class name="io.oryxos.tool.notify.WebhookNotifyAdapter"/>
+            <Class name="io.oryxos.web.notify.NotifyChannelApiController"/>
+        </Or>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+</FindBugsFilter>

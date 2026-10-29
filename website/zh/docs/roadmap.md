@@ -12,7 +12,7 @@ OryxOS 的开发理念是：**慢就是快，克制且聚焦**。先把单机的
 - REST API：对外暴露所有能力，响应统一信封
 - `/admin/` Web 管理台：Agent 管理、定时任务、会话、工具及运行时视图 —— *已完成*
 - 动态 Provider 注册表：以 SQLite 为后端的 Provider CRUD，运行时换密钥 —— *已完成*
-- 通知渠道：以 SQLite 为后端的 CRUD（飞书 / 企业微信 / 钉钉 / webhook） —— *已完成*
+- 通知渠道：SQLite CRUD、通用 webhook 纯文本发送、Sandbox 与审计 —— *已完成*；飞书 / 企业微信 / 钉钉专用出站 Adapter 待后续实现
 - 定时任务：按 Agent 的定时任务，含管理和执行历史 —— *已完成*
 - 通过 REST 的工作区文件浏览 —— *已完成*
 - MCP 集成：零代码接入任意社区 MCP server

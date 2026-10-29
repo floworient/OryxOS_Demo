@@ -4,6 +4,10 @@
     <parent><groupId>io.oryxos</groupId><artifactId>oryxos-parent</artifactId><version>0.1.0-SNAPSHOT</version></parent>
     <artifactId>oryxos-tool</artifactId>
     <name>OryxOS Tool</name>
-    <dependencies><dependency><groupId>io.oryxos</groupId><artifactId>oryxos-core</artifactId><version>${project.version}</version></dependency></dependencies>
+    <dependencies>
+        <dependency><groupId>io.oryxos</groupId><artifactId>oryxos-core</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>org.springframework</groupId><artifactId>spring-web</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    </dependencies>
 </project>
 

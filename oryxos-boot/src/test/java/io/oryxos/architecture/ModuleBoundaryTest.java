@@ -16,8 +16,27 @@ class ModuleBoundaryTest {
                 .that().resideInAPackage("io.oryxos.core..")
                 .should().dependOnClassesThat().resideInAnyPackage(
                         "io.oryxos.storage..",
+                        "io.oryxos.tool..",
                         "io.oryxos.web..",
                         "io.oryxos.channel..")
+                .check(classes);
+    }
+
+    @Test
+    void webDoesNotDependOnStorage() {
+        noClasses()
+                .that().resideInAPackage("io.oryxos.web..")
+                .should().dependOnClassesThat().resideInAPackage("io.oryxos.storage..")
+                .check(classes);
+    }
+
+    @Test
+    void inboundChannelsDoNotDependOnOutboundNotifyImplementation() {
+        noClasses()
+                .that().resideInAPackage("io.oryxos.channel..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "io.oryxos.tool.notify..",
+                        "io.oryxos.tool.builtin..")
                 .check(classes);
     }
 }

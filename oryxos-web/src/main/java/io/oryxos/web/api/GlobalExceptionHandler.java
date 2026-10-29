@@ -1,5 +1,7 @@
 package io.oryxos.web.api;
 
+import io.oryxos.core.notify.NotifyChannelConflictException;
+import io.oryxos.core.notify.NotifyChannelNotFoundException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,24 @@ public class GlobalExceptionHandler {
                 .sorted()
                 .collect(Collectors.joining("; "));
         return ResponseEntity.badRequest().body(ApiResponse.error("VALIDATION_ERROR", message));
+    }
+
+    @ExceptionHandler(NotifyChannelNotFoundException.class)
+    ResponseEntity<ApiResponse<Void>> handleNotifyChannelNotFound(NotifyChannelNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("NOTIFY_CHANNEL_NOT_FOUND", exception.getMessage()));
+    }
+
+    @ExceptionHandler(NotifyChannelConflictException.class)
+    ResponseEntity<ApiResponse<Void>> handleNotifyChannelConflict(NotifyChannelConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("NOTIFY_CHANNEL_CONFLICT", exception.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException exception) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error("VALIDATION_ERROR", exception.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
