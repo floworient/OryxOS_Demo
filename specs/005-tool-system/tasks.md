@@ -20,9 +20,9 @@
 
 ## Phase 3: 文件工具
 
-- [ ] T009 [P] 为 `read_file`、`write_file`、`list_dir`、`edit_file`、`grep`、`glob` 编写 RED 测试
-- [ ] T010 实现 `FileTools`：Agent 目录默认读写、绑定 Skill 只读、结果与扫描有界、写失败不破坏原文件
-- [ ] T011 验证目录穿越、原生链接逃逸、未绑定 Skill、超限和无匹配等边界行为
+- [x] T009 [P] 为 `read_file`、`write_file`、`list_dir`、`edit_file`、`grep`、`glob` 编写 RED 测试
+- [x] T010 实现 `FileTools`：Agent 目录默认读写、绑定 Skill 只读、结果与扫描有界、写失败不破坏原文件
+- [x] T011 验证目录穿越、原生链接逃逸、未绑定 Skill、超限和无匹配等边界行为
 
 ## Phase 4: Shell 与 HTTP
 
