@@ -118,7 +118,7 @@ class NotifyToolAuditIT {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @Import({StorageConfiguration.class, NotifyConfiguration.class})
+    @Import({StorageConfiguration.class, ToolConfiguration.class, NotifyConfiguration.class})
     static class TestApplication {
     }
 }

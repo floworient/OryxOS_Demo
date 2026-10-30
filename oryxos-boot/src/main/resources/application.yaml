@@ -57,3 +57,5 @@ springdoc:
 oryxos:
   http:
     allowed-domains: []
+  tool:
+    allowed-commands: {}

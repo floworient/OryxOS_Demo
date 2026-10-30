@@ -45,11 +45,11 @@
 - [x] T022 实现 `ask_user` 与 CLI `ConsoleUserInteraction`，在每次调用 finally 清理上下文
 - [x] T023 [P] 编写 `WebSearchToolsTest`，使用 fake provider 覆盖查询、数量和输出上限
 - [x] T024 实现 `SearchProvider`、`WebSearchTools` 与 `DuckDuckGoInstantAnswerSearchProvider`
-- [ ] T025 在 boot 显式装配 Registry、Sandbox、11 个新增工具、Java/MCP 工具；tool list 改读 Registry
+- [x] T025 在 boot 显式装配 Registry、Sandbox、11 个新增工具、Java/MCP 工具；tool list 改读 Registry
 
 ## Phase 7: 集成、文档与门禁
 
-- [ ] T026 添加 Prompt/Executor 可见性一致、ToolExecutor 单次执行与审计、Boot 启动集成测试
+- [x] T026 添加 Prompt/Executor 可见性一致、ToolExecutor 单次执行与审计、Boot 启动集成测试
 - [ ] T027 更新 `README.md` 与中英文网站 Tool/Profile 文档，仅声明实际能力和限制
 - [ ] T028 执行聚焦测试、`mvn test`、`mvn clean verify`、`git diff --check` 与敏感信息扫描
 - [ ] T029 对照 FR-001～FR-037、SC-001～SC-010 和 quickstart 逐项记录验证证据

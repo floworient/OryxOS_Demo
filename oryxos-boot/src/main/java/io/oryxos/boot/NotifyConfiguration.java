@@ -8,28 +8,20 @@ import io.oryxos.tool.notify.NotifyChannelAdapter;
 import io.oryxos.tool.notify.NotifyTargetResolver;
 import io.oryxos.tool.notify.WebhookNotifyAdapter;
 import io.oryxos.tool.sandbox.Sandbox;
-import io.oryxos.tool.sandbox.WhitelistSandbox;
 import java.net.http.HttpClient;
 import java.time.Clock;
 import java.util.List;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(HttpSandboxProperties.class)
 public class NotifyConfiguration {
 
     @Bean
     NotifyChannelService notifyChannelService(NotifyChannelRegistry registry) {
         return new NotifyChannelService(registry, Clock.systemUTC());
-    }
-
-    @Bean
-    Sandbox notifySandbox(HttpSandboxProperties properties) {
-        return new WhitelistSandbox(properties.getAllowedDomains());
     }
 
     @Bean

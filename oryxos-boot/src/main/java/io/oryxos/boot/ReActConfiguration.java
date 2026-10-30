@@ -10,16 +10,11 @@ import io.oryxos.core.profile.ProfileRegistry;
 import io.oryxos.core.provider.ProviderService;
 import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.session.SessionManager;
-import io.oryxos.core.tool.OryxTool;
-import io.oryxos.core.tool.ToolRegistration;
 import io.oryxos.core.tool.ToolRegistry;
-import io.oryxos.core.tool.ToolSource;
 import io.oryxos.core.tool.ToolExecutor;
 import io.oryxos.provider.ToolSchemaAdapter;
-import io.oryxos.tool.registry.DefaultToolRegistry;
 import java.nio.file.Path;
 import java.time.Clock;
-import java.util.List;
 import java.util.function.BiConsumer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,15 +23,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 public class ReActConfiguration {
-
-    @Bean
-    ToolRegistry runtimeTools(List<OryxTool> registered) {
-        var tools = new DefaultToolRegistry();
-        for (OryxTool tool : registered) {
-            tools.register(new ToolRegistration(tool, ToolSource.BUILTIN, "builtin"));
-        }
-        return tools;
-    }
 
     @Bean
     ContextLoader contextLoader(@Value("${oryxos.workspace:./.oryxos}") String workspace) {
