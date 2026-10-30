@@ -51,8 +51,8 @@
 
 - [x] T026 添加 Prompt/Executor 可见性一致、ToolExecutor 单次执行与审计、Boot 启动集成测试
 - [x] T027 更新 `README.md` 与中英文网站 Tool/Profile 文档，仅声明实际能力和限制
-- [ ] T028 执行聚焦测试、`mvn test`、`mvn clean verify`、`git diff --check` 与敏感信息扫描
-- [ ] T029 对照 FR-001～FR-037、SC-001～SC-010 和 quickstart 逐项记录验证证据
+- [x] T028 执行聚焦测试、`mvn test`、`mvn clean verify`、`git diff --check` 与敏感信息扫描
+- [x] T029 对照 FR-001～FR-037、SC-001～SC-010 和 quickstart 逐项记录验证证据
 
 ## Dependencies
 

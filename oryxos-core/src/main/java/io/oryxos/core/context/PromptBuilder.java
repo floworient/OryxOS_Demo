@@ -32,7 +32,7 @@ public class PromptBuilder {
     public PromptBuilder(ContextLoader loader, ToolRegistry tools,
             Function<OryxTool, ToolCallback> schemas, BiFunction<Session, Profile, String> memory, Clock clock) {
         this.loader = loader;
-        this.tools = java.util.Objects.requireNonNull(tools);
+        this.tools = tools;
         this.schemas = schemas;
         this.memory = memory;
         this.clock = clock;

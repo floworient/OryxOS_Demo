@@ -33,10 +33,21 @@ public final class WebSearchTools {
     public WebSearchTools(SearchProvider provider) {
         this.provider = java.util.Objects.requireNonNull(provider);
         this.tool = new OryxTool() {
-            public String getName() { return "web_search"; }
-            public String getDescription() { return "通过已配置的搜索 Provider 查询有界网页摘要结果"; }
-            public String getInputSchema() { return SCHEMA; }
-            public ToolResult execute(String input) { return WebSearchTools.this.search(input); }
+            public String getName() {
+                return "web_search";
+            }
+
+            public String getDescription() {
+                return "通过已配置的搜索 Provider 查询有界网页摘要结果";
+            }
+
+            public String getInputSchema() {
+                return SCHEMA;
+            }
+
+            public ToolResult execute(String input) {
+                return WebSearchTools.this.search(input);
+            }
         };
     }
 

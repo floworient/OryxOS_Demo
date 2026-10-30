@@ -14,7 +14,6 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -91,7 +90,8 @@ public final class HttpTools {
             else {
                 builder.GET();
             }
-            HttpResponse<InputStream> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> response = client.send(builder.build(),
+                    HttpResponse.BodyHandlers.ofInputStream());
             byte[] body;
             boolean truncated;
             try (InputStream stream = response.body()) {

@@ -8,7 +8,6 @@ import io.oryxos.cli.SessionInfo;
 import io.oryxos.cli.ToolInfo;
 import io.oryxos.core.agent.AgentService;
 import io.oryxos.core.session.SessionManager;
-import io.oryxos.core.tool.OryxTool;
 import io.oryxos.core.tool.ToolRegistry;
 import io.oryxos.provider.ProviderProperties;
 import java.io.PrintWriter;

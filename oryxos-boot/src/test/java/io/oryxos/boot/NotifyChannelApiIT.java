@@ -89,8 +89,8 @@ class NotifyChannelApiIT {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @Import({StorageConfiguration.class, ToolConfiguration.class, NotifyConfiguration.class, NotifyChannelApiController.class,
-            NotifyChannelMasker.class, GlobalExceptionHandler.class})
+    @Import({StorageConfiguration.class, ToolConfiguration.class, NotifyConfiguration.class,
+            NotifyChannelApiController.class, NotifyChannelMasker.class, GlobalExceptionHandler.class})
     static class TestApplication {
     }
 }

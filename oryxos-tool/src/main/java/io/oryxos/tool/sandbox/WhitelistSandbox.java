@@ -83,7 +83,12 @@ public final class WhitelistSandbox implements Sandbox {
         }
         try {
             java.util.List<SkillBinding> bindings = skillBindings.resolve(action.profile());
-            Path agent = action.profile().sourcePath().getParent().toRealPath();
+            Path sourcePath = action.profile().sourcePath();
+            Path parent = sourcePath.getParent();
+            if (parent == null) {
+                throw new SecurityException("Agent 定义缺少父目录");
+            }
+            Path agent = parent.toRealPath();
             Path candidate = requested.isAbsolute() ? requested.normalize() : agent.resolve(requested).normalize();
             if (action.mode() == FileAccessMode.WRITE) {
                 return approveWrite(candidate, agent);

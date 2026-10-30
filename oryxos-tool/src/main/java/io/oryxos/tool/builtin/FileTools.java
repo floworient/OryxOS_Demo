@@ -92,7 +92,8 @@ public final class FileTools {
         }
         List<Path> entries;
         try (var stream = Files.list(directory)) {
-            entries = stream.sorted(java.util.Comparator.comparing(FileTools::fileName)).limit(MAX_RESULTS + 1L).toList();
+            entries = stream.sorted(java.util.Comparator.comparing(FileTools::fileName))
+                    .limit(MAX_RESULTS + 1L).toList();
         }
         boolean truncated = entries.size() > MAX_RESULTS;
         var values = new ArrayList<Map<String, Object>>();
@@ -341,6 +342,9 @@ public final class FileTools {
 
     private static void atomicWrite(Path target, byte[] bytes) throws IOException {
         Path parent = target.getParent();
+        if (parent == null) {
+            throw new IOException("写入目标缺少父目录");
+        }
         Path temporary = Files.createTempFile(parent, ".oryxos-write-", ".tmp");
         try {
             Files.write(temporary, bytes);

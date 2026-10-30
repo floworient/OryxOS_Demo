@@ -52,10 +52,21 @@ class McpClientServiceTest {
 
     private static OryxTool tool(String name) {
         return new OryxTool() {
-            public String getName() { return name; }
-            public String getDescription() { return "说明"; }
-            public String getInputSchema() { return "{\"type\":\"object\"}"; }
-            public ToolResult execute(String input) { return new ToolResult(true, "ok", null, false); }
+            public String getName() {
+                return name;
+            }
+
+            public String getDescription() {
+                return "说明";
+            }
+
+            public String getInputSchema() {
+                return "{\"type\":\"object\"}";
+            }
+
+            public ToolResult execute(String input) {
+                return new ToolResult(true, "ok", null, false);
+            }
         };
     }
 }

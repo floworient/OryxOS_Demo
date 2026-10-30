@@ -22,7 +22,6 @@ import io.oryxos.tool.search.SearchProvider;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
