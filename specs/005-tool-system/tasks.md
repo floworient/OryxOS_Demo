@@ -41,10 +41,10 @@
 
 ## Phase 6: 交互、搜索与装配
 
-- [ ] T021 [P] 编写 `InteractionToolsTest` 与 `CliChannelTest`，覆盖 CLI 问答、无人值守快速失败和并发隔离
-- [ ] T022 实现 `ask_user` 与 CLI `ConsoleUserInteraction`，在每次调用 finally 清理上下文
-- [ ] T023 [P] 编写 `WebSearchToolsTest`，使用 fake provider 覆盖查询、数量和输出上限
-- [ ] T024 实现 `SearchProvider`、`WebSearchTools` 与 `DuckDuckGoInstantAnswerSearchProvider`
+- [x] T021 [P] 编写 `InteractionToolsTest` 与 `CliChannelTest`，覆盖 CLI 问答、无人值守快速失败和并发隔离
+- [x] T022 实现 `ask_user` 与 CLI `ConsoleUserInteraction`，在每次调用 finally 清理上下文
+- [x] T023 [P] 编写 `WebSearchToolsTest`，使用 fake provider 覆盖查询、数量和输出上限
+- [x] T024 实现 `SearchProvider`、`WebSearchTools` 与 `DuckDuckGoInstantAnswerSearchProvider`
 - [ ] T025 在 boot 显式装配 Registry、Sandbox、11 个新增工具、Java/MCP 工具；tool list 改读 Registry
 
 ## Phase 7: 集成、文档与门禁

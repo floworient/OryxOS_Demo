@@ -1,6 +1,7 @@
 package io.oryxos.channel.cli;
 
 import io.oryxos.core.agent.AgentService;
+import io.oryxos.core.interaction.UserInteractionContext;
 import io.oryxos.core.session.Session;
 import io.oryxos.core.session.SessionManager;
 import java.io.BufferedReader;
@@ -34,6 +35,7 @@ public final class CliChannel {
         Session session = sessionManager.getOrCreate("cli", userId, profileName);
         BufferedReader reader = input instanceof BufferedReader buffered
                 ? buffered : new BufferedReader(input);
+        var interaction = new ConsoleUserInteraction(reader, output);
         while (true) {
             output.print("> ");
             output.flush();
@@ -44,7 +46,13 @@ public final class CliChannel {
             if (line.isBlank()) {
                 continue;
             }
-            output.println(agentService.process(session, line));
+            try {
+                UserInteractionContext.set(interaction);
+                output.println(agentService.process(session, line));
+            }
+            finally {
+                UserInteractionContext.clear();
+            }
             output.flush();
         }
     }

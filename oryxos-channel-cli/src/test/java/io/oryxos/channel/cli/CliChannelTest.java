@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.oryxos.core.agent.AgentService;
+import io.oryxos.core.interaction.UserInteractionContext;
 import io.oryxos.core.session.Session;
 import io.oryxos.core.session.SessionManager;
 import java.io.PrintWriter;
@@ -71,6 +72,59 @@ class CliChannelTest {
         verify(service).process(session, "失败问题");
         assertThat(reader.closed).isFalse();
         assertThat(writer.closed).isFalse();
+    }
+
+    @Test
+    void exposesConsoleInteractionOnlyDuringOneAgentCallAndClearsItFinally() {
+        var service = mock(AgentService.class);
+        var sessions = mock(SessionManager.class);
+        var session = new Session("cli", "alice", "weather");
+        when(sessions.getOrCreate("cli", "alice", "weather")).thenReturn(session);
+        when(service.process(session, "开始")).thenAnswer(ignored -> {
+            assertThat(UserInteractionContext.current()).isNotNull();
+            return UserInteractionContext.current().ask("请选择环境");
+        });
+        var output = new StringWriter();
+
+        new CliChannel(service, sessions, new StringReader("开始\n生产环境\n/quit\n"),
+                new PrintWriter(output, true), "alice").run("weather");
+
+        assertThat(output.toString()).contains("请选择环境", "生产环境");
+        assertThat(UserInteractionContext.current()).isNull();
+    }
+
+    @Test
+    void concurrentChannelsNeverExchangeAnswers() throws Exception {
+        var ready = new java.util.concurrent.CountDownLatch(2);
+        var service = mock(AgentService.class);
+        when(service.process(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString())).thenAnswer(ignored -> {
+                    ready.countDown();
+                    assertThat(ready.await(2, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                    return UserInteractionContext.current().ask("回答");
+                });
+        var sessionsA = mock(SessionManager.class);
+        var sessionsB = mock(SessionManager.class);
+        when(sessionsA.getOrCreate("cli", "alice", "agent-a"))
+                .thenReturn(new Session("cli", "alice", "agent-a"));
+        when(sessionsB.getOrCreate("cli", "bob", "agent-b"))
+                .thenReturn(new Session("cli", "bob", "agent-b"));
+        var outputA = new StringWriter();
+        var outputB = new StringWriter();
+
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var first = executor.submit(() -> new CliChannel(service, sessionsA,
+                    new StringReader("开始A\n答案A\n/quit\n"), new PrintWriter(outputA, true), "alice")
+                    .run("agent-a"));
+            var second = executor.submit(() -> new CliChannel(service, sessionsB,
+                    new StringReader("开始B\n答案B\n/quit\n"), new PrintWriter(outputB, true), "bob")
+                    .run("agent-b"));
+            first.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            second.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        }
+
+        assertThat(outputA.toString()).contains("答案A").doesNotContain("答案B");
+        assertThat(outputB.toString()).contains("答案B").doesNotContain("答案A");
     }
 
     private static final class TrackingReader extends StringReader {
