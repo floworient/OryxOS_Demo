@@ -1,0 +1,36 @@
+package io.oryxos.tool.adapter;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+
+class AnnotatedToolAdapterTest {
+
+    @Test
+    void discoversExplicitAnnotatedMethodsAndPreservesSchemaAndSingleExecution() {
+        var fixture = new Fixture();
+        var tools = new AnnotatedToolDiscovery().discover(List.of(fixture, new Object()));
+
+        assertThat(tools).singleElement().satisfies(tool -> {
+            assertThat(tool.getName()).isEqualTo("greet");
+            assertThat(tool.getDescription()).isEqualTo("问候指定用户");
+            assertThat(tool.getInputSchema()).contains("arg0", "object", "用户姓名");
+            assertThat(tool.execute("{\"arg0\":\"小王\"}").content()).contains("你好，小王");
+        });
+        assertThat(fixture.calls).hasValue(1);
+    }
+
+    static final class Fixture {
+        private final AtomicInteger calls = new AtomicInteger();
+
+        @Tool(name = "greet", description = "问候指定用户")
+        String greet(@ToolParam(description = "用户姓名") String name) {
+            calls.incrementAndGet();
+            return "你好，" + name;
+        }
+    }
+}

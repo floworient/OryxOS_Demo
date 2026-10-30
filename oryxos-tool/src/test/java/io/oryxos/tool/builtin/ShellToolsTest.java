@@ -12,6 +12,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +69,18 @@ class ShellToolsTest {
     @Test
     void timeoutTerminatesProcessAndUnknownAliasNeverStarts() throws Exception {
         Path pidFile = workspace.resolve("agents/shell-agent/pids.txt");
-        ToolResult timeout = execute(List.of("tree", pidFile.toString()), null, 1);
+        Profile profile = ProfileContext.current();
+        var execution = CompletableFuture.supplyAsync(() -> {
+            ProfileContext.set(profile);
+            try {
+                return execute(List.of("tree", pidFile.toString()), null, 10);
+            }
+            finally {
+                ProfileContext.clear();
+            }
+        });
+        awaitNonEmpty(pidFile, execution);
+        ToolResult timeout = execution.get(12, TimeUnit.SECONDS);
         assertThat(timeout.success()).isFalse();
         assertThat(timeout.errorMessage()).contains("超时");
         for (String value : Files.readAllLines(pidFile)) {
@@ -77,6 +90,16 @@ class ShellToolsTest {
 
         String input = "{\"executable\":\"missing\",\"arguments\":[]}";
         assertThat(shell.tool().execute(input).success()).isFalse();
+    }
+
+    private static void awaitNonEmpty(Path file, CompletableFuture<?> execution) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while ((!Files.exists(file) || Files.size(file) == 0) && !execution.isDone()
+                && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
+        assertThat(file).exists();
+        assertThat(Files.size(file)).isPositive();
     }
 
     @Test

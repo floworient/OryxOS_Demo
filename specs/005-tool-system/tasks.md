@@ -33,11 +33,11 @@
 
 ## Phase 5: Java Tool 与 MCP
 
-- [ ] T016 [P] 编写 `AnnotatedToolAdapterTest`，覆盖 Spring AI `@Tool` schema、调用和异常映射
-- [ ] T017 实现 `AnnotatedToolDiscovery`、`AnnotatedToolAdapter` 并注册为 `JAVA`
-- [ ] T018 [P] 编写 `McpConfigLoaderTest`，覆盖严格 schema、stdio/SSE、环境占位、秘密脱敏和 fail-fast
-- [ ] T019 [P] 编写 fake connection 驱动的 `McpClientServiceTest`、`McpToolAdapterTest`
-- [ ] T020 实现 MCP 配置、同步客户端工厂、连接生命周期和 adapter；配置/安全错误失败启动，纯连接失败 WARN 跳过
+- [x] T016 [P] 编写 `AnnotatedToolAdapterTest`，覆盖 Spring AI `@Tool` schema、调用和异常映射
+- [x] T017 实现 `AnnotatedToolDiscovery`、`AnnotatedToolAdapter` 并注册为 `JAVA`
+- [x] T018 [P] 编写 `McpConfigLoaderTest`，覆盖严格 schema、stdio/SSE、环境占位、秘密脱敏和 fail-fast
+- [x] T019 [P] 编写 fake connection 驱动的 `McpClientServiceTest`、`McpToolAdapterTest`
+- [x] T020 实现 MCP 配置、同步客户端工厂、连接生命周期和 adapter；配置/安全错误失败启动，纯连接失败 WARN 跳过
 
 ## Phase 6: 交互、搜索与装配
 
