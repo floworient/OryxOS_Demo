@@ -9,13 +9,9 @@ oryxos:
   http:
     allowed-domains:
       - api.duckduckgo.com
-  tools:
-    file:
-      readable-roots: []
-      writable-roots: []
-    shell:
-      allowed-executables:
-        node: C:/Program Files/nodejs/node.exe
+  tool:
+    allowed-commands:
+      node: C:/Program Files/nodejs/node.exe
 ```
 
 Agent 自有目录无需额外加入文件白名单；公共 Skill 只有通过 `skills/*.link` 绑定后才可读，且始终不可写。
@@ -51,7 +47,7 @@ mcp_servers:
 
 ```powershell
 .\mvnw.cmd -pl oryxos-boot -am package -DskipTests
-java -jar oryxos-boot\target\oryxos-boot-0.1.0-SNAPSHOT-exec.jar tool list --workspace .oryxos
+java -jar oryxos-boot\target\oryxos-boot-0.1.0-SNAPSHOT-exec.jar tool list
 ```
 
 预期：列表包含配置并成功初始化的 MCP 工具、声明的内置工具以及既有 `notify`。列表展示全局注册结果；某 Agent 的模型清单仍按 `tools` / `mcp_servers` 过滤。

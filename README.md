@@ -24,7 +24,7 @@
 </div>
 
 > [!IMPORTANT]
-> OryxOS 目前处于工程引导阶段。Maven 14 模块骨架已经建立并可用于编译打包，Provider、ReAct、Memory、Tool 等运行时能力仍在建设中，当前没有可安装的正式版本。
+> OryxOS 目前处于开发预览阶段。Maven 14 模块、Provider、ReAct、CLI、持久化审计和 Tool 运行时已有可执行实现；Memory、完整 Web 管理面、多渠道与治理能力仍在建设中，当前没有可安装的正式版本。
 
 <a id="overview"></a>
 
@@ -67,7 +67,7 @@ CLI、企业 IM 和定时任务作为不同触发入口，最终复用同一条 
 │   └── daily-weather/
 │       ├── AGENT.md
 │       ├── skills/
-│       │   └── digest-format -> ../../../skills/digest-format
+│       │   └── digest-format.link
 │       ├── scripts/
 │       └── REFERENCE.md
 ├── skills/
@@ -99,7 +99,7 @@ schedules:
 然后发送到配置的通知渠道。
 ```
 
-公共 Skill 位于 `.oryxos/skills/<name>/`。Agent 通过自身 `skills/` 下的受控相对软连接选择可见 Skill。运行时只预载 Skill 的名称、描述和路径，正文与附属资源由 Agent 按需读取。
+公共 Skill 位于 `.oryxos/skills/<name>/`。Agent 通过自身 `skills/` 下的普通 UTF-8 `.link` 相对引用文件选择可见 Skill；它不是操作系统软连接。运行时只预载 Skill 的名称、描述和已校验路径，正文与附属资源由 Agent 按需读取。
 
 <a id="architecture"></a>
 
@@ -167,12 +167,13 @@ schedules:
 - [x] AI 辅助开发实施指南
 - [x] Maven 14 模块工程骨架、模块依赖和启动占位代码
 - [x] Java 21 与 Maven 构建基线
-- [ ] 核心运行时契约与实现
-- [ ] 首个可运行的 Provider + ReAct + CLI 链路
+- [x] 核心运行时契约与实现
+- [x] 首个可运行的 Provider + ReAct + CLI 链路
+- [x] 统一 ToolRegistry、11 个基础工具、Java `@Tool`、MCP stdio/SSE 与应用层 Sandbox
 - [ ] 可供试用的预览版本
 
 > [!NOTE]
-> 当前代码用于确立工程结构和依赖边界。模块中的占位类不代表对应业务能力已经完成，公开 API、配置和命令仍可能在首个预览版本前调整。
+> 当前实现仍在首个预览版本前，公开 API、配置和命令可能调整。文档只把已有自动化证据覆盖的能力标记为完成；真实外网、真实 MCP server 和真实凭证调用需部署者单独验证。
 
 <a id="build"></a>
 
@@ -215,7 +216,8 @@ java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar serve --port 80
 - [x] **Project Bootstrap**：建立 Maven 14 模块工程、依赖关系和 Java 21 构建基线。
 - [x] **Foundation**：实现核心契约和 Provider 抽象，跑通模型调用。
 - [x] **Agent Runtime**：实现 ReAct Loop、`ToolExecutor`、12 条 CLI 命令和基础 Session。
-- [ ] **Memory & Tools**：实现长期记忆、内置 Tool、MCP Client 和应用层 Sandbox。
+- [x] **Tool Runtime**：实现统一注册、11 个基础 Tool、Java `@Tool`、MCP Client 和应用层 Sandbox。
+- [ ] **Memory**：完成长期记忆、分区语义和 Memory Tool。
 - [ ] **Web API**：提供 REST API、OpenAPI 和统一错误响应。
 - [x] **Persistence & Audit**：完成 SQLite 持久化、Flyway 迁移和调用审计。
 - [ ] **Multi-Agent Runtime**：支持多 Agent、动态调度和端到端示例。
