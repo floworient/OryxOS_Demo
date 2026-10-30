@@ -25,6 +25,14 @@ public final class AnnotatedToolDiscovery {
 
     private static boolean hasToolMethod(Object candidate) {
         Class<?> type = org.springframework.util.ClassUtils.getUserClass(candidate);
+        for (var method : type.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Tool.class)
+                    && (method.isVarArgs() || method.getTypeParameters().length != 0
+                    || java.util.concurrent.Future.class.isAssignableFrom(method.getReturnType())
+                    || java.util.stream.BaseStream.class.isAssignableFrom(method.getReturnType()))) {
+                throw new IllegalArgumentException("Java Tool 方法签名不支持");
+            }
+        }
         return java.util.Arrays.stream(type.getDeclaredMethods())
                 .anyMatch(method -> method.isAnnotationPresent(Tool.class));
     }

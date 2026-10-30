@@ -22,6 +22,10 @@ class AnnotatedToolAdapterTest {
             assertThat(tool.execute("{\"arg0\":\"小王\"}").content()).contains("你好，小王");
         });
         assertThat(fixture.calls).hasValue(1);
+        assertThat(tools.getFirst().execute("{\"arg0\":\"小王\",\"unknown\":true}").success()).isFalse();
+        assertThat(tools.getFirst().execute("{}").success()).isFalse();
+        assertThat(tools.getFirst().execute("{\"arg0\":123}").success()).isFalse();
+        assertThat(fixture.calls).hasValue(1);
     }
 
     static final class Fixture {
@@ -31,6 +35,20 @@ class AnnotatedToolAdapterTest {
         String greet(@ToolParam(description = "用户姓名") String name) {
             calls.incrementAndGet();
             return "你好，" + name;
+        }
+    }
+
+    @Test
+    void acceptsDynamicMapValuesWhenGeneratedSchemaHasNoPropertyRestrictions() {
+        var tool = new AnnotatedToolDiscovery().discover(List.of(new MapFixture())).getFirst();
+        assertThat(tool.execute("{\"arg0\":{\"name\":\"小王\"}}").success()).as(tool.getInputSchema()).isTrue();
+        assertThat(tool.execute("{\"arg0\":123}").success()).isFalse();
+    }
+
+    static final class MapFixture {
+        @Tool(description = "读取映射")
+        String mapping(java.util.Map<String, String> values) {
+            return values.get("name");
         }
     }
 }

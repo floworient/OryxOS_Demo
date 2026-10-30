@@ -35,6 +35,9 @@ public final class McpClientService implements AutoCloseable {
                 if (connection != null) {
                     closeQuietly(connection);
                 }
+                if (exception instanceof IllegalArgumentException) {
+                    throw new IllegalStateException("MCP 客户端配置非法");
+                }
                 LOGGER.warn("MCP server 不可用，已跳过 serverName={}", definition.name());
                 continue;
             }

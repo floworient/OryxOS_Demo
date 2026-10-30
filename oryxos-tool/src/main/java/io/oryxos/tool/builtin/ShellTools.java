@@ -93,7 +93,8 @@ public final class ShellTools {
             command.addAll(input.arguments());
             process = new ProcessBuilder(command).directory(directory.toFile()).start();
             Process started = process;
-            try (var readers = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var readers = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
+            try {
                 var stdout = readers.submit(() -> drain(started.getInputStream()));
                 var stderr = readers.submit(() -> drain(started.getErrorStream()));
                 if (!process.waitFor(input.timeoutSeconds(), TimeUnit.SECONDS)) {
@@ -113,6 +114,16 @@ public final class ShellTools {
                 result.put("stdout_truncated", out.truncated());
                 result.put("stderr_truncated", err.truncated());
                 return new ToolResult(true, JsonParser.toJson(result), null, false);
+            }
+            finally {
+                // 先结束进程、关闭管道，再停止读取线程，避免 ExecutorService.close 无限等待阻塞读取。
+                if (process.isAlive()) {
+                    terminate(process);
+                }
+                close(process.getInputStream());
+                close(process.getErrorStream());
+                close(process.getOutputStream());
+                readers.shutdownNow();
             }
         }
         catch (InterruptedException exception) {

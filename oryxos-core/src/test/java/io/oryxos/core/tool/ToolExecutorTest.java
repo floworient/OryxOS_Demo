@@ -94,6 +94,19 @@ class ToolExecutorTest {
     }
 
     @Test
+    void auditRedactsNestedCredentialsEvenWhenCallIsDenied() {
+        profile();
+        try (var executor = new ToolExecutor(registry(tool(() -> new ToolResult(true, "ok", null, false))),
+                (p, call) -> { throw new SecurityException(); }, records::add)) {
+            executor.execute("s", new ToolCallIntent("c", "lookup",
+                    "{\"headers\":{\"Authorization\":\"canary-secret\"},"
+                            + "\"nested\":[{\"api_key\":\"canary-secret\"}]}"));
+            assertThat(records).singleElement().satisfies(record ->
+                    assertThat(record.inputJson()).contains("REDACTED").doesNotContain("canary-secret"));
+        }
+    }
+
+    @Test
     void successExecutesOncePropagatesContextAndPersistsAudit() throws Exception {
         var current = profile();
         var worker = Executors.newSingleThreadExecutor();
@@ -141,6 +154,18 @@ class ToolExecutorTest {
     }
 
     @Test
+    void backoffFailureStillProducesFinalAudit() {
+        profile();
+        try (var executor = new ToolExecutor(registry(tool(() -> new ToolResult(false, "", "暂时失败", true))),
+                (p, call) -> { }, records::add, Executors.newVirtualThreadPerTaskExecutor(),
+                Duration.ofSeconds(2), millis -> { throw new IllegalStateException(); })) {
+            assertThat(executor.execute("s", intent).success()).isFalse();
+        }
+        assertThat(calls).hasValue(1);
+        assertThat(records).singleElement().satisfies(record -> assertThat(record.success()).isFalse());
+    }
+
+    @Test
     void retryableFailureHasFourAttemptsAndExponentialBackoff() {
         profile();
         var waits = new ArrayList<Long>();
@@ -151,7 +176,7 @@ class ToolExecutorTest {
             assertThat(executor.execute("s", intent).success()).isFalse();
         }
         assertThat(calls).hasValue(4);
-        assertThat(records).hasSize(4);
+        assertThat(records).hasSize(1);
         assertThat(waits).containsExactly(100L, 200L, 400L);
     }
 

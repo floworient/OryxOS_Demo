@@ -1,6 +1,10 @@
 # Tool 体系验证矩阵
 
+> 独立审查及修复记录见 `review-followup.md`。文件 realPath/fileKey 复验属于应用层竞态缓解，不承诺对抗恶意本地并发修改；管理员额外文件根当前为空属于已批准范围限制，不代表已实现额外根配置能力。
+
 验证日期：2026-10-30。自动化验证不访问公网、不使用真实密钥或真实 MCP server。真实 DuckDuckGo、企业 MCP 与凭证调用仍是部署者的独立手工验证项。
+
+审查修复后门禁：全仓 `clean verify` 退出 0；最后两项复审修复后全仓 `verify` 于 16:09 退出 0；`npm run docs:build`、`git diff --check` 通过，凭证模式扫描无命中。新增测试覆盖 Shell 中断退出、嵌套量词正则、Map 参数兼容、退避失败审计和参数脱敏。
 
 ## Functional Requirements
 
@@ -16,7 +20,7 @@
 | FR-008 | 通过 | `AnnotatedToolAdapterTest` 覆盖 schema、对象参数、单次调用和脱敏失败 |
 | FR-009 | 通过 | `FileTools.all()` 注册六个文件工具；`FileToolsTest` |
 | FR-010 | 通过 | `WhitelistSandbox` 以当前 Profile 的 Agent 目录解析；无额外根默认放行 |
-| FR-011 | 通过 | Agent 目录读写、绑定 Skill 只读；当前任意额外普通根配置为空；`FileToolsTest` |
+| FR-011 | 批准范围内通过 | Agent 目录读写、绑定 Skill 只读；额外普通根保持为空，未实现管理员额外根配置；`FileToolsTest` |
 | FR-012 | 通过 | `SkillBindingResolverTest`、`ContextLoaderNativeLinksIT`、`WhitelistSandboxTest`、`FileToolsTest` |
 | FR-013 | 通过 | `FileToolsTest` 验证零次/多次匹配不修改、唯一匹配成功 |
 | FR-014 | 通过 | `FileToolsTest` 验证稳定顺序、文本过滤、搜索与 200 条上限 |
@@ -25,7 +29,7 @@
 | FR-017 | 通过 | `ProcessBuilder(List)`；元字符字面量测试通过 |
 | FR-018 | 通过 | `WhitelistSandbox` + `ShellToolsTest` 覆盖 alias/cwd、双流上限、超时和进程树终止 |
 | FR-019 | 通过 | `HttpTools` 对 GET/POST 使用 `Sandbox.enforce` 返回 URI；`HttpToolsTest` 各一次请求 |
-| FR-020 | 通过 | `Redirect.NEVER`、请求/响应/时间/header 上限；重定向仅返回 302，不跟随 |
+| FR-020 | 通过 | `Redirect.NEVER`、请求/响应/时间/header 上限；仅允许四种安全 header，重定向及非 2xx 返回脱敏失败 |
 | FR-021 | 通过 | `HttpToolsTest` 验证敏感 header 在网络请求前拒绝 |
 | FR-022 | 通过 | `WhitelistSandboxTest` 覆盖默认拒绝、URI 规范化、域名边界；搜索 Provider 同样经过 Sandbox |
 | FR-023 | 通过 | `McpConfigLoaderTest` 覆盖严格 YAML、stdio/SSE、未知字段、重复 server |

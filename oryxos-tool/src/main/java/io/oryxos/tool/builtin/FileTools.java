@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
+import com.google.re2j.Pattern;
 import org.springframework.ai.util.json.JsonParser;
 
 public final class FileTools {
@@ -345,10 +345,16 @@ public final class FileTools {
         if (parent == null) {
             throw new IOException("写入目标缺少父目录");
         }
+        Path realParent = parent.toRealPath();
+        Object parentKey = Files.readAttributes(parent, java.nio.file.attribute.BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS).fileKey();
+        verifyParent(parent, realParent, parentKey);
         Path temporary = Files.createTempFile(parent, ".oryxos-write-", ".tmp");
         try {
+            verifyParent(parent, realParent, parentKey);
             Files.write(temporary, bytes);
             try {
+                verifyParent(parent, realParent, parentKey);
                 Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             }
             catch (AtomicMoveNotSupportedException exception) {
@@ -357,6 +363,16 @@ public final class FileTools {
         }
         finally {
             Files.deleteIfExists(temporary);
+        }
+    }
+
+    private static void verifyParent(Path parent, Path expectedReal, Object expectedKey) throws IOException {
+        var attributes = Files.readAttributes(parent, java.nio.file.attribute.BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS);
+        if (!attributes.isDirectory() || attributes.isSymbolicLink()
+                || !parent.toRealPath().equals(expectedReal)
+                || !java.util.Objects.equals(expectedKey, attributes.fileKey())) {
+            throw new IOException("写入期间父目录发生变化");
         }
     }
 

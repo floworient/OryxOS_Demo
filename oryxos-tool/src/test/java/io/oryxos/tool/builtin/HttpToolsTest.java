@@ -93,8 +93,8 @@ class HttpToolsTest {
     @Test
     void neverFollowsRedirectAndNeverRetries() {
         var result = tool("http_get").execute("{\"url\":\"" + baseUrl + "/redirect\"}");
-        assertThat(result.success()).isTrue();
-        assertThat(result.content()).contains("\"status\":302");
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("302");
         assertThat(requests).hasValue(1);
     }
 

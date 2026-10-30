@@ -23,7 +23,7 @@ This delivery adds 11 built-ins. The existing `notify` tool uses the same regist
 | `write_file` | Atomically write UTF-8 text inside the current Agent directory |
 | `list_dir` | Deterministically list an approved directory, up to 200 entries |
 | `edit_file` | Replace only when `old_text` occurs exactly once |
-| `grep` | Java-regex search with file, byte, and 200-result limits |
+| `grep` | Linear-time RE2/J regex search with file, byte, and 200-result limits; no backreferences or lookaround |
 | `glob` | Stable glob search, up to 200 results |
 | `shell` | Run an approved executable alias with raw argv, bounded cwd, timeout, and output |
 | `http_get` | Send one GET to an allow-listed host; never follow redirects automatically |
@@ -32,7 +32,7 @@ This delivery adds 11 built-ins. The existing `notify` tool uses the same regist
 | `web_search` | Return bounded title, URL, and snippet entries through a replaceable `SearchProvider` |
 | `notify` | Send through a named notify channel; webhook is the currently implemented outbound adapter |
 
-HTTP tools reject model-supplied Authorization, Cookie, Host, and hop-by-hop headers. HTTP status codes, including 3xx/4xx/5xx, are returned once as bounded results; there is no redirect following or retry. Wrap authenticated enterprise APIs in an administrator-configured MCP server.
+HTTP tools allow only Accept, Accept-Language, Content-Type, and User-Agent headers. Only 2xx responses succeed; 3xx/4xx/5xx return a redacted failure without response bodies. There is no redirect following or retry. Wrap authenticated enterprise APIs in an administrator-configured MCP server.
 
 The default search adapter uses DuckDuckGo Instant Answer/Related Topics, not a complete web SERP. Its host must be explicitly allow-listed; otherwise search fails without fabricated results.
 

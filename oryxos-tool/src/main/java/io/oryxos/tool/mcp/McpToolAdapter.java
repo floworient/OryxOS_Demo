@@ -23,12 +23,19 @@ public final class McpToolAdapter implements OryxTool {
 
     public ToolResult execute(String jsonInput) {
         try {
+            if (jsonInput == null || jsonInput.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 256 * 1024) {
+                return failed();
+            }
             Object decoded = JsonParser.getObjectMapper().readerFor(Object.class)
                     .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readValue(jsonInput);
             if (!(decoded instanceof Map<?, ?>)) {
                 return failed();
             }
-            return new ToolResult(true, callback.call(jsonInput), null, false);
+            String content = callback.call(jsonInput);
+            if (content == null || content.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 1024 * 1024) {
+                return failed();
+            }
+            return new ToolResult(true, content, null, false);
         }
         catch (RuntimeException | java.io.IOException exception) {
             return failed();

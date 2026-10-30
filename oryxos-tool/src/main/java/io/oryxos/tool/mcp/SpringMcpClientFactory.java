@@ -35,6 +35,9 @@ public final class SpringMcpClientFactory implements McpClientFactory {
             catch (RuntimeException ignored) {
                 // 初始化异常是主因，关闭异常不得覆盖它。
             }
+            if (exception instanceof IllegalArgumentException) {
+                throw new IllegalArgumentException("MCP 客户端配置非法");
+            }
             throw new McpConnectionException("MCP server 连接失败", exception);
         }
     }

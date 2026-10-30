@@ -21,7 +21,8 @@
 - 文件相对路径基于当前 Agent 目录；Agent 目录默认读写，绑定 Skill 只读。
 - `edit_file` 的 `old_text` 必须恰好出现一次。
 - Shell executable 是管理员配置 alias；arguments 从不经过 Shell 解释。
-- HTTP 禁止认证、Cookie、Host 和 hop-by-hop headers；不自动跟随重定向。
+- HTTP 仅允许 Accept、Accept-Language、Content-Type 和 User-Agent headers；不自动跟随重定向，非 2xx 返回脱敏失败。
+- grep 使用 RE2/J 线性时间正则语义，不支持反向引用和环视。
 - ask_user 无人值守时 1 秒内失败且不读取 stdin。
 - web_search 不得伪造结果；真实 Provider 请求先过 HTTP Sandbox。
 

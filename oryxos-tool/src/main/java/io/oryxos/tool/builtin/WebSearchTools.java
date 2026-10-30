@@ -87,7 +87,7 @@ public final class WebSearchTools {
                 }
             }
             String content = encode(results, truncated);
-            return new ToolResult(true, content, null, truncated);
+            return new ToolResult(true, content, null, false);
         }
         catch (RuntimeException | java.io.IOException exception) {
             return new ToolResult(false, "", "网页搜索失败", false);

@@ -32,6 +32,9 @@ public final class HttpTools {
             "connection", "proxy-connection", "keep-alive", "transfer-encoding", "te",
             "trailer", "upgrade");
 
+    private static final Set<String> ALLOWED_HEADERS = Set.of("accept", "accept-language", "content-type",
+            "user-agent");
+
     private static final String GET_SCHEMA = "{\"type\":\"object\",\"additionalProperties\":false,"
             + "\"properties\":{\"url\":{\"type\":\"string\",\"minLength\":1},"
             + "\"headers\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\"}}},"
@@ -95,6 +98,9 @@ public final class HttpTools {
             byte[] body;
             boolean truncated;
             try (InputStream stream = response.body()) {
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    return failed("HTTP 返回非成功状态: " + response.statusCode());
+                }
                 byte[] received = stream.readNBytes(maxResponseBytes + 1);
                 truncated = received.length > maxResponseBytes;
                 body = truncated ? java.util.Arrays.copyOf(received, maxResponseBytes) : received;
@@ -146,6 +152,7 @@ public final class HttpTools {
                 if (!(entry.getKey() instanceof String name) || !(entry.getValue() instanceof String value)
                         || name.isBlank() || name.length() > 128 || value.length() > 8192
                         || containsLineBreak(name) || containsLineBreak(value)
+                        || !ALLOWED_HEADERS.contains(name.toLowerCase(Locale.ROOT))
                         || SENSITIVE_HEADERS.contains(name.toLowerCase(Locale.ROOT))) {
                     throw new IllegalArgumentException("HTTP header 不允许");
                 }

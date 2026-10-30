@@ -46,6 +46,14 @@ class FileToolsTest {
     }
 
     @Test
+    void grepHandlesNestedQuantifiersWithoutBacktracking() throws Exception {
+        Files.writeString(profile.sourcePath().getParent().resolve("adversarial.txt"), "a".repeat(100_000) + "!");
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(3), () ->
+                assertThat(call("grep", "{\"path\":\"adversarial.txt\",\"pattern\":\"(a+)+$\"}")
+                        .success()).isTrue());
+    }
+
+    @Test
     void readsWritesAndListsAgentFilesWithStableStructuredOutput() throws Exception {
         Path agent = profile.sourcePath().getParent();
         Files.writeString(agent.resolve("b.txt"), "乙");

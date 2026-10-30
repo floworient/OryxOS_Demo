@@ -80,7 +80,8 @@ class ShellToolsTest {
             }
         });
         awaitNonEmpty(pidFile, execution);
-        ToolResult timeout = execution.get(12, TimeUnit.SECONDS);
+        // 执行期限之外保留进程树终止和双流回收所需的有界时间。
+        ToolResult timeout = execution.get(30, TimeUnit.SECONDS);
         assertThat(timeout.success()).isFalse();
         assertThat(timeout.errorMessage()).contains("超时");
         for (String value : Files.readAllLines(pidFile)) {
@@ -100,6 +101,33 @@ class ShellToolsTest {
         }
         assertThat(file).exists();
         assertThat(Files.size(file)).isPositive();
+    }
+
+    @Test
+    void interruptionStopsProcessAndReleasesReaderThreads() throws Exception {
+        Path pidFile = workspace.resolve("agents/shell-agent/interrupted-pid.txt");
+        Profile profile = ProfileContext.current();
+        var result = new CompletableFuture<ToolResult>();
+        Thread worker = Thread.ofPlatform().start(() -> {
+            ProfileContext.set(profile);
+            try {
+                result.complete(execute(List.of("sleep", pidFile.toString()), null, 30));
+            }
+            finally {
+                ProfileContext.clear();
+            }
+        });
+        try {
+            awaitNonEmpty(pidFile, result);
+            worker.interrupt();
+            assertThat(result.get(10, TimeUnit.SECONDS).success()).isFalse();
+            long pid = Long.parseLong(Files.readString(pidFile));
+            assertThat(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)).isFalse();
+        }
+        finally {
+            worker.interrupt();
+            worker.join(10_000);
+        }
     }
 
     @Test

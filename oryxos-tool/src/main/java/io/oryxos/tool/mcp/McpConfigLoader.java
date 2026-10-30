@@ -93,6 +93,11 @@ public final class McpConfigLoader {
         Path command = sandbox.enforce(new ShellExecuteAction(string(server, "command", false)));
         List<String> arguments = strings(server.get("args"));
         Map<String, String> env = stringMap(server.get("env"), true);
+        env.forEach((key, value) -> {
+            if (!key.matches("[A-Za-z_][A-Za-z0-9_]*") || value.indexOf('\0') >= 0) {
+                throw new IllegalArgumentException("MCP env 非法");
+            }
+        });
         return new McpServerDefinition(name, McpTransport.STDIO, Duration.ofSeconds(timeout), command,
                 arguments, env, null, Map.of());
     }
@@ -101,6 +106,17 @@ public final class McpConfigLoader {
         requireKeys(server, union(COMMON, Set.of("url", "headers")));
         URI url = sandbox.enforce(new HttpRequestAction(URI.create(string(server, "url", false))));
         Map<String, String> headers = stringMap(server.get("headers"), true);
+        var headerNames = new java.util.HashSet<String>();
+        headers.forEach((key, value) -> {
+            String normalized = key.toLowerCase(java.util.Locale.ROOT);
+            if (!key.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+") || key.length() > 128
+                    || value.length() > 8192 || value.chars().anyMatch(c -> c < 32 || c == 127)
+                    || !headerNames.add(normalized)
+                    || Set.of("host", "connection", "content-length", "expect", "upgrade",
+                            "transfer-encoding").contains(normalized)) {
+                throw new IllegalArgumentException("MCP header 非法");
+            }
+        });
         return new McpServerDefinition(name, McpTransport.SSE, Duration.ofSeconds(timeout), null,
                 List.of(), Map.of(), url, headers);
     }

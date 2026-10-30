@@ -23,7 +23,7 @@ interface OryxTool {
 | `write_file` | 在当前 Agent 目录原子写入 UTF-8 文本 |
 | `list_dir` | 稳定列出批准目录，最多 200 项 |
 | `edit_file` | 仅当 `old_text` 恰好出现一次时替换 |
-| `grep` | Java 正则搜索，受文件数、字节数和 200 条结果上限约束 |
+| `grep` | RE2/J 线性时间正则搜索，受文件数、字节数和 200 条结果上限约束；不支持反向引用和环视 |
 | `glob` | glob 搜索并稳定排序，最多 200 条 |
 | `shell` | 以批准的 executable alias 和原始 argv 执行，限制工作目录、超时和输出 |
 | `http_get` | 向白名单域名发送一次 GET，不自动跟随重定向 |
@@ -32,7 +32,7 @@ interface OryxTool {
 | `web_search` | 通过可替换 `SearchProvider` 返回有界标题、URL 和摘要 |
 | `notify` | 向按名注册的通知渠道发送消息；当前出站适配器为 webhook |
 
-HTTP 工具拒绝模型提供 `Authorization`、Cookie、Host 和 hop-by-hop headers。HTTP 状态码（包括 3xx/4xx/5xx）原样作为有界结果返回，不重试、不跟随重定向。需要凭证的企业接口应通过管理员配置的 MCP server 封装。
+HTTP 工具仅允许 Accept、Accept-Language、Content-Type 和 User-Agent headers。仅 2xx 返回成功；3xx/4xx/5xx 返回脱敏失败且不返回响应正文，不重试、不跟随重定向。需要凭证的企业接口应通过管理员配置的 MCP server 封装。
 
 `web_search` 默认适配 DuckDuckGo Instant Answer/Related Topics；它不是完整网页 SERP。目标域名必须在 HTTP 白名单内，否则明确失败，不生成模拟结果。
 

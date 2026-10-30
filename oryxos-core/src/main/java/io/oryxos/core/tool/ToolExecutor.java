@@ -54,8 +54,8 @@ public final class ToolExecutor implements AutoCloseable {
         Profile profile = ProfileContext.current();
         String toolName = call.name();
         boolean named = toolName != null && !toolName.isBlank();
+        long started = System.nanoTime();
         for (int attempt = 0; ; attempt++) {
-            long started = System.nanoTime();
             ToolResult result;
             try {
                 OryxTool tool = named && profile != null ? visibleTool(profile, toolName) : null;
@@ -81,19 +81,25 @@ public final class ToolExecutor implements AutoCloseable {
             if (!result.success() && (result.errorMessage() == null || result.errorMessage().isBlank())) {
                 result = new ToolResult(false, result.content(), "工具返回失败", result.retryable());
             }
+            if (!result.success() && result.retryable() && attempt < 3) {
+                try {
+                    sleeper.accept(100L << attempt);
+                    continue;
+                }
+                catch (RuntimeException exception) {
+                    result = failed("工具重试等待已中断或失败");
+                }
+            }
             try {
                 recorder.record(new ToolInvocationRecord(sessionId, named ? toolName : "<invalid>",
-                        call.argumentsJson() == null ? "null" : call.argumentsJson(), JsonParser.toJson(result),
+                        auditInput(toolName, call.argumentsJson()), JsonParser.toJson(result),
                         result.success(), result.errorMessage(),
                         Math.max(0, (System.nanoTime() - started) / 1_000_000), Instant.now()));
             }
             catch (RuntimeException exception) {
                 throw new IllegalStateException("工具审计持久化失败", exception);
             }
-            if (result.success() || !result.retryable() || attempt >= 3) {
-                return result;
-            }
-            sleeper.accept(100L << attempt);
+            return result;
         }
     }
 
@@ -150,6 +156,44 @@ public final class ToolExecutor implements AutoCloseable {
         }
         catch (java.io.IOException | RuntimeException exception) {
             return false;
+        }
+    }
+
+    private String auditInput(String name, String input) {
+        try {
+            if (name == null || tools.find(name).map(item -> item.source() != ToolSource.BUILTIN).orElse(true)) {
+                byte[] bytes = (input == null ? "" : input).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
+                return JsonParser.toJson(Map.of("bytes", bytes.length,
+                        "sha256", java.util.HexFormat.of().formatHex(hash)));
+            }
+            var value = JsonParser.getObjectMapper().readTree(input);
+            redact(value);
+            return value.toString();
+        }
+        catch (java.io.IOException | java.security.NoSuchAlgorithmException | RuntimeException exception) {
+            return "{\"redacted\":true}";
+        }
+    }
+
+    private static void redact(com.fasterxml.jackson.databind.JsonNode node) {
+        if (node instanceof com.fasterxml.jackson.databind.node.ObjectNode object) {
+            var fields = new java.util.ArrayList<String>();
+            object.fieldNames().forEachRemaining(fields::add);
+            for (String field : fields) {
+                String key = field.toLowerCase(java.util.Locale.ROOT).replace("-", "").replace("_", "");
+                if (key.contains("token") || key.contains("secret") || key.contains("password")
+                        || key.contains("authorization") || key.contains("cookie") || key.contains("apikey")
+                        || key.equals("headers") || key.equals("url") || key.equals("webhook")) {
+                    object.put(field, "[REDACTED]");
+                }
+                else {
+                    redact(object.get(field));
+                }
+            }
+        }
+        else if (node != null && node.isArray()) {
+            node.forEach(ToolExecutor::redact);
         }
     }
 

@@ -15,6 +15,15 @@ import org.junit.jupiter.api.Test;
 class McpClientServiceTest {
 
     @Test
+    void localConfigurationErrorFailsInsteadOfSkippingServer() {
+        var service = new McpClientService(definition -> {
+            throw new IllegalArgumentException("canary-secret");
+        }, new DefaultToolRegistry());
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.initialize(List.of(definition("bad"))))
+                .isInstanceOf(IllegalStateException.class).hasMessageNotContaining("canary-secret");
+    }
+
+    @Test
     void registersHealthyServerSkipsConnectionFailureAndClosesConnections() {
         var registry = new DefaultToolRegistry();
         var closed = new AtomicBoolean();

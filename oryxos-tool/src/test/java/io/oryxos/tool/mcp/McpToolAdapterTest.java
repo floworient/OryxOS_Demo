@@ -25,5 +25,7 @@ class McpToolAdapterTest {
         assertThat(adapter.execute("{\"day\":\"today\"}").content()).contains("items");
         verify(callback).call("{\"day\":\"today\"}");
         assertThat(adapter.execute("[]").success()).isFalse();
+        when(callback.call("{}")).thenReturn("x".repeat(1024 * 1024 + 1));
+        assertThat(adapter.execute("{}").success()).isFalse();
     }
 }
