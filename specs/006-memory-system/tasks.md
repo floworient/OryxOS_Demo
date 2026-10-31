@@ -108,10 +108,10 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 ### Mem0 OSS
 
-- [ ] T040 [P] [US3] 在 `oryxos-memory/src/test/java/io/oryxos/memory/mem0/` 创建 `Mem0ProtocolValidatorTest.java`、`Mem0MemoryStoreTest.java`，用回环 HttpServer 覆盖 OpenAPI 只读校验、无 `/v1`、agent_id/scope、infer=false、core 不 search、401/5xx/重定向/非法或超大 JSON/缺 metadata/超时、写零重试和秘密脱敏。
-- [ ] T041 [US3] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=Mem0ProtocolValidatorTest,Mem0MemoryStoreTest test`，确认 RED。
-- [ ] T042 [US3] 在 `oryxos-memory/src/main/java/io/oryxos/memory/mem0/` 实现 `Mem0Client`、`Mem0ProtocolValidator`、`Mem0MemoryStore`，只用 JDK HttpClient，DTO 保持私有。
-- [ ] T043 [US3] 重跑 Mem0 测试和 memory 模块测试，确认 GREEN。
+- [x] T040 [P] [US3] 在 `oryxos-memory/src/test/java/io/oryxos/memory/mem0/` 创建 `Mem0ProtocolValidatorTest.java`、`Mem0MemoryStoreTest.java`，用回环 HttpServer 覆盖 OpenAPI 只读校验、无 `/v1`、agent_id/scope、infer=false、core 不 search、401/5xx/重定向/非法或超大 JSON/缺 metadata/超时、写零重试和秘密脱敏。
+- [x] T041 [US3] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=Mem0ProtocolValidatorTest,Mem0MemoryStoreTest test`，确认 RED。
+- [x] T042 [US3] 在 `oryxos-memory/src/main/java/io/oryxos/memory/mem0/` 实现 `Mem0Client`、`Mem0ProtocolValidator`、`Mem0MemoryStore`，只用 JDK HttpClient，DTO 保持私有。
+- [x] T043 [US3] 重跑 Mem0 测试和 memory 模块测试，确认 GREEN。
 
 ### 后端选择
 
