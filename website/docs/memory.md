@@ -7,20 +7,18 @@ OryxOS gives agents memory across three layers. Each layer has a different scope
 | Layer | Storage | Scope | In core phase |
 | --- | --- | --- | --- |
 | Session memory | SQLite `sessions.messages_json` | Current conversation only | Yes |
-| Long-term memory | `.oryxos/agents/<name>/MEMORY.md` (per-agent) | Persists across sessions, per agent | Yes |
+| Long-term memory | Markdown (default), SQLite, or self-hosted Mem0 | Persists across sessions, per agent | Yes |
 | Episodic memory | Vector database (planned) | Semantic search across past sessions | No |
 
 **Session memory** is the conversation history — the list of messages accumulated in the current session. It is serialized as JSON and stored in SQLite. `PromptBuilder` injects the last `max_history_turns` turns into every prompt. It accumulates automatically; agents do not write to it explicitly.
 
-**Long-term memory** is an append-only, timestamped Markdown file agents write to using the `save_memory` tool. It persists across sessions and is injected into every prompt. Agents use it to remember user preferences, project facts, and anything worth keeping past the end of a conversation.
+**Long-term memory** is persisted by the selected backend. Agents write it explicitly with `save_memory` and recall it with `recall_memory`. It is reloaded for every prompt. The default Markdown backend uses a timestamped file; SQLite and Mem0 preserve the same facade contract.
 
 **Episodic memory** is planned for the extension phase. It will index past conversations in a vector database and retrieve semantically relevant episodes at prompt-build time.
 
 ## Long-term memory is per-agent
 
-Long-term memory follows the "one directory = one Agent" principle: each agent has its own memory file at `.oryxos/agents/<name>/MEMORY.md`, alongside that agent's `AGENT.md` and `skills/`. When there is no agent context (a direct, non-agent-triggered call, or a unit test), it falls back to the global `.oryxos/memory/MEMORY.md`. The agent name is validated; any unsafe segment falls back to the global file to prevent path traversal.
-
-The current agent is resolved from the execution context — the `save_memory` / `recall_memory` tool path sets it via `ToolExecutionContext`, and the read path (`buildContext` / per-agent read) sets it temporarily around the load.
+Long-term memory is isolated by the validated `Profile.name`. The Markdown backend stores it at `.oryxos/agents/<name>/MEMORY.md`, alongside `AGENT.md`; the reserved global owner uses `.oryxos/memory/MEMORY.md`. Invalid agent names or unsafe paths fail loudly and never silently fall back to global memory.
 
 ### Timestamps and two sections
 
@@ -44,21 +42,39 @@ OryxOS does **not** auto-append a “user message ⇒ reply” line to archival 
 | `append(content, scope)` | Appends a timestamped entry to the core or archival section |
 | `load()` | Returns both sections; archival is truncated if oversized, core is returned in full |
 | `recallByKeyword(keyword)` | Returns archival lines containing the keyword |
-| truncation | If the archival section exceeds 4 000 chars, trims from the top, keeping the most recent content |
+| bounded view | If archival exceeds 4,000 chars, returns only the newest complete entries that fit, without rewriting the source |
 
-The 4 000-character limit prevents the archival section from consuming a disproportionate share of the context window. When truncation occurs, the oldest archival entries are dropped first — recency is prioritized. The core section is never touched.
+The 4,000-character limit prevents archival memory from consuming a disproportionate share of the context window. Oversized reads omit the oldest entries from the view without truncating or rewriting the source. Core is always returned in full.
 
 The interface is designed with an upgrade path to vector search in mind. `recallByKeyword` can be replaced with a semantic search implementation without changing `MemoryService` or any caller.
 
 ## Pluggable backends
 
-The long-term memory backend is pluggable via the `memory.backend` config key — swapping it only changes the injected `LongTermMemoryStore`; the `MemoryService` facade signature and every caller stay the same.
+The long-term memory backend is pluggable via `oryxos.memory.backend`. Swapping it only changes the injected `LongTermMemoryStore`; the `MemoryService` facade and callers stay unchanged.
 
-| `memory.backend` | Store | Notes |
+| `oryxos.memory.backend` | Store | Notes |
 | --- | --- | --- |
 | `markdown` (default) | `MarkdownMemoryStore` | Zero-dependency, human-readable, git-trackable Markdown file |
-| `sqlite` | `SqliteMemoryStore` | Entries stored row-by-row in the `memory_entries` table; a structured upgrade for larger memory volumes, still zero external dependencies (reuses the existing SQLite) |
-| `mem0` | `Mem0MemoryStore` | Delegates to an external mem0 memory service |
+| `sqlite` | `JpaMemoryStore` | Entries stored in the Flyway V5 `memory_entries` table, reusing the existing SQLite database |
+| `mem0` | `Mem0MemoryStore` | Delegates to self-hosted Mem0 OSS; startup read-only validates `/openapi.json` and partition support |
+
+Mem0 writes use `infer=false` and explicitly carry the owner and `metadata.scope`. Unknown backends, non-positive limits, missing Mem0 URL/key, or missing partition semantics fail startup. `HYBRID_BUILTIN` is reserved for 015 and fails fast today; embeddings, RRF, and asynchronous vector indexing are not part of this delivery.
+
+```yaml
+oryxos:
+  memory:
+    backend: mem0 # markdown | sqlite | mem0
+    archival-max-characters: 4000
+    recall-max-results: 20
+    entry-max-characters: 4000
+    zone: ${TZ:Asia/Shanghai}
+    mem0:
+      base-url: ${MEM0_BASE_URL:}
+      api-key: ${MEM0_API_KEY:}
+      connect-timeout: 3s
+      request-timeout: 10s
+      max-response-bytes: 1048576
+```
 
 ## save_memory and recall_memory tools
 
@@ -90,11 +106,11 @@ The admin console reads a specific agent's long-term memory through:
 GET /api/v1/agents/{name}/memory
 ```
 
-The response (wrapped in the unified `{ code, message, data, timestamp }` envelope) carries the agent's `MEMORY.md`, which the console renders as **two tables**: 核心记忆 (core) and 归档记忆 (archival).
+The unified `{ code, message, data, timestamp }` response returns owner, backend, capabilities, all core entries, and the same bounded archival view used by prompts. It is not a raw backend response or an unbounded export. Unknown agents return 404; backend failures return a sanitized 503.
 
 ## How memory is injected into prompts
 
-`PromptBuilder` calls `MemoryService.buildContext(session)` on every loop iteration and inserts the result as the second block of the system prompt, after the Agent identity and Bootstrap files:
+`PromptBuilder` calls `MemoryService.load(session, profile)` on every loop iteration and inserts the result as the second block of the system prompt, after the Agent identity and Bootstrap files:
 
 ```text
 [1] system prompt  (AGENT.md body + bootstrap)
@@ -113,7 +129,7 @@ These two files look similar but serve opposite purposes:
 | --- | --- | --- |
 | Who writes it | The agent (via `save_memory`) | The user (manually) |
 | OryxOS behavior | Read + write | Read only |
-| Contents | Agent's accumulated observations, learned facts, and run history | User's initial preferences and context |
+| Contents | Preferences, facts, and long-lived context explicitly saved by the agent | User's initial preferences and context |
 | Resets | Never (append-only; archival truncation only when too large) | Never (managed by user) |
 | Location | `.oryxos/agents/<name>/MEMORY.md` (per-agent) | `.oryxos/USER.md` |
 
@@ -122,5 +138,5 @@ These two files look similar but serve opposite purposes:
 ## What is planned
 
 - **Episodic memory** — index full session transcripts in a vector database; retrieve the top-k relevant episodes at prompt-build time
-- **Vector search for recall** — replace `recallByKeyword` with embedding-based semantic search against `MEMORY.md` content
+- **015 hybrid retrieval** — add keyword, semantic, and recency fusion over archival memory; this release only reserves the capability
 - **Memory summarization** — automatically compress old entries before truncation to preserve more signal in fewer characters

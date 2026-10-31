@@ -7,20 +7,18 @@ OryxOS 为 Agent 提供三层记忆。每一层有不同的作用域、生命周
 | 层级 | 存储 | 作用域 | 核心阶段 |
 | --- | --- | --- | --- |
 | 会话记忆 | SQLite `sessions.messages_json` | 仅限当前对话 | 是 |
-| 长期记忆 | `.oryxos/agents/<name>/MEMORY.md`（按 Agent 隔离） | 跨会话持久化，按 Agent 隔离 | 是 |
+| 长期记忆 | Markdown（默认）、SQLite 或自托管 Mem0 | 跨会话持久化，按 Agent 隔离 | 是 |
 | 情景记忆 | 向量数据库（规划中） | 跨历史会话的语义检索 | 否 |
 
 **会话记忆** 是对话历史——当前会话中积累的消息列表。以 JSON 格式序列化存入 SQLite。`PromptBuilder` 在每次构建 Prompt 时注入最近 `max_history_turns` 轮。它自动积累，Agent 不需要显式写入。
 
-**长期记忆** 是一个只追加、带时间戳的 Markdown 文件，Agent 通过 `save_memory` 工具写入、通过 `recall_memory` 关键词检索。跨会话持久化，每次构建 Prompt 都会注入。Agent 用它记住用户偏好、项目事实，以及对话结束后值得保留的内容。
+**长期记忆** 由所选后端持久化，Agent 通过 `save_memory` 显式写入、通过 `recall_memory` 召回。跨会话持久化，每次构建 Prompt 都重新读取。默认 Markdown 档使用带时间戳的文件；SQLite 和 Mem0 保持同一上层契约。
 
 **情景记忆** 规划在扩展阶段实现。它会将历史对话建索引到向量数据库，在构建 Prompt 时检索语义相关的历史片段。
 
 ## 长期记忆按 Agent 隔离
 
-长期记忆遵循「一个目录 = 一个 Agent」原则：每个 Agent 有自己的记忆文件 `.oryxos/agents/<name>/MEMORY.md`，与该 Agent 的 `AGENT.md`、`skills/` 同目录。无 Agent 上下文（非 Agent 触发的直接调用、单测）时，回退到全局 `.oryxos/memory/MEMORY.md`。Agent 名会做安全校验，任何非法段一律回退全局文件，防止目录穿越。
-
-当前是哪个 Agent 由执行上下文决定——`save_memory` / `recall_memory` 工具路径通过 `ToolExecutionContext` 置入，读路径（`buildContext` / 按 Agent 读取）在 load 前后临时置入。
+长期记忆按经过校验的 `Profile.name` 隔离。Markdown 档把每个 Agent 的记忆放在 `.oryxos/agents/<name>/MEMORY.md`，与 `AGENT.md` 同目录；保留的 global owner 使用 `.oryxos/memory/MEMORY.md`。非法 Agent 名或不安全路径会 fail-loud，不会静默回退到全局文件。
 
 ### 时间戳与两个区块
 
@@ -44,21 +42,39 @@ OryxOS **不会**在每次触发后自动把「用户问题 ⇒ 模型回答」�
 | `append(content, scope)` | 向核心区或归档区追加一条带时间戳的记录 |
 | `load()` | 返回两个区块；归档区超限则截断，核心区完整返回 |
 | `recallByKeyword(keyword)` | 返回归档区中包含该关键词的行 |
-| 截断 | 归档区超过 4000 字符时，从头部截断，保留最近的内容 |
+| 有界视图 | 归档区超过 4000 字符时，只返回可完整容纳的最新条目，不改写本体 |
 
-4000 字符的限制防止归档区占用过多 context window。截断时最旧的归档条目先删，优先保留近期内容。核心区永远不动。
+4000 字符的限制防止归档区占用过多 context window。超限时上下文视图排除最旧条目，底层本体不被截断或改写；核心区永远完整返回。
 
 这个接口在设计上为向量检索预留了升级路径。`recallByKeyword` 可以替换为语义检索实现，不需要改动 `MemoryService` 或任何调用方。
 
 ## 可插拔后端
 
-长期记忆后端通过 `memory.backend` 配置项可插拔——换后端只换注入的 `LongTermMemoryStore`，`MemoryService` 门面签名与所有调用方保持不变。
+长期记忆后端通过 `oryxos.memory.backend` 配置项可插拔——换后端只换注入的 `LongTermMemoryStore`，`MemoryService` 门面签名与所有调用方保持不变。
 
-| `memory.backend` | Store | 说明 |
+| `oryxos.memory.backend` | Store | 说明 |
 | --- | --- | --- |
 | `markdown`（默认） | `MarkdownMemoryStore` | 零依赖、人可读、git 可跟踪的 Markdown 文件 |
-| `sqlite` | `SqliteMemoryStore` | 记忆按条存入 `memory_entries` 表；记忆量变大后的结构化升级，仍零外部依赖（复用既有 SQLite） |
-| `mem0` | `Mem0MemoryStore` | 委托给外部 mem0 记忆服务 |
+| `sqlite` | `JpaMemoryStore` | 记忆按条存入 Flyway V5 创建的 `memory_entries` 表；复用既有 SQLite |
+| `mem0` | `Mem0MemoryStore` | 委托给自托管 Mem0 OSS；启动时只读校验 `/openapi.json` 与分区能力 |
+
+Mem0 写入固定使用 `infer=false`，并显式携带 owner 与 `metadata.scope`。非法 backend、非正上限、Mem0 缺地址/凭证或分区能力不满足都会阻止启动。内置混合检索能力 `HYBRID_BUILTIN` 只为 015 预留，当前版本会 fail-fast，不包含 embedding、RRF 或异步向量索引实现。
+
+```yaml
+oryxos:
+  memory:
+    backend: mem0 # markdown | sqlite | mem0
+    archival-max-characters: 4000
+    recall-max-results: 20
+    entry-max-characters: 4000
+    zone: ${TZ:Asia/Shanghai}
+    mem0:
+      base-url: ${MEM0_BASE_URL:}
+      api-key: ${MEM0_API_KEY:}
+      connect-timeout: 3s
+      request-timeout: 10s
+      max-response-bytes: 1048576
+```
 
 ## save_memory 和 recall_memory 工具
 
@@ -90,11 +106,11 @@ Agent 通过两个内置工具与长期记忆交互，不直接写 `MEMORY.md`�
 GET /api/v1/agents/{name}/memory
 ```
 
-响应（包裹在统一的 `{ code, message, data, timestamp }` 信封里）携带该 Agent 的 `MEMORY.md`，管理台把它渲染成**两张表**：核心记忆（core）和归档记忆（archival）。
+响应使用统一的 `{ code, message, data, timestamp }` 信封，返回 owner、backend、capabilities、完整 core 和与 Prompt 相同的有界 archival 视图，不返回原始后端响应或无上限导出。未知 Agent 返回 404，后端不可用返回脱敏的 503。
 
 ## 记忆如何注入到 Prompt
 
-`PromptBuilder` 在每次循环迭代时调用 `MemoryService.buildContext(session)`，将结果插入系统提示词的第二段，紧跟在 Agent 身份和 Bootstrap 文件之后：
+`PromptBuilder` 在每次循环迭代时调用 `MemoryService.load(session, profile)`，将结果插入系统提示词的第二段，紧跟在 Agent 身份和 Bootstrap 文件之后：
 
 ```text
 [1] 系统提示词（AGENT.md 正文 + bootstrap）
@@ -113,7 +129,7 @@ GET /api/v1/agents/{name}/memory
 | --- | --- | --- |
 | 谁来写 | Agent（通过 `save_memory`） | 用户（手动编写） |
 | OryxOS 的行为 | 读 + 写 | 只读 |
-| 内容 | Agent 积累的观察、学到的事实，以及运行历史 | 用户的初始偏好和背景信息 |
+| 内容 | Agent 显式保存的偏好、事实和长期上下文 | 用户的初始偏好和背景信息 |
 | 重置 | 从不（只追加；仅归档区过长时截断） | 从不（由用户自行管理） |
 | 位置 | `.oryxos/agents/<name>/MEMORY.md`（按 Agent 隔离） | `.oryxos/USER.md` |
 
@@ -122,5 +138,5 @@ GET /api/v1/agents/{name}/memory
 ## 规划中的功能
 
 - **情景记忆** — 将完整会话记录建索引到向量数据库；构建 Prompt 时检索最相关的 top-k 片段
-- **向量化 recall** — 用基于 embedding 的语义检索替换 `recallByKeyword`，检索范围为 `MEMORY.md` 内容
+- **015 混合检索** — 在 archival 本体上增加关键词、语义与时间融合；当前版本仅预留能力声明
 - **记忆摘要** — 截断前自动压缩旧条目，用更少的字符保留更多信息

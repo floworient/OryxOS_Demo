@@ -204,11 +204,18 @@ Runs a single-turn ReAct Loop without creating a persistent session.
 
 **GET** `/api/v1/agents/{name}/memory`
 
-Returns the raw content of this agent's `MEMORY.md` (`.oryxos/agents/<name>/MEMORY.md`, falling back to the global `.oryxos/memory/MEMORY.md` when there is no agent context). Memory is per-agent; each line is timestamped.
+Returns the runtime-visible memory view for this agent: core in full and archival bounded exactly as it is for prompts. This is neither a raw backend response nor an unbounded export. Unknown agents return `404 AGENT_NOT_FOUND`; backend failures return sanitized `503 MEMORY_UNAVAILABLE` responses.
 
 ```json
-// data — the MEMORY.md text
-"2026-06-20 09:12:00 用户偏好使用 Markdown 格式输出结果。\n2026-06-25 14:03:11 线上数据库为 PostgreSQL 15。\n"
+// data — MemoryView
+{
+  "owner": "ops-agent",
+  "backend": "markdown",
+  "capabilities": "KEYWORD",
+  "archivalTruncated": false,
+  "core": [{"id":"markdown:core:4","content":"Production uses PostgreSQL 15.","createdAt":"2026-06-25T06:03:11Z"}],
+  "archival": [{"id":"markdown:archival:7","content":"User prefers Markdown output.","createdAt":"2026-06-20T01:12:00Z"}]
+}
 ```
 
 ### Get the console session

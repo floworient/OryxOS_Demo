@@ -12,6 +12,14 @@ import java.util.List;
 
 /** 轻量工作区与 Agent 文件生命周期服务。 */
 public final class WorkspaceService {
+    private static final String MEMORY_SKELETON = """
+            # MEMORY
+
+            ## 核心记忆
+
+            ## 归档记忆
+            """;
+
     private static final List<String> DIRECTORIES = List.of(
             "agents", "skills", "output", "memory", "sessions", "logs");
 
@@ -45,7 +53,7 @@ public final class WorkspaceService {
             for (String file : ROOT_FILES) {
                 created += createFileIfMissing(root.resolve(file), bootstrapContent(file));
             }
-            created += createFileIfMissing(root.resolve("memory/MEMORY.md"), "# MEMORY\n");
+            created += createFileIfMissing(root.resolve("memory/MEMORY.md"), MEMORY_SKELETON);
             return new InitResult(root, created, existing);
         } catch (IOException exception) {
             throw failure("初始化工作区失败", exception);

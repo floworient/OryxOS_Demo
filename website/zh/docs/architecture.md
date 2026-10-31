@@ -26,7 +26,7 @@ OryxOS 是一个 Spring Boot 3.x 单体应用，运行在 JDK 21 上，整个系
 
 - `AGENT.md` = YAML frontmatter（这个 Agent 的 Profile：`name`、`description`、`identity`、`provider`/`model`、`tools`、`mcp_servers`、`channels`、`bootstrap`、`settings`、`schedules`）+ 正文任务指令（注入 system prompt）。`AgentLoader.deriveProfile(agentDir)` 把 frontmatter 派生成底座认识的 `Profile`。
 - 同目录下可选的 `skills/*.md` 子指令、`scripts/`、`REFERENCE.md` 通过底座既有的 `read_file` / `shell` 工具**按需加载**——没有全局能力索引，没有 `use_skill`。
-- 长期记忆是**每个 Agent 独立的**：`.oryxos/agents/<name>/MEMORY.md`（无 Agent 上下文时回退到全局 `.oryxos/memory/MEMORY.md`）。记忆行带时间戳，且每次触发某个 Agent 都会自动记入该 Agent 的归档记忆。
+- 长期记忆按 Agent 隔离；默认 Markdown 档位于 `.oryxos/agents/<name>/MEMORY.md`。系统不会在触发后自动记录问答，只有 Agent 显式调用受审计的 `save_memory` 才会写入 core 或 archival。
 
 ## 动态 Agent 生命周期
 

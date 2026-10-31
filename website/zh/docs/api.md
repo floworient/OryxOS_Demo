@@ -204,11 +204,18 @@ null
 
 **GET** `/api/v1/agents/{name}/memory`
 
-返回这个 Agent 的 `MEMORY.md` 全文（`.oryxos/agents/<name>/MEMORY.md`，无 Agent 上下文时回退到全局 `.oryxos/memory/MEMORY.md`）。记忆按 Agent 隔离，每行带时间戳。
+返回该 Agent 的运行时实际可见记忆视图：core 全量、archival 与 Prompt 使用相同上限。它不是原始后端响应或无上限导出。未知 Agent 返回 `404 AGENT_NOT_FOUND`；后端读取失败返回不泄露凭证的 `503 MEMORY_UNAVAILABLE`。
 
 ```json
-// data —— MEMORY.md 文本
-"2026-06-20 09:12:00 用户偏好使用 Markdown 格式输出结果。\n2026-06-25 14:03:11 线上数据库为 PostgreSQL 15。\n"
+// data —— MemoryView
+{
+  "owner": "ops-agent",
+  "backend": "markdown",
+  "capabilities": "KEYWORD",
+  "archivalTruncated": false,
+  "core": [{"id":"markdown:core:4","content":"线上数据库为 PostgreSQL 15。","createdAt":"2026-06-25T06:03:11Z"}],
+  "archival": [{"id":"markdown:archival:7","content":"用户偏好 Markdown 输出。","createdAt":"2026-06-20T01:12:00Z"}]
+}
 ```
 
 ### 查控制台会话
