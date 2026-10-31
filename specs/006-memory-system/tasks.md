@@ -54,17 +54,17 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 ### MemoryService
 
-- [ ] T016 [US1] 在 `oryxos-memory/src/test/java/io/oryxos/memory/DefaultMemoryServiceTest.java` 编写 Session 快照、owner 路由、KEYWORD/DELEGATED、HYBRID fail-fast、save/recall/loadLongTerm 和后端异常传播测试。
-- [ ] T017 [US1] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=DefaultMemoryServiceTest test`，确认 RED。
-- [ ] T018 [US1] 在 `DefaultMemoryService.java` 与 `MemoryOwnerResolver.java` 实现门面；禁止缓存并保持结构化 Message。
-- [ ] T019 [US1] 重跑 `DefaultMemoryServiceTest` 与 memory 模块测试，确认 GREEN。
+- [x] T016 [US1] 在 `oryxos-memory/src/test/java/io/oryxos/memory/DefaultMemoryServiceTest.java` 编写 Session 快照、owner 路由、KEYWORD/DELEGATED、HYBRID fail-fast、save/recall/loadLongTerm 和后端异常传播测试。
+- [x] T017 [US1] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=DefaultMemoryServiceTest test`，确认 RED。
+- [x] T018 [US1] 在 `DefaultMemoryService.java` 与 `MemoryOwnerResolver.java` 实现门面；禁止缓存并保持结构化 Message。
+- [x] T019 [US1] 重跑 `DefaultMemoryServiceTest` 与 memory 模块测试，确认 GREEN。
 
 ### Prompt 集成
 
-- [ ] T020 [US1] 修改 `oryxos-core/src/test/java/io/oryxos/core/context/PromptBuilderTest.java`：以 MemoryService fake 断言空记忆块始终存在、core/archival 边界标签、历史顺序/轮数不变、自动工具执行仍关闭。
-- [ ] T021 [US1] 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=PromptBuilderTest test`，确认构造器/行为 RED。
-- [ ] T022 [US1] 修改 `oryxos-core/src/main/java/io/oryxos/core/context/PromptBuilder.java`，以 `MemoryService` 替换 `BiFunction`，渲染不可覆盖系统指令的长期记忆 SystemMessage，再追加裁剪后的结构化历史。
-- [ ] T023 [US1] 重跑 `PromptBuilderTest`、`ReActLoopTest`、`AgentServiceTest` 和 core 全模块测试，确认 GREEN。
+- [x] T020 [US1] 修改 `oryxos-core/src/test/java/io/oryxos/core/context/PromptBuilderTest.java`：以 MemoryService fake 断言空记忆块始终存在、core/archival 边界标签、历史顺序/轮数不变、自动工具执行仍关闭。
+- [x] T021 [US1] 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=PromptBuilderTest test`，确认构造器/行为 RED。
+- [x] T022 [US1] 修改 `oryxos-core/src/main/java/io/oryxos/core/context/PromptBuilder.java`，以 `MemoryService` 替换 `BiFunction`，渲染不可覆盖系统指令的长期记忆 SystemMessage，再追加裁剪后的结构化历史。
+- [x] T023 [US1] 重跑 `PromptBuilderTest`、`ReActLoopTest`、`AgentServiceTest` 和 core 全模块测试，确认 GREEN。
 
 **Checkpoint**: US1 可在默认 Markdown 后端独立演示。
 
