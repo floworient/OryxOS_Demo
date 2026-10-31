@@ -301,7 +301,8 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
     private void atomicWrite(Path target, String content) {
         Path temporary = null;
         try {
-            temporary = Files.createTempFile(target.getParent(), ".memory-", ".tmp");
+            Path parent = Objects.requireNonNull(target.getParent(), "记忆文件必须位于目录中");
+            temporary = Files.createTempFile(parent, ".memory-", ".tmp");
             Files.writeString(temporary, content, StandardCharsets.UTF_8);
             moveReplacing(temporary, target, Files::move);
         }

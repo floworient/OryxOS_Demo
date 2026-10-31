@@ -145,11 +145,11 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 - [x] T054 [P] 更新 `website/zh/docs/memory.md`、`website/docs/memory.md`、`website/zh/docs/api.md`、`website/docs/api.md` 与实际三后端、无自动触发足迹、有界 API、015 非目标一致；修正 architecture 中冲突的自动记录描述。
 - [x] T055 [P] 更新 `oryxos-cli/src/main/java/io/oryxos/cli/WorkspaceService.java` 与对应测试，使 `oryxos init` 创建的新 `MEMORY.md` 使用两个分区骨架且不覆盖旧文件。
-- [ ] T056 运行 `.\mvnw.cmd -pl oryxos-core,oryxos-memory,oryxos-storage,oryxos-web,oryxos-boot -am test`，列出并修复所有相关回归。
-- [ ] T057 运行 `.\mvnw.cmd test`，确认完整单元/集成测试套件通过；任何无关既有失败按名称报告。
-- [ ] T058 运行 `.\mvnw.cmd clean verify`，确认 Checkstyle、SpotBugs、JaCoCo、Failsafe、ArchUnit 和打包全部通过。
-- [ ] T059 按 `quickstart.md` 在临时工作区验证 Markdown 与 SQLite；没有真实 Mem0 服务/密钥时明确只验证 fake server，不冒充真实互操作。
-- [ ] T060 更新 `specs/006-memory-system/verification.md`，记录 RED/GREEN 证据、最终命令、实际完成行为、未验证范围和运行方式。
+- [x] T056 运行 `.\mvnw.cmd -pl oryxos-core,oryxos-memory,oryxos-storage,oryxos-web,oryxos-boot -am test`，列出并修复所有相关回归。
+- [x] T057 运行 `.\mvnw.cmd test`，确认完整单元/集成测试套件通过；任何无关既有失败按名称报告。
+- [x] T058 运行 `.\mvnw.cmd clean verify`，确认 Checkstyle、SpotBugs、JaCoCo、Failsafe、ArchUnit 和打包全部通过。
+- [x] T059 按 `quickstart.md` 在临时工作区验证 Markdown 与 SQLite；没有真实 Mem0 服务/密钥时明确只验证 fake server，不冒充真实互操作。
+- [x] T060 更新 `specs/006-memory-system/verification.md`，记录 RED/GREEN 证据、最终命令、实际完成行为、未验证范围和运行方式。
 
 ---
 

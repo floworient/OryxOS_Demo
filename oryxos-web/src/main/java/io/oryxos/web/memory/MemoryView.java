@@ -7,6 +7,11 @@ import java.util.List;
 public record MemoryView(String owner, String backend, String capabilities,
         boolean archivalTruncated, List<EntryView> core, List<EntryView> archival) {
 
+    public MemoryView {
+        core = List.copyOf(core);
+        archival = List.copyOf(archival);
+    }
+
     static MemoryView from(MemorySnapshot snapshot) {
         return new MemoryView(snapshot.owner().key(), snapshot.backend(),
                 snapshot.capabilities().name(), snapshot.archivalTruncated(),

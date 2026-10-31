@@ -34,9 +34,9 @@ public class MemoryConfiguration {
     LongTermMemoryStore markdownMemoryStore(@Value("${oryxos.workspace:./.oryxos}") String workspace,
             MemoryProperties properties) {
         return new MarkdownMemoryStore(Path.of(workspace), Clock.systemDefaultZone(),
-                ZoneId.of(properties.getZone()),
-                properties.getArchivalMaxCharacters(), properties.getRecallMaxResults(),
-                properties.getEntryMaxCharacters());
+                ZoneId.of(properties.zone()),
+                properties.archivalMaxCharacters(), properties.recallMaxResults(),
+                properties.entryMaxCharacters());
     }
 
     @Bean
@@ -45,25 +45,25 @@ public class MemoryConfiguration {
     LongTermMemoryStore sqliteMemoryStore(MemoryEntryRepository repository,
             MemoryProperties properties) {
         return new JpaMemoryStore(repository, Clock.systemUTC(),
-                properties.getArchivalMaxCharacters(), properties.getRecallMaxResults(),
-                properties.getEntryMaxCharacters());
+                properties.archivalMaxCharacters(), properties.recallMaxResults(),
+                properties.entryMaxCharacters());
     }
 
     @Bean
     @ConditionalOnMissingBean(LongTermMemoryStore.class)
     @ConditionalOnProperty(prefix = "oryxos.memory", name = "backend", havingValue = "mem0")
     LongTermMemoryStore mem0MemoryStore(MemoryProperties properties) {
-        MemoryProperties.Mem0 settings = properties.getMem0();
-        requireText(settings.getBaseUrl(), "oryxos.memory.mem0.base-url");
-        requireText(settings.getApiKey(), "oryxos.memory.mem0.api-key");
-        requirePositive(settings.getConnectTimeout(), "connect-timeout");
-        requirePositive(settings.getRequestTimeout(), "request-timeout");
-        Mem0Client client = new Mem0Client(URI.create(settings.getBaseUrl()), settings.getApiKey(),
-                settings.getConnectTimeout(), settings.getRequestTimeout(),
-                settings.getMaxResponseBytes());
+        MemoryProperties.Mem0 settings = properties.mem0();
+        requireText(settings.baseUrl(), "oryxos.memory.mem0.base-url");
+        requireText(settings.apiKey(), "oryxos.memory.mem0.api-key");
+        requirePositive(settings.connectTimeout(), "connect-timeout");
+        requirePositive(settings.requestTimeout(), "request-timeout");
+        Mem0Client client = new Mem0Client(URI.create(settings.baseUrl()), settings.apiKey(),
+                settings.connectTimeout(), settings.requestTimeout(),
+                settings.maxResponseBytes());
         new Mem0ProtocolValidator(client).validate();
-        return new Mem0MemoryStore(client, properties.getArchivalMaxCharacters(),
-                properties.getRecallMaxResults(), properties.getEntryMaxCharacters());
+        return new Mem0MemoryStore(client, properties.archivalMaxCharacters(),
+                properties.recallMaxResults(), properties.entryMaxCharacters());
     }
 
     @Bean
