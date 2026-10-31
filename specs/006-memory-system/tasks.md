@@ -16,8 +16,8 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 ## Phase 1: Baseline 与依赖确认
 
-- [ ] T001 运行 `.\mvnw.cmd test`，记录当前基线；任何既有失败先报告，不把它归因于 Memory。
-- [ ] T002 检查并仅在必要时修改 `oryxos-memory/pom.xml` 的 Spring AI/Jackson/test 依赖，以及 `oryxos-boot/pom.xml`、`oryxos-storage/pom.xml`、`oryxos-web/pom.xml` 的现有模块依赖；运行 `mvnw.cmd -pl oryxos-memory -am test -DskipTests` 验证依赖图。
+- [x] T001 运行 `.\mvnw.cmd test`，记录当前基线；任何既有失败先报告，不把它归因于 Memory。
+- [x] T002 检查并仅在必要时修改 `oryxos-memory/pom.xml` 的 Spring AI/Jackson/test 依赖，以及 `oryxos-boot/pom.xml`、`oryxos-storage/pom.xml`、`oryxos-web/pom.xml` 的现有模块依赖；运行 `mvnw.cmd -pl oryxos-memory -am test -DskipTests` 验证依赖图。
 
 ---
 
@@ -25,14 +25,14 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 **Purpose**: 建立所有后端、工具、Prompt 与 API 共同依赖的类型和安全 owner 规则。
 
-- [ ] T003 [P] 在 `oryxos-core/src/test/java/io/oryxos/core/profile/AgentNameTest.java` 编写 Agent 名合法/非法/Windows 设备名参数化测试，并声明生产变化“共享校验器变宽或失效时测试失败”。
-- [ ] T004 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=AgentNameTest test`，确认因 `AgentName` 不存在而 RED。
-- [ ] T005 在 `oryxos-core/src/main/java/io/oryxos/core/profile/AgentName.java` 实现共享校验，并修改 `AgentLoader.java`、`oryxos-cli/src/main/java/io/oryxos/cli/WorkspaceService.java` 复用它，删除 CLI 私有重复规则。
-- [ ] T006 运行 `AgentNameTest`、`AgentLoaderTest`、`AgentLoaderIsolationTest`、`WorkspaceServiceTest`，确认 GREEN。
-- [ ] T007 [P] 在 `oryxos-core/src/test/java/io/oryxos/core/memory/MemoryContractsTest.java` 编写 owner/global 保留值、scope、不可变集合、空值/非法内容和异常码测试。
-- [ ] T008 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=MemoryContractsTest test`，确认因 memory 契约不存在而 RED。
-- [ ] T009 在 `oryxos-core/src/main/java/io/oryxos/core/memory/` 创建 `MemoryScope`、`MemoryCapabilities`、`MemoryOwner`、`MemoryEntry`、`MemorySnapshot`、`MemoryContext`、`MemoryException`、`LongTermMemoryStore`、`MemoryService`，签名严格遵循 `contracts/memory-service.md`。
-- [ ] T010 运行 `MemoryContractsTest` 与 `oryxos-core` 全模块测试，确认 GREEN。
+- [x] T003 [P] 在 `oryxos-core/src/test/java/io/oryxos/core/profile/AgentNameTest.java` 编写 Agent 名合法/非法/Windows 设备名参数化测试，并声明生产变化“共享校验器变宽或失效时测试失败”。
+- [x] T004 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=AgentNameTest test`，确认因 `AgentName` 不存在而 RED。
+- [x] T005 在 `oryxos-core/src/main/java/io/oryxos/core/profile/AgentName.java` 实现共享校验，并修改 `AgentLoader.java`、`oryxos-cli/src/main/java/io/oryxos/cli/WorkspaceService.java` 复用它，删除 CLI 私有重复规则。
+- [x] T006 运行 `AgentNameTest`、`AgentLoaderTest`、`AgentLoaderIsolationTest`、`WorkspaceServiceTest`，确认 GREEN。
+- [x] T007 [P] 在 `oryxos-core/src/test/java/io/oryxos/core/memory/MemoryContractsTest.java` 编写 owner/global 保留值、scope、不可变集合、空值/非法内容和异常码测试。
+- [x] T008 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=MemoryContractsTest test`，确认因 memory 契约不存在而 RED。
+- [x] T009 在 `oryxos-core/src/main/java/io/oryxos/core/memory/` 创建 `MemoryScope`、`MemoryCapabilities`、`MemoryOwner`、`MemoryEntry`、`MemorySnapshot`、`MemoryContext`、`MemoryException`、`MemoryService`，签名严格遵循 `contracts/memory-service.md`。
+- [x] T010 运行 `MemoryContractsTest` 与 `oryxos-core` 全模块测试，确认 GREEN。
 
 **Checkpoint**: core 提供稳定契约，且不依赖 memory/storage/web。
 
