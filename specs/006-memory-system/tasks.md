@@ -101,10 +101,10 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 ### SQLite
 
-- [ ] T036 [P] [US3] 在 `oryxos-storage/src/test/java/io/oryxos/storage/JpaMemoryStoreTest.java` 与 `MemoryPersistenceAcrossRestartTest.java` 接入 StoreContract，覆盖 Flyway、scope CHECK、同时间 id 排序、事务失败和跨重启。
-- [ ] T037 [US3] 运行 `.\mvnw.cmd -pl oryxos-storage -am -Dtest=JpaMemoryStoreTest,MemoryPersistenceAcrossRestartTest test`，确认缺表/实现而 RED。
-- [ ] T038 [US3] 新增 `V5__create_memory_entries.sql`、`MemoryEntryEntity.java`、`MemoryEntryRepository.java`、`JpaMemoryStore.java`，并更新 `StorageConfiguration` 扫描范围。
-- [ ] T039 [US3] 重跑两个 storage 测试及 storage 全模块测试，确认 GREEN 且 `ddl-auto=validate`。
+- [x] T036 [P] [US3] 在 `oryxos-storage/src/test/java/io/oryxos/storage/JpaMemoryStoreTest.java` 与 `MemoryPersistenceAcrossRestartTest.java` 接入 StoreContract，覆盖 Flyway、scope CHECK、同时间 id 排序、事务失败和跨重启。
+- [x] T037 [US3] 运行 `.\mvnw.cmd -pl oryxos-storage -am -Dtest=JpaMemoryStoreTest,MemoryPersistenceAcrossRestartTest test`，确认缺表/实现而 RED。
+- [x] T038 [US3] 新增 `V5__create_memory_entries.sql`、`MemoryEntryEntity.java`、`MemoryEntryRepository.java`、`JpaMemoryStore.java`，并更新 `StorageConfiguration` 扫描范围。
+- [x] T039 [US3] 重跑两个 storage 测试及 storage 全模块测试，确认 GREEN 且 `ddl-auto=validate`。
 
 ### Mem0 OSS
 
