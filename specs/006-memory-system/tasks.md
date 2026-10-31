@@ -115,10 +115,10 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 ### 后端选择
 
-- [ ] T044 [US3] 在 `oryxos-boot/src/test/java/io/oryxos/boot/MemoryConfigurationTest.java` 编写默认/markdown/sqlite/mem0 选择、非法 backend、非正上限、缺 Mem0 配置、HYBRID fail-fast 和非 Mem0 不触网测试。
-- [ ] T045 [US3] 运行 `.\mvnw.cmd -pl oryxos-boot -am -Dtest=MemoryConfigurationTest test`，确认 SQLite/Mem0 选择 RED。
-- [ ] T046 [US3] 扩展 `MemoryProperties.java`、`MemoryConfiguration.java` 与 `application.yaml`，用条件 bean 选择 `MarkdownMemoryStore`、`JpaMemoryStore`、`Mem0MemoryStore`，后端切换不改上层 bean。
-- [ ] T047 [US3] 重跑 `MemoryConfigurationTest`、三后端 StoreContract 和 boot 上下文测试，确认 GREEN。
+- [x] T044 [US3] 在 `oryxos-boot/src/test/java/io/oryxos/boot/MemoryConfigurationTest.java` 编写默认/markdown/sqlite/mem0 选择、非法 backend、非正上限、缺 Mem0 配置、HYBRID fail-fast 和非 Mem0 不触网测试。
+- [x] T045 [US3] 运行 `.\mvnw.cmd -pl oryxos-boot -am -Dtest=MemoryConfigurationTest test`，确认 SQLite/Mem0 选择 RED。
+- [x] T046 [US3] 扩展 `MemoryProperties.java`、`MemoryConfiguration.java` 与 `application.yaml`，用条件 bean 选择 `MarkdownMemoryStore`、`JpaMemoryStore`、`Mem0MemoryStore`，后端切换不改上层 bean。
+- [x] T047 [US3] 重跑 `MemoryConfigurationTest`、三后端 StoreContract 和 boot 上下文测试，确认 GREEN。
 
 **Checkpoint**: US3 三档后端均可独立验收，真实 Mem0 仍标为未验证项。
 
