@@ -130,12 +130,12 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 **Independent Test**: MockMvc 覆盖 200/404/503、空视图、截断和查询零副作用。
 
-- [ ] T048 [P] [US4] 在 `oryxos-web/src/test/java/io/oryxos/web/memory/MemoryApiControllerTest.java` 编写正常、空数据、未知 Agent、MemoryException、字段映射和秘密不泄漏测试。
-- [ ] T049 [US4] 运行 `.\mvnw.cmd -pl oryxos-web -am -Dtest=MemoryApiControllerTest test`，确认 Controller 缺失而 RED。
-- [ ] T050 [US4] 创建 `MemoryApiController.java`、`MemoryView.java`，并扩展 `GlobalExceptionHandler.java` 映射 `AGENT_NOT_FOUND` 404 与 `MEMORY_UNAVAILABLE` 503。
-- [ ] T051 [US4] 重跑 `MemoryApiControllerTest`、`ApiResponseTest` 与 web 模块测试，确认 GREEN。
-- [ ] T052 [US4] 在 `oryxos-boot/src/test/java/io/oryxos/boot/MemoryApiIT.java` 编写真实 Spring 上下文下 Markdown 200、未知 Agent 404、查询无副作用测试。
-- [ ] T053 [US4] 运行 `.\mvnw.cmd -pl oryxos-boot -am -Dtest=MemoryApiIT test`，确认扫描/装配问题先 RED，再仅修改必要的 boot/web 扫描配置使其 GREEN。
+- [x] T048 [P] [US4] 在 `oryxos-web/src/test/java/io/oryxos/web/memory/MemoryApiControllerTest.java` 编写正常、空数据、未知 Agent、MemoryException、字段映射和秘密不泄漏测试。
+- [x] T049 [US4] 运行 `.\mvnw.cmd -pl oryxos-web -am -Dtest=MemoryApiControllerTest test`，确认 Controller 缺失而 RED。
+- [x] T050 [US4] 创建 `MemoryApiController.java`、`MemoryView.java`，并扩展 `GlobalExceptionHandler.java` 映射 `AGENT_NOT_FOUND` 404 与 `MEMORY_UNAVAILABLE` 503。
+- [x] T051 [US4] 重跑 `MemoryApiControllerTest`、`ApiResponseTest` 与 web 模块测试，确认 GREEN。
+- [x] T052 [US4] 在 `oryxos-boot/src/test/java/io/oryxos/boot/MemoryApiIT.java` 编写真实 Spring 上下文下 Markdown 200、未知 Agent 404、查询无副作用测试。
+- [x] T053 [US4] 运行 `.\mvnw.cmd -pl oryxos-boot -am -Dtest=MemoryApiIT test`，确认不完整 Agent fixture 先 RED；补齐已注册 Agent 目录后 GREEN，现有扫描配置无需修改。
 
 **Checkpoint**: 四个 User Story 全部独立可验收。
 
