@@ -161,6 +161,9 @@ public final class ToolExecutor implements AutoCloseable {
 
     private String auditInput(String name, String input) {
         try {
+            if ("save_memory".equals(name)) {
+                return auditMemorySave(input);
+            }
             if (name == null || tools.find(name).map(item -> item.source() != ToolSource.BUILTIN).orElse(true)) {
                 byte[] bytes = (input == null ? "" : input).getBytes(java.nio.charset.StandardCharsets.UTF_8);
                 byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
@@ -174,6 +177,17 @@ public final class ToolExecutor implements AutoCloseable {
         catch (java.io.IOException | java.security.NoSuchAlgorithmException | RuntimeException exception) {
             return "{\"redacted\":true}";
         }
+    }
+
+    private static String auditMemorySave(String input)
+            throws java.io.IOException, java.security.NoSuchAlgorithmException {
+        var value = JsonParser.getObjectMapper().readTree(input);
+        String content = value.path("content").isTextual() ? value.path("content").asText() : "";
+        String scope = value.path("scope").isTextual() ? value.path("scope").asText() : "archival";
+        byte[] bytes = content.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
+        return JsonParser.toJson(Map.of("scope", scope, "bytes", bytes.length,
+                "sha256", java.util.HexFormat.of().formatHex(hash)));
     }
 
     private static void redact(com.fasterxml.jackson.databind.JsonNode node) {

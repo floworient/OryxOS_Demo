@@ -76,18 +76,18 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 **Independent Test**: 真实 ToolRegistry/ToolExecutor 下执行授权、未授权、非法参数、默认 scope、召回和审计持久化失败场景。
 
-- [ ] T024 [P] [US2] 在 `oryxos-memory/src/test/java/io/oryxos/memory/MemoryToolsTest.java` 编写严格 JSON、默认 archival、显式 core、无 Profile、未知 scope、超限、召回格式与不回显保存内容测试。
-- [ ] T025 [US2] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=MemoryToolsTest test`，确认 RED。
-- [ ] T026 [US2] 在 `oryxos-memory/src/main/java/io/oryxos/memory/MemoryTools.java` 使用 Spring AI `@Tool` 实现两个方法，委托 MemoryService，不直接访问 store。
-- [ ] T027 [US2] 重跑 `MemoryToolsTest` 与 `AnnotatedToolAdapterTest`，确认 schema 与行为 GREEN。
-- [ ] T028 [US2] 在 `oryxos-core/src/test/java/io/oryxos/core/tool/ToolExecutorTest.java` 添加 Memory content canary 脱敏、单次最终审计、未授权零副作用测试。
-- [ ] T029 [US2] 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=ToolExecutorTest test`，确认 canary 当前进入审计而 RED。
-- [ ] T030 [US2] 修改 `oryxos-core/src/main/java/io/oryxos/core/tool/ToolExecutor.java`，对 `save_memory` 生成 scope/bytes/SHA-256 摘要且不保留 content，不改变其他工具既有语义。
-- [ ] T031 [US2] 重跑 `ToolExecutorTest` 与 core 模块测试，确认 GREEN。
-- [ ] T032 [US2] 在 `oryxos-boot/src/test/java/io/oryxos/boot/MemoryToolAuditIT.java` 编写默认 Markdown 下 Registry 可见性、真实 ToolExecutor 调用、一次审计和下一轮可见的集成测试。
-- [ ] T033 [US2] 运行 `.\mvnw.cmd -pl oryxos-boot -am -Dtest=MemoryToolAuditIT test`，确认缺少装配而 RED。
-- [ ] T034 [US2] 创建 `oryxos-boot/src/main/java/io/oryxos/boot/MemoryProperties.java`、`MemoryConfiguration.java`，先完成默认 Markdown、MemoryService、MemoryTools bean 与 PromptBuilder 注入。
-- [ ] T035 [US2] 重跑 `MemoryToolAuditIT`、`ReActConfigurationTest`、`ToolConfigurationTest`，确认 GREEN。
+- [x] T024 [P] [US2] 在 `oryxos-memory/src/test/java/io/oryxos/memory/MemoryToolsTest.java` 编写严格 JSON、默认 archival、显式 core、无 Profile、未知 scope、超限、召回格式与不回显保存内容测试。
+- [x] T025 [US2] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=MemoryToolsTest test`，确认 RED。
+- [x] T026 [US2] 在 `oryxos-memory/src/main/java/io/oryxos/memory/MemoryTools.java` 使用 Spring AI `@Tool` 实现两个方法，委托 MemoryService，不直接访问 store。
+- [x] T027 [US2] 重跑 `MemoryToolsTest` 与 `AnnotatedToolAdapterTest`，确认 schema 与行为 GREEN。
+- [x] T028 [US2] 在 `oryxos-core/src/test/java/io/oryxos/core/tool/ToolExecutorTest.java` 添加 Memory content canary 脱敏、单次最终审计、未授权零副作用测试。
+- [x] T029 [US2] 运行 `.\mvnw.cmd -pl oryxos-core -am -Dtest=ToolExecutorTest test`，确认 canary 当前进入审计而 RED。
+- [x] T030 [US2] 修改 `oryxos-core/src/main/java/io/oryxos/core/tool/ToolExecutor.java`，对 `save_memory` 生成 scope/bytes/SHA-256 摘要且不保留 content，不改变其他工具既有语义。
+- [x] T031 [US2] 重跑 `ToolExecutorTest` 与 core 模块测试，确认 GREEN。
+- [x] T032 [US2] 在 `oryxos-boot/src/test/java/io/oryxos/boot/MemoryToolAuditIT.java` 编写默认 Markdown 下 Registry 可见性、真实 ToolExecutor 调用、一次审计和下一轮可见的集成测试。
+- [x] T033 [US2] 运行 `.\mvnw.cmd -pl oryxos-boot -am -Dtest=MemoryToolAuditIT test`，确认缺少装配而 RED。
+- [x] T034 [US2] 创建 `oryxos-boot/src/main/java/io/oryxos/boot/MemoryProperties.java`、`MemoryConfiguration.java`，先完成默认 Markdown、MemoryService、MemoryTools bean 与 PromptBuilder 注入。
+- [x] T035 [US2] 重跑 `MemoryToolAuditIT`、`ReActConfigurationTest`、`ToolConfigurationTest`，确认 GREEN。
 
 **Checkpoint**: US2 经统一 Tool 链独立验收。
 

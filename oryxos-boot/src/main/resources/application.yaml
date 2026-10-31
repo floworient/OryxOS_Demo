@@ -55,6 +55,11 @@ springdoc:
     path: /swagger-ui
 
 oryxos:
+  memory:
+    backend: markdown
+    archival-max-characters: 4000
+    recall-max-results: 20
+    entry-max-characters: 4000
   http:
     allowed-domains: []
   tool:

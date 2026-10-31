@@ -107,6 +107,28 @@ class ToolExecutorTest {
     }
 
     @Test
+    void saveMemoryAuditKeepsOnlyScopeBytesAndHash() {
+        var memoryTool = tool(() -> new ToolResult(true, "saved", null, false));
+        var registration = new ToolRegistration(new NamedTool("save_memory", memoryTool),
+                ToolSource.JAVA, "memoryTools");
+        var registry = mock(ToolRegistry.class);
+        when(registry.find("save_memory")).thenReturn(Optional.of(registration));
+        when(registry.visibleTo(any(Profile.class))).thenReturn(List.of(registration));
+        var profile = mock(Profile.class);
+        when(profile.tools()).thenReturn(List.of("save_memory"));
+        ProfileContext.set(profile);
+
+        try (var executor = new ToolExecutor(registry, (p, call) -> { }, records::add)) {
+            executor.execute("s", new ToolCallIntent("c", "save_memory",
+                    "{\"content\":\"canary-private-memory\",\"scope\":\"core\"}"));
+        }
+
+        assertThat(records).singleElement().satisfies(record -> assertThat(record.inputJson())
+                .contains("core", "bytes", "sha256")
+                .doesNotContain("canary-private-memory", "content"));
+    }
+
+    @Test
     void successExecutesOncePropagatesContextAndPersistsAudit() throws Exception {
         var current = profile();
         var worker = Executors.newSingleThreadExecutor();
@@ -258,5 +280,27 @@ class ToolExecutorTest {
         }
         assertThat(calls).hasValue(1);
         assertThat(records).singleElement().satisfies(record -> assertThat(record.success()).isFalse());
+    }
+
+    private record NamedTool(String name, OryxTool delegate) implements OryxTool {
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String getDescription() {
+            return delegate.getDescription();
+        }
+
+        @Override
+        public String getInputSchema() {
+            return delegate.getInputSchema();
+        }
+
+        @Override
+        public ToolResult execute(String input) {
+            return delegate.execute(input);
+        }
     }
 }

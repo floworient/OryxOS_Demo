@@ -112,7 +112,8 @@ class ReActConfigurationTest {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @Import({StorageConfiguration.class, ToolConfiguration.class, ReActConfiguration.class})
+    @Import({StorageConfiguration.class, ToolConfiguration.class, MemoryConfiguration.class,
+            ReActConfiguration.class})
     static class TestApplication {
 
         @Bean
