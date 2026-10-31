@@ -46,11 +46,11 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 ### Store contract 与 Markdown
 
-- [ ] T011 [US1] 在 `oryxos-memory/src/test/java/io/oryxos/memory/LongTermMemoryStoreContract.java` 定义共享断言：owner/scope 隔离、core 不截断/不召回、archival 最新完整条目、大小写召回、最新 N 后升序、每次读取、失败不为空。
-- [ ] T012 [US1] 在 `MarkdownMemoryStoreTest.java` 和 `MarkdownMemoryStoreConcurrencyTest.java` 接入契约，并添加旧空骨架升级、畸形分区、换行/header 注入、链接/边界、原子回退和并发追加测试。
-- [ ] T013 [US1] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=MarkdownMemoryStoreTest,MarkdownMemoryStoreConcurrencyTest test`，确认因实现缺失而 RED。
-- [ ] T014 [US1] 在 `oryxos-memory/src/main/java/io/oryxos/memory/MarkdownMemoryStore.java` 实现解析、渲染、裁剪、关键词匹配、real-path 边界、细粒度锁与原子替换；必要内部类保持包私有且单一职责。
-- [ ] T015 [US1] 重跑两个 Markdown 测试和 `oryxos-memory` 全模块测试，确认 GREEN。
+- [x] T011 [US1] 在 `oryxos-core/src/test/java/io/oryxos/core/memory/LongTermMemoryStoreContract.java` 定义共享断言：owner/scope 隔离、core 不截断/不召回、archival 最新完整条目、大小写召回、最新 N 后升序、每次读取、失败不为空。
+- [x] T012 [US1] 在 `MarkdownMemoryStoreTest.java` 和 `MarkdownMemoryStoreConcurrencyTest.java` 接入契约，并添加旧空骨架升级、畸形分区、换行/header 注入、链接/边界、原子回退和并发追加测试。
+- [x] T013 [US1] 运行 `.\mvnw.cmd -pl oryxos-memory -am -Dtest=MarkdownMemoryStoreTest,MarkdownMemoryStoreConcurrencyTest test`，确认因实现缺失而 RED。
+- [x] T014 [US1] 在 `oryxos-memory/src/main/java/io/oryxos/memory/MarkdownMemoryStore.java` 实现解析、渲染、裁剪、关键词匹配、real-path 边界、细粒度锁与原子替换；必要内部类保持包私有且单一职责。
+- [x] T015 [US1] 重跑两个 Markdown 测试和 `oryxos-memory` 全模块测试，确认 GREEN。
 
 ### MemoryService
 
