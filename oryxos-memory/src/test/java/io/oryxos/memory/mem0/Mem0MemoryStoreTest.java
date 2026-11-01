@@ -61,7 +61,8 @@ class Mem0MemoryStoreTest {
             Mem0ProtocolValidatorTest.respond(exchange, 500, "secret backend failure");
         });
         server.createContext("/search", exchange -> Mem0ProtocolValidatorTest.respond(exchange, 200,
-                entry("2", "match", "ARCHIVAL").replace("]", "," + single("3", "core", "CORE") + "]")));
+                envelope(single("2", "match", "ARCHIVAL") + ","
+                        + single("3", "core", "CORE"))));
         server.start();
         var store = store();
         assertThat(store.recallByKeyword(MemoryOwner.agent("alpha"), "match"))
@@ -75,8 +76,8 @@ class Mem0MemoryStoreTest {
     void rejectsRecordsMissingPartitionMetadata() throws Exception {
         server = newServer();
         server.createContext("/memories", exchange -> Mem0ProtocolValidatorTest.respond(exchange, 200,
-                "[{\"id\":\"1\",\"memory\":\"bad\",\"agent_id\":\"alpha\","
-                        + "\"created_at\":\"2026-10-31T00:00:00Z\"}]"));
+                "{\"results\":[{\"id\":\"1\",\"memory\":\"bad\",\"agent_id\":\"alpha\","
+                        + "\"created_at\":\"2026-10-31T00:00:00Z\"}]}"));
         server.start();
         assertThatThrownBy(() -> store().load(MemoryOwner.agent("alpha")))
                 .isInstanceOf(MemoryException.class).hasMessageContaining("协议");
@@ -93,7 +94,11 @@ class Mem0MemoryStoreTest {
     }
 
     private static String entry(String id, String memory, String scope) {
-        return "[" + single(id, memory, scope) + "]";
+        return envelope(single(id, memory, scope));
+    }
+
+    private static String envelope(String entries) {
+        return "{\"results\":[" + entries + "]}";
     }
 
     private static String single(String id, String memory, String scope) {

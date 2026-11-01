@@ -1,6 +1,6 @@
 # Memory 核心交付验证记录
 
-验证日期：2026-10-31
+验证日期：2026-10-31；评审复验日期：2026-11-01
 
 ## 交付范围
 
@@ -21,16 +21,27 @@
 2. Web `MemoryView` 返回可变集合；改为防御性 `List.copyOf`，容器托管的 Registry 依赖按既有 SpotBugs 规则精确排除。
 3. 精简的 `ToolRegistryAuditIT` 上下文遗漏 `MemoryConfiguration`；补齐真实生产配置导入后回归测试通过。
 4. `MemoryProperties.mem0` 暴露可变嵌套配置；改为不可变 record 构造器绑定，并重跑全部七个后端装配测试。
+5. Mem0 OSS 实际读/搜响应使用 `results` envelope；修正解析器，并让 Mem0 运行完整 StoreContract。
+6. 三个后端的正文规范化、稳定排序、关键词结果截取和 archival Prompt 字符预算存在差异；提取 `MemoryEntryPolicy` 统一规则。
+7. Markdown 写入在父目录校验与替换之间存在目录替换窗口；加入目录身份复验，并优先使用 `SecureDirectoryStream` 的相对句柄操作。
+8. Markdown ID 依赖物理行号，core 追加会改变 archival ID；改为分区内序号与内容摘要组成的稳定 ID。
+9. Mem0 客户端补齐 base URL、正超时、JSON Content-Type、响应流关闭和响应大小边界校验。
+10. Mem0 OpenAPI 校验由全局 schema 文本搜索改为实际 operation/request/query 校验；对 FastAPI 未声明响应模型保持兼容，已声明响应 schema 时继续严格校验。
+11. JPA 后端将数据库故障映射为 `STORE_UNAVAILABLE`，并验证 Web 层返回 503；无效 scope 审计值改为 `<invalid>`。
+12. 全特性分支的 Spec-Kit 文档尾随空白和多余 EOF 空行已清理，`git diff --check 68d190d` 无输出。
+13. 最终 SpotBugs 门禁发现 Markdown 目标父目录的空值路径和 Mem0 解析异常捕获范围过宽；补齐显式父目录守卫并收窄异常类型。
+14. 最终 Checkstyle 门禁发现 Boot/OpenAPI 测试夹具行长超限；仅调整夹具排版后重新执行全仓门禁。
 
 ## 最终验证命令
 
 ```powershell
 .\mvnw.cmd -pl oryxos-boot -am '-Dtest=MemoryConfigurationTest' '-Dsurefire.failIfNoSpecifiedTests=false' test
+.\mvnw.cmd -pl oryxos-core,oryxos-memory,oryxos-storage,oryxos-web,oryxos-boot -am '-Dtest=MemoryEntryPolicyTest,ToolExecutorTest,MarkdownMemoryStoreTest,MarkdownMemoryStoreConcurrencyTest,Mem0MemoryStoreTest,Mem0MemoryStoreContractTest,Mem0ProtocolValidatorTest,JpaMemoryStoreTest,JpaMemoryStoreFailureTest,MemoryApiControllerTest,MemoryConfigurationTest' '-Dsurefire.failIfNoSpecifiedTests=false' test
 .\mvnw.cmd clean verify
 .\mvnw.cmd -pl oryxos-memory,oryxos-storage,oryxos-cli,oryxos-boot -am '-Dtest=WorkspaceServiceTest,MarkdownMemoryStoreTest,JpaMemoryStoreTest,MemoryPersistenceAcrossRestartTest,MemoryConfigurationTest' '-Dsurefire.failIfNoSpecifiedTests=false' test
 ```
 
-结果：三条命令均以退出码 0 完成。最终 `clean verify` 的 15 个 Reactor 模块全部 `SUCCESS`，总耗时 5 分 34 秒；Surefire/Failsafe 为 0 failure、0 error，Checkstyle 和 SpotBugs 为 0 violation，JaCoCo、ArchUnit 与可执行 JAR 打包门禁通过。Windows 上无法创建原生链接的既有链接集成测试按测试约束跳过，不影响 `.link` 主路径验证。
+结果：定向评审回归命令以退出码 0 完成；Memory 相关新增/受影响测试 68 项通过，1 项 Windows 原生链接测试按能力检查跳过。2026-11-01 最终 `clean verify` 以退出码 0 完成，15 个 Reactor 模块全部 `SUCCESS`，总耗时 4 分 24 秒；Surefire/Failsafe 为 0 failure、0 error，Checkstyle 和 SpotBugs 为 0 violation，JaCoCo、ArchUnit、集成测试与可执行 JAR 打包门禁全部通过。
 
 Quickstart 使用 JUnit 临时工作区和临时 SQLite 文件验证：`WorkspaceServiceTest` 15 项通过；Markdown StoreContract、SQLite StoreContract/Flyway/跨重启测试通过；`MemoryConfigurationTest` 7 项通过。Mem0 使用本地回环 `HttpServer` 验证 OpenAPI、请求协议、超时、错误映射、响应上限和秘密脱敏。
 

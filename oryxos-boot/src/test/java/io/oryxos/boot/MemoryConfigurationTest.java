@@ -23,8 +23,22 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class MemoryConfigurationTest {
 
     private static final String OPENAPI = """
-            {"paths":{"/memories":{"get":{},"post":{}},"/search":{"post":{}}},
-             "components":{"schemas":{"Memory":{"properties":{"agent_id":{},"metadata":{}}}}}}
+            {"paths":{
+              "/memories":{
+                "get":{"parameters":[{"name":"agent_id","in":"query"}],
+                  "responses":{"200":{"content":{"application/json":{
+                    "schema":{"$ref":"#/components/schemas/Envelope"}}}}}},
+                "post":{"requestBody":{"content":{"application/json":{
+                  "schema":{"$ref":"#/components/schemas/Create"}}}}}},
+              "/search":{"post":{
+                "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Search"}}}},
+                "responses":{"200":{"content":{"application/json":{
+                  "schema":{"$ref":"#/components/schemas/Envelope"}}}}}}}},
+             "components":{"schemas":{
+               "Create":{"properties":{"agent_id":{},"metadata":{},"infer":{}}},
+               "Search":{"properties":{"query":{},"agent_id":{}}},
+               "Envelope":{"properties":{"results":{"type":"array","items":{"$ref":"#/components/schemas/Memory"}}}},
+               "Memory":{"properties":{"agent_id":{},"metadata":{},"memory":{}}}}}}
             """;
 
     @TempDir
@@ -111,6 +125,7 @@ class MemoryConfigurationTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/openapi.json", exchange -> {
             byte[] body = OPENAPI.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);
             exchange.close();

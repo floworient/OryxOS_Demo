@@ -56,4 +56,3 @@ public interface MemoryService {
 - `load` 的 archival 有界，`archivalEntries` 未裁剪。
 - `DELEGATED.archivalEntries` 可为空。
 - `HYBRID_BUILTIN` 在 015 前不得运行。
-

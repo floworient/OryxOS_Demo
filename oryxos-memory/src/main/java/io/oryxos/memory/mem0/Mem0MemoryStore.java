@@ -3,6 +3,7 @@ package io.oryxos.memory.mem0;
 import io.oryxos.core.memory.LongTermMemoryStore;
 import io.oryxos.core.memory.MemoryCapabilities;
 import io.oryxos.core.memory.MemoryEntry;
+import io.oryxos.core.memory.MemoryEntryPolicy;
 import io.oryxos.core.memory.MemoryException;
 import io.oryxos.core.memory.MemoryOwner;
 import io.oryxos.core.memory.MemoryScope;
@@ -34,11 +35,9 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
 
     @Override
     public void append(MemoryOwner owner, String content, MemoryScope scope) {
-        if (content == null || content.isBlank() || content.trim().length() > entryMaxCharacters) {
-            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "记忆内容为空或超过长度上限");
-        }
+        String normalized = MemoryEntryPolicy.normalizeContent(content, entryMaxCharacters);
         client.post("/memories", JsonParser.toJson(Map.of(
-                "messages", List.of(Map.of("role", "user", "content", content.trim())),
+                "messages", List.of(Map.of("role", "user", "content", normalized)),
                 "agent_id", owner.key(), "infer", false,
                 "metadata", Map.of("scope", scope.name(), "created_by", "oryxos"))));
     }
@@ -46,7 +45,7 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
     @Override
     public MemorySnapshot load(MemoryOwner owner) {
         String ownerQuery = URLEncoder.encode(owner.key(), StandardCharsets.UTF_8);
-        List<MemoryEntry> all = parse(client.get("/memories?agent_id=" + ownerQuery), owner);
+        List<MemoryEntry> all = ownerEntries(owner, ownerQuery);
         List<MemoryEntry> core = all.stream().filter(item -> item.scope() == MemoryScope.CORE).toList();
         List<MemoryEntry> archival = all.stream().filter(item -> item.scope() == MemoryScope.ARCHIVAL).toList();
         List<MemoryEntry> bounded = bound(archival);
@@ -56,10 +55,14 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
 
     @Override
     public List<MemoryEntry> recallByKeyword(MemoryOwner owner, String keyword) {
-        String body = JsonParser.toJson(Map.of("query", keyword, "agent_id", owner.key()));
+        if (keyword == null || keyword.isBlank()) {
+            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "召回关键词不能为空");
+        }
+        String body = JsonParser.toJson(Map.of("query", keyword.trim(), "agent_id", owner.key()));
         List<MemoryEntry> matches = parse(client.post("/search", body), owner).stream()
                 .filter(item -> item.scope() == MemoryScope.ARCHIVAL).toList();
-        return List.copyOf(matches.subList(Math.max(0, matches.size() - recallMaxResults), matches.size()));
+        List<MemoryEntry> ordered = MemoryEntryPolicy.stable(matches);
+        return List.copyOf(ordered.subList(Math.max(0, ordered.size() - recallMaxResults), ordered.size()));
     }
 
     @Override
@@ -69,17 +72,24 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
 
     @Override
     public List<MemoryEntry> archivalEntries(MemoryOwner owner) {
-        return List.of();
+        String ownerQuery = URLEncoder.encode(owner.key(), StandardCharsets.UTF_8);
+        return ownerEntries(owner, ownerQuery).stream()
+                .filter(item -> item.scope() == MemoryScope.ARCHIVAL).toList();
+    }
+
+    private List<MemoryEntry> ownerEntries(MemoryOwner owner, String encodedOwner) {
+        return parse(client.get("/memories?agent_id=" + encodedOwner), owner);
     }
 
     private List<MemoryEntry> parse(String json, MemoryOwner expectedOwner) {
         try {
             var root = JsonParser.getObjectMapper().readTree(json);
-            if (!root.isArray()) {
+            var results = root.path("results");
+            if (!root.isObject() || !results.isArray()) {
                 throw invalid();
             }
             List<MemoryEntry> entries = new ArrayList<>();
-            for (var node : root) {
+            for (var node : results) {
                 String id = text(node, "id");
                 String content = text(node, "memory");
                 String agentId = text(node, "agent_id");
@@ -88,31 +98,19 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
                 if (!agentId.equals(expectedOwner.key())) {
                     throw invalid();
                 }
+                String normalized = MemoryEntryPolicy.normalizeContent(content, entryMaxCharacters);
                 entries.add(new MemoryEntry("mem0:" + id, expectedOwner,
-                        MemoryScope.valueOf(scopeValue), content, Instant.parse(created)));
+                        MemoryScope.valueOf(scopeValue), normalized, Instant.parse(created)));
             }
-            return List.copyOf(entries);
+            return MemoryEntryPolicy.stable(entries);
         }
-        catch (MemoryException exception) {
-            throw exception;
-        }
-        catch (Exception exception) {
+        catch (com.fasterxml.jackson.core.JsonProcessingException | RuntimeException exception) {
             throw invalid();
         }
     }
 
     private List<MemoryEntry> bound(List<MemoryEntry> entries) {
-        List<MemoryEntry> result = new ArrayList<>();
-        int used = 0;
-        for (int index = entries.size() - 1; index >= 0; index--) {
-            int size = entries.get(index).content().length();
-            if (used + size > archivalMaxCharacters) {
-                break;
-            }
-            result.add(0, entries.get(index));
-            used += size;
-        }
-        return List.copyOf(result);
+        return MemoryEntryPolicy.newestWithinPromptLimit(entries, archivalMaxCharacters);
     }
 
     private static String text(com.fasterxml.jackson.databind.JsonNode node, String field) {

@@ -23,14 +23,15 @@ public final class Mem0Client {
 
     public Mem0Client(URI baseUrl, String apiKey, Duration connectTimeout,
             Duration requestTimeout, int maxResponseBytes) {
-        this.baseUrl = Objects.requireNonNull(baseUrl).resolve("/");
+        this.baseUrl = requireBaseUrl(baseUrl);
         this.apiKey = requireText(apiKey);
-        this.requestTimeout = Objects.requireNonNull(requestTimeout);
+        this.requestTimeout = requirePositive(requestTimeout, "Mem0 请求超时");
         if (maxResponseBytes <= 0) {
             throw new IllegalArgumentException("Mem0 响应上限必须大于 0");
         }
         this.maxResponseBytes = maxResponseBytes;
-        this.http = HttpClient.newBuilder().connectTimeout(connectTimeout)
+        this.http = HttpClient.newBuilder()
+                .connectTimeout(requirePositive(connectTimeout, "Mem0 连接超时"))
                 .followRedirects(HttpClient.Redirect.NEVER).build();
     }
 
@@ -54,8 +55,15 @@ public final class Mem0Client {
         try {
             HttpResponse<java.io.InputStream> response = http.send(authenticated,
                     HttpResponse.BodyHandlers.ofInputStream());
-            byte[] body = response.body().readNBytes(maxResponseBytes + 1);
-            if (body.length > maxResponseBytes || response.statusCode() < 200 || response.statusCode() >= 300) {
+            byte[] body;
+            try (var stream = response.body()) {
+                body = stream.readNBytes(maxResponseBytes + 1);
+            }
+            String mediaType = response.headers().firstValue("Content-Type").orElse("")
+                    .split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
+            boolean json = mediaType.equals("application/json") || mediaType.endsWith("+json");
+            if (body.length > maxResponseBytes || response.statusCode() < 200
+                    || response.statusCode() >= 300 || !json) {
                 throw unavailable("Mem0 请求失败");
             }
             return new String(body, StandardCharsets.UTF_8);
@@ -74,6 +82,26 @@ public final class Mem0Client {
 
     private URI uri(String path) {
         return baseUrl.resolve(path.startsWith("/") ? path.substring(1) : path);
+    }
+
+    private static URI requireBaseUrl(URI value) {
+        URI normalized = Objects.requireNonNull(value, "Mem0 base URL 不能为空").normalize();
+        String scheme = normalized.getScheme();
+        String path = normalized.getPath();
+        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                || normalized.getHost() == null || normalized.getUserInfo() != null
+                || normalized.getQuery() != null || normalized.getFragment() != null
+                || (path != null && !path.isEmpty() && !path.equals("/"))) {
+            throw new IllegalArgumentException("Mem0 base URL 必须是无路径、凭证、查询和片段的 HTTP(S) 地址");
+        }
+        return normalized.resolve("/");
+    }
+
+    private static Duration requirePositive(Duration value, String name) {
+        if (value == null || value.isZero() || value.isNegative()) {
+            throw new IllegalArgumentException(name + "必须大于 0");
+        }
+        return value;
     }
 
     private static String requireText(String value) {

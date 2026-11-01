@@ -78,14 +78,14 @@ oryxos:
 
 ## save_memory 和 recall_memory 工具
 
-Agent 通过两个内置工具与长期记忆交互，不直接写 `MEMORY.md`。
+Agent 通过两个内置工具与当前选定的长期记忆后端交互，不直接操作后端本体。
 
-**`save_memory`** — 向当前 Agent 的 `MEMORY.md` 追加一段文本，写入 `core` 或 `archival` 区块。Agent 自己决定保存什么、写哪个区、何时保存。核心阶段没有自动摘要。
+**`save_memory`** — 向当前 Agent 的长期记忆后端追加一段文本，写入 `core` 或 `archival` 分区。Agent 自己决定保存什么、写哪个区、何时保存。核心阶段没有自动摘要；只有 Markdown 后端写入 `MEMORY.md`。
 
 ```text
 工具: save_memory
 输入: { "content": "用户偏好简洁的回复，不用列表。", "scope": "archival" }
-效果: 向该 Agent 的 MEMORY.md 归档区追加带时间戳的条目
+效果: 向当前后端的该 Agent 归档分区追加条目
 ```
 
 **`recall_memory`** — 按关键词检索归档区，返回匹配的行。在保存之前，Agent 可以先检索确认自己是否已经知道某件事，避免重复记录。
@@ -114,12 +114,12 @@ GET /api/v1/agents/{name}/memory
 
 ```text
 [1] 系统提示词（AGENT.md 正文 + bootstrap）
-[2] MEMORY.md  ← 在这里注入：核心区全量 + 归档区截断至 4000 字符
+[2] 长期记忆  ← 在这里注入：核心区全量 + 归档区截断至 4000 字符
 [3] 对话历史（最近 N 轮）
 [4] 可用工具（JSON Schema）
 ```
 
-记忆块始终存在，即使 `MEMORY.md` 为空。
+记忆块始终存在，即使当前后端没有任何长期记忆。
 
 ## MEMORY.md 与 USER.md 的区别
 

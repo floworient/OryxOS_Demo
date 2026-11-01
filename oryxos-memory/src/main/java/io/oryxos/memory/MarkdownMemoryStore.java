@@ -3,6 +3,7 @@ package io.oryxos.memory;
 import io.oryxos.core.memory.LongTermMemoryStore;
 import io.oryxos.core.memory.MemoryCapabilities;
 import io.oryxos.core.memory.MemoryEntry;
+import io.oryxos.core.memory.MemoryEntryPolicy;
 import io.oryxos.core.memory.MemoryException;
 import io.oryxos.core.memory.MemoryOwner;
 import io.oryxos.core.memory.MemoryScope;
@@ -15,6 +16,13 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.CopyOption;
+import java.nio.file.DirectoryStream;
+import java.nio.file.OpenOption;
+import java.nio.file.SecureDirectoryStream;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -23,9 +31,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.ResolverStyle;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -64,10 +73,19 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
 
     private final int entryMaxCharacters;
 
+    private final WriteBoundaryHook writeBoundaryHook;
+
     private final ConcurrentHashMap<MemoryOwner, ReentrantLock> ownerLocks = new ConcurrentHashMap<>();
 
     public MarkdownMemoryStore(Path workspace, Clock clock, ZoneId zoneId,
             int archivalMaxCharacters, int recallMaxResults, int entryMaxCharacters) {
+        this(workspace, clock, zoneId, archivalMaxCharacters, recallMaxResults,
+                entryMaxCharacters, (stage, parent) -> { });
+    }
+
+    MarkdownMemoryStore(Path workspace, Clock clock, ZoneId zoneId,
+            int archivalMaxCharacters, int recallMaxResults, int entryMaxCharacters,
+            WriteBoundaryHook writeBoundaryHook) {
         this.workspace = Objects.requireNonNull(workspace, "工作区不能为空").toAbsolutePath().normalize();
         this.clock = Objects.requireNonNull(clock, "时钟不能为空");
         this.zoneId = Objects.requireNonNull(zoneId, "时区不能为空");
@@ -77,6 +95,7 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
         this.archivalMaxCharacters = archivalMaxCharacters;
         this.recallMaxResults = recallMaxResults;
         this.entryMaxCharacters = entryMaxCharacters;
+        this.writeBoundaryHook = Objects.requireNonNull(writeBoundaryHook, "写入边界钩子不能为空");
         try {
             this.realWorkspace = this.workspace.toRealPath();
         }
@@ -89,22 +108,24 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
     public void append(MemoryOwner owner, String content, MemoryScope scope) {
         Objects.requireNonNull(owner, "记忆 owner 不能为空");
         Objects.requireNonNull(scope, "记忆 scope 不能为空");
-        String normalized = normalizeContent(content);
-        if (normalized.length() > entryMaxCharacters) {
-            throw new MemoryException(MemoryException.Code.INVALID_CONTENT,
-                    "记忆内容超过单条长度上限");
-        }
+        String normalized = MemoryEntryPolicy.normalizeContent(content, entryMaxCharacters);
         ReentrantLock lock = ownerLocks.computeIfAbsent(owner, ignored -> new ReentrantLock());
         lock.lock();
         try {
             Path target = resolveTarget(owner);
+            Path parent = target.getParent();
+            if (parent == null) {
+                throw new MemoryException(MemoryException.Code.STORE_UNAVAILABLE,
+                        "记忆文件必须位于目录中");
+            }
+            DirectoryIdentity identity = captureDirectory(parent);
             ParsedMemory parsed = read(target, owner, true);
             List<MemoryEntry> core = new ArrayList<>(parsed.core());
             List<MemoryEntry> archival = new ArrayList<>(parsed.archival());
             Instant now = clock.instant();
             MemoryEntry entry = new MemoryEntry("markdown:pending", owner, scope, normalized, now);
             (scope == MemoryScope.CORE ? core : archival).add(entry);
-            atomicWrite(target, render(core, archival));
+            atomicWrite(target, render(core, archival), identity);
         }
         finally {
             lock.unlock();
@@ -121,15 +142,7 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
 
     @Override
     public List<MemoryEntry> recallByKeyword(MemoryOwner owner, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "召回关键词不能为空");
-        }
-        String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
-        List<MemoryEntry> matches = archivalEntries(owner).stream()
-                .filter(entry -> entry.content().toLowerCase(Locale.ROOT).contains(normalizedKeyword))
-                .toList();
-        int from = Math.max(0, matches.size() - recallMaxResults);
-        return List.copyOf(matches.subList(from, matches.size()));
+        return MemoryEntryPolicy.latestKeywordMatches(archivalEntries(owner), keyword, recallMaxResults);
     }
 
     @Override
@@ -143,19 +156,7 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
     }
 
     private List<MemoryEntry> newestCompleteEntries(List<MemoryEntry> entries) {
-        List<MemoryEntry> selectedReverse = new ArrayList<>();
-        int used = 0;
-        for (int index = entries.size() - 1; index >= 0; index--) {
-            MemoryEntry entry = entries.get(index);
-            int length = renderEntry(entry).length();
-            if (used + length > archivalMaxCharacters) {
-                break;
-            }
-            selectedReverse.add(entry);
-            used += length;
-        }
-        selectedReverse.sort(Comparator.comparing(MemoryEntry::createdAt));
-        return List.copyOf(selectedReverse);
+        return MemoryEntryPolicy.newestWithinPromptLimit(entries, archivalMaxCharacters);
     }
 
     private ParsedMemory read(Path target, MemoryOwner owner, boolean allowLegacySkeleton) {
@@ -230,8 +231,9 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
             try {
                 Instant createdAt = LocalDateTime.parse(matcher.group(1), TIMESTAMP)
                         .atZone(zoneId).toInstant();
-                entries.add(new MemoryEntry("markdown:" + scope.name().toLowerCase(Locale.ROOT)
-                        + ":" + index, owner, scope, matcher.group(2), createdAt));
+                String identity = owner.key() + "\n" + scope + "\n" + createdAt + "\n" + matcher.group(2);
+                entries.add(new MemoryEntry(markdownId(scope, identity, entries.size()),
+                        owner, scope, matcher.group(2), createdAt));
             }
             catch (DateTimeParseException | IllegalArgumentException exception) {
                 throw malformed();
@@ -287,24 +289,102 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
         }
     }
 
-    private static String normalizeContent(String content) {
-        if (content == null) {
-            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "记忆内容不能为空");
+    private static String markdownId(MemoryScope scope, String identity, int sequence) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(identity.getBytes(StandardCharsets.UTF_8));
+            return "markdown:" + scope.name().toLowerCase(Locale.ROOT) + ":"
+                    + String.format(Locale.ROOT, "%010d", sequence) + ":"
+                    + HexFormat.of().formatHex(digest, 0, 8);
         }
-        String normalized = content.replaceAll("[\\r\\n]+", " ").replaceAll("\\s+", " ").trim();
-        if (normalized.isEmpty()) {
-            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "记忆内容不能为空");
+        catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("运行环境缺少 SHA-256", exception);
         }
-        return normalized;
     }
 
-    private void atomicWrite(Path target, String content) {
+    private void atomicWrite(Path target, String content, DirectoryIdentity identity) {
+        verifyDirectory(identity);
+        try {
+            writeBoundaryHook.at(WriteStage.BEFORE_TEMPORARY_CREATE, identity.parent());
+        }
+        catch (IOException exception) {
+            throw unavailable("无法验证记忆目录", exception);
+        }
+        verifyDirectory(identity);
+        try (DirectoryStream<Path> directory = Files.newDirectoryStream(identity.parent())) {
+            verifyDirectory(identity);
+            if (directory instanceof SecureDirectoryStream<Path> secure) {
+                secureAtomicWrite(secure, target.getFileName(), content, identity);
+            }
+            else {
+                verifiedAtomicWrite(target, content, identity);
+            }
+        }
+        catch (MemoryException exception) {
+            throw exception;
+        }
+        catch (IOException exception) {
+            throw unavailable("无法写入记忆文件", exception);
+        }
+    }
+
+    private void secureAtomicWrite(SecureDirectoryStream<Path> directory, Path targetName,
+            String content, DirectoryIdentity identity) throws IOException {
+        Path temporaryName = Path.of(".memory-" + java.util.UUID.randomUUID() + ".tmp");
+        try {
+            Set<OpenOption> options = Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+            try (var channel = directory.newByteChannel(temporaryName, options)) {
+                channel.write(StandardCharsets.UTF_8.encode(content));
+            }
+            writeBoundaryHook.at(WriteStage.BEFORE_REPLACE, identity.parent());
+            verifyDirectory(identity);
+            try {
+                directory.move(temporaryName, directory, targetName);
+            }
+            catch (java.nio.file.FileAlreadyExistsException exception) {
+                secureReplaceExisting(directory, temporaryName, targetName);
+            }
+        }
+        finally {
+            try {
+                directory.deleteFile(temporaryName);
+            }
+            catch (java.nio.file.NoSuchFileException ignored) {
+                // 已完成替换，无临时文件需要清理。
+            }
+        }
+    }
+
+    private static void secureReplaceExisting(SecureDirectoryStream<Path> directory,
+            Path temporaryName, Path targetName) throws IOException {
+        Path backupName = Path.of(".memory-backup-" + java.util.UUID.randomUUID() + ".tmp");
+        directory.move(targetName, directory, backupName);
+        try {
+            directory.move(temporaryName, directory, targetName);
+            directory.deleteFile(backupName);
+        }
+        catch (IOException exception) {
+            try {
+                directory.move(backupName, directory, targetName);
+            }
+            catch (IOException restoreFailure) {
+                exception.addSuppressed(restoreFailure);
+            }
+            throw exception;
+        }
+    }
+
+    private void verifiedAtomicWrite(Path target, String content, DirectoryIdentity identity) {
         Path temporary = null;
         try {
-            Path parent = Objects.requireNonNull(target.getParent(), "记忆文件必须位于目录中");
-            temporary = Files.createTempFile(parent, ".memory-", ".tmp");
+            verifyDirectory(identity);
+            temporary = Files.createTempFile(identity.parent(), ".memory-", ".tmp");
+            verifyDirectory(identity);
             Files.writeString(temporary, content, StandardCharsets.UTF_8);
+            writeBoundaryHook.at(WriteStage.BEFORE_REPLACE, identity.parent());
+            verifyDirectory(identity);
             moveReplacing(temporary, target, Files::move);
+            verifyDirectory(identity);
         }
         catch (IOException exception) {
             throw unavailable("无法写入记忆文件", exception);
@@ -321,6 +401,36 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
         }
     }
 
+    private DirectoryIdentity captureDirectory(Path parent) {
+        try {
+            Path absolute = Objects.requireNonNull(parent, "记忆文件必须位于目录中")
+                    .toAbsolutePath().normalize();
+            Path real = absolute.toRealPath(LinkOption.NOFOLLOW_LINKS);
+            BasicFileAttributes attributes = Files.readAttributes(absolute,
+                    BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            if (!attributes.isDirectory() || Files.isSymbolicLink(absolute)
+                    || !real.startsWith(realWorkspace)) {
+                throw new MemoryException(MemoryException.Code.STORE_UNAVAILABLE, "记忆目录不安全");
+            }
+            return new DirectoryIdentity(absolute, real, attributes.fileKey(), attributes.creationTime());
+        }
+        catch (MemoryException exception) {
+            throw exception;
+        }
+        catch (IOException exception) {
+            throw unavailable("记忆目录不存在或不可访问", exception);
+        }
+    }
+
+    private void verifyDirectory(DirectoryIdentity expected) {
+        DirectoryIdentity actual = captureDirectory(expected.parent());
+        if (!actual.realPath().equals(expected.realPath())
+                || !Objects.equals(actual.fileKey(), expected.fileKey())
+                || !actual.creationTime().equals(expected.creationTime())) {
+            throw new MemoryException(MemoryException.Code.STORE_UNAVAILABLE, "记忆目录在写入期间发生变化");
+        }
+    }
+
     static void moveReplacing(Path source, Path target, MoveOperation operation) throws IOException {
         try {
             operation.move(source, target, StandardCopyOption.ATOMIC_MOVE,
@@ -334,6 +444,16 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
     @FunctionalInterface
     interface MoveOperation {
         Path move(Path source, Path target, CopyOption... options) throws IOException;
+    }
+
+    enum WriteStage {
+        BEFORE_TEMPORARY_CREATE,
+        BEFORE_REPLACE
+    }
+
+    @FunctionalInterface
+    interface WriteBoundaryHook {
+        void at(WriteStage stage, Path parent) throws IOException;
     }
 
     private static void requirePositive(int value, String name) {
@@ -354,5 +474,9 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
         private static ParsedMemory empty() {
             return new ParsedMemory(List.of(), List.of());
         }
+    }
+
+    private record DirectoryIdentity(Path parent, Path realPath, Object fileKey,
+            java.nio.file.attribute.FileTime creationTime) {
     }
 }

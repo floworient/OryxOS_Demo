@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Memory 核心完整交付
 
-**Purpose**: 在进入技术计划前验证 feature spec 的完整性、可测试性与范围一致性。  
-**Created**: 2026-10-31  
+**Purpose**: 在进入技术计划前验证 feature spec 的完整性、可测试性与范围一致性。
+**Created**: 2026-10-31
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality

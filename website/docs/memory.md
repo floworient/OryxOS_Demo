@@ -78,14 +78,14 @@ oryxos:
 
 ## save_memory and recall_memory tools
 
-Agents interact with long-term memory through two built-in tools, not by writing to `MEMORY.md` directly.
+Agents interact with the selected long-term-memory backend through two built-in tools rather than manipulating backend storage directly.
 
-**`save_memory`** — appends a piece of text to the current agent's `MEMORY.md`, into the `core` or `archival` section. The agent decides what to save, where, and when. There is no automatic summarization in core phase.
+**`save_memory`** — appends text to the current agent's `core` or `archival` partition in the selected backend. The agent decides what to save, where, and when. There is no automatic summarization in core phase; only the Markdown backend writes `MEMORY.md`.
 
 ```text
 Tool: save_memory
 Input: { "content": "User prefers concise responses, no bullet lists.", "scope": "archival" }
-Effect: appends a timestamped entry to the agent's MEMORY.md archival section
+Effect: appends an entry to the agent's archival partition in the selected backend
 ```
 
 **`recall_memory`** — searches the archival section by keyword and returns matching lines. Useful when the agent needs to check whether it already knows something before saving a duplicate.
@@ -114,12 +114,12 @@ The unified `{ code, message, data, timestamp }` response returns owner, backend
 
 ```text
 [1] system prompt  (AGENT.md body + bootstrap)
-[2] MEMORY.md  ← injected here: core in full + archival truncated at 4 000 chars
+[2] Long-term memory  ← injected here: core in full + archival truncated at 4 000 chars
 [3] conversation history (last N turns)
 [4] available tools (JSON Schema)
 ```
 
-The memory block is always present, even if `MEMORY.md` is empty.
+The memory block is always present, even when the selected backend has no long-term memory.
 
 ## MEMORY.md vs USER.md
 

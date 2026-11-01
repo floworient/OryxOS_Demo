@@ -103,4 +103,3 @@ archival 按 `"- [timestamp] content\n"` 的渲染字符数计算，从最新向
 **Decision**: `MemoryCapabilities` 是单值 enum：Markdown/SQLite 返回 `KEYWORD`，Mem0 返回 `DELEGATED`；保留 `HYBRID_BUILTIN`。`archivalEntries(owner)` 返回未裁剪本体；Mem0 返回空列表。当前门面遇到 `HYBRID_BUILTIN` 抛装配错误。
 
 **Rationale**: 015 可在不破坏 Store/Service 调用方的情况下加入检索管线和索引对账，同时本 feature 不提供假混合检索。
-

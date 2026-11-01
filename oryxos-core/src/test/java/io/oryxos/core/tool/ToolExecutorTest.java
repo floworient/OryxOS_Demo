@@ -129,6 +129,27 @@ class ToolExecutorTest {
     }
 
     @Test
+    void saveMemoryAuditDoesNotPersistInvalidScopeText() {
+        var memoryTool = tool(() -> new ToolResult(false, "", "invalid", false));
+        var registration = new ToolRegistration(new NamedTool("save_memory", memoryTool),
+                ToolSource.JAVA, "memoryTools");
+        var registry = mock(ToolRegistry.class);
+        when(registry.find("save_memory")).thenReturn(Optional.of(registration));
+        when(registry.visibleTo(any(Profile.class))).thenReturn(List.of(registration));
+        var profile = mock(Profile.class);
+        when(profile.tools()).thenReturn(List.of("save_memory"));
+        ProfileContext.set(profile);
+
+        try (var executor = new ToolExecutor(registry, (p, call) -> { }, records::add)) {
+            executor.execute("s", new ToolCallIntent("c", "save_memory",
+                    "{\"content\":\"value\",\"scope\":\"canary-sensitive-scope\"}"));
+        }
+
+        assertThat(records).singleElement().satisfies(record -> assertThat(record.inputJson())
+                .contains("<invalid>").doesNotContain("canary-sensitive-scope"));
+    }
+
+    @Test
     void successExecutesOncePropagatesContextAndPersistsAudit() throws Exception {
         var current = profile();
         var worker = Executors.newSingleThreadExecutor();

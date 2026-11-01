@@ -21,4 +21,3 @@
 - 搜：`POST /search`，携带 query/agent_id，本地只保留 archival。
 - header：`Content-Type: application/json`、`X-API-Key: ...`。
 - 不跟随重定向；写请求不重试；响应最大 1 MiB。
-

@@ -17,6 +17,7 @@ import java.nio.file.CopyOption;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assumptions;
@@ -129,6 +130,34 @@ class MarkdownMemoryStoreTest extends LongTermMemoryStoreContract {
 
         assertThat(attempts[0]).isEqualTo(2);
         assertThat(Files.readString(target)).isEqualTo("memory");
+    }
+
+    @Test
+    void rejectsParentDirectoryReplacementDuringWrite() throws IOException {
+        AtomicBoolean replaced = new AtomicBoolean();
+        var guarded = new MarkdownMemoryStore(temporary, CLOCK, ZoneId.of("Asia/Shanghai"),
+                80, 2, 512, (stage, parent) -> {
+                    if (stage == MarkdownMemoryStore.WriteStage.BEFORE_TEMPORARY_CREATE
+                            && replaced.compareAndSet(false, true)) {
+                        Files.move(parent, parent.resolveSibling("first-original"));
+                        Files.createDirectory(parent);
+                    }
+                });
+
+        assertThatThrownBy(() -> guarded.append(firstOwner(), "must not escape", MemoryScope.ARCHIVAL))
+                .isInstanceOf(MemoryException.class).hasMessageContaining("发生变化");
+        assertThat(temporary.resolve("agents/first/MEMORY.md")).doesNotExist();
+        assertThat(temporary.resolve("agents/first-original/MEMORY.md")).doesNotExist();
+    }
+
+    @Test
+    void archivalIdRemainsStableWhenCoreIsAppended() {
+        memory.append(firstOwner(), "archival", MemoryScope.ARCHIVAL);
+        String before = memory.load(firstOwner()).archival().getFirst().id();
+
+        memory.append(firstOwner(), "core", MemoryScope.CORE);
+
+        assertThat(memory.load(firstOwner()).archival().getFirst().id()).isEqualTo(before);
     }
 
     private static Path moveWithFirstAtomicFailure(Path source, Path target,

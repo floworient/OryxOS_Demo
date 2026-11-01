@@ -4,8 +4,8 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 
 # Tasks: Memory 核心完整交付
 
-**Input**: `/specs/006-memory-system/` 下的 spec、plan、research、data-model、contracts、quickstart  
-**Tests**: 所有行为改动必须 RED → GREEN；每个失败/通过命令保存到对应任务记录或交付总结。  
+**Input**: `/specs/006-memory-system/` 下的 spec、plan、research、data-model、contracts、quickstart
+**Tests**: 所有行为改动必须 RED → GREEN；每个失败/通过命令保存到对应任务记录或交付总结。
 **Organization**: 先完成共享契约，再按 US1 → US2 → US3 → US4 交付；同一文件不并行编辑。
 
 ## Format
@@ -176,4 +176,3 @@ description: "Memory 核心完整交付的 TDD 实施任务"
 3. 复用 StoreContract 补齐 SQLite 与 Mem0。
 4. 最后接 API、文档和全仓门禁。
 5. 每个 checkpoint 都运行相关模块套件，不把所有风险堆到最终验证。
-

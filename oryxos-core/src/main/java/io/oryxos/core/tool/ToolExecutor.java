@@ -183,7 +183,10 @@ public final class ToolExecutor implements AutoCloseable {
             throws java.io.IOException, java.security.NoSuchAlgorithmException {
         var value = JsonParser.getObjectMapper().readTree(input);
         String content = value.path("content").isTextual() ? value.path("content").asText() : "";
-        String scope = value.path("scope").isTextual() ? value.path("scope").asText() : "archival";
+        String requestedScope = value.path("scope").isTextual()
+                ? value.path("scope").asText().toLowerCase(java.util.Locale.ROOT) : "archival";
+        String scope = requestedScope.equals("core") || requestedScope.equals("archival")
+                ? requestedScope : "<invalid>";
         byte[] bytes = content.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
         return JsonParser.toJson(Map.of("scope", scope, "bytes", bytes.length,

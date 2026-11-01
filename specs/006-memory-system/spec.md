@@ -1,9 +1,9 @@
 # Feature Specification: Memory 核心完整交付
 
-**Feature Branch**: `006-memory-system`  
-**Created**: 2026-10-31  
-**Status**: Approved  
-**Input**: User description: "先完成 Memory 核心交付，采用三档后端一次交付方案，并为 015 混合检索预留接口"  
+**Feature Branch**: `006-memory-system`
+**Created**: 2026-10-31
+**Status**: Approved
+**Input**: User description: "先完成 Memory 核心交付，采用三档后端一次交付方案，并为 015 混合检索预留接口"
 **Design Source**: `docs/superpowers/specs/2026-10-31-memory-system-design.md`
 
 ## User Scenarios & Testing *(mandatory)*

@@ -74,4 +74,12 @@ public abstract class LongTermMemoryStoreContract {
         assertThat(store().load(firstOwner()).archival())
                 .extracting(MemoryEntry::content).containsExactly("后来写入");
     }
+
+    @Test
+    void normalizesMultilineContentConsistently() {
+        store().append(firstOwner(), "first\n\tsecond　third", MemoryScope.ARCHIVAL);
+
+        assertThat(store().load(firstOwner()).archival())
+                .extracting(MemoryEntry::content).containsExactly("first second third");
+    }
 }

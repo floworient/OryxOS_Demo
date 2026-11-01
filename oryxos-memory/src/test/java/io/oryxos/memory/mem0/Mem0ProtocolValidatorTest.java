@@ -38,6 +38,26 @@ class Mem0ProtocolValidatorTest {
     }
 
     @Test
+    void acceptsOfficialFastApiOperationsWithoutDeclaredResponseModels() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/openapi.json", exchange -> respond(exchange, 200, """
+                {"paths":{
+                  "/memories":{
+                    "get":{"parameters":[{"name":"agent_id","in":"query"}]},
+                    "post":{"requestBody":{"content":{"application/json":{
+                      "schema":{"$ref":"#/components/schemas/Create"}}}}}},
+                  "/search":{"post":{"requestBody":{"content":{"application/json":{
+                    "schema":{"$ref":"#/components/schemas/Search"}}}}}}},
+                 "components":{"schemas":{
+                   "Create":{"properties":{"agent_id":{},"metadata":{},"infer":{}}},
+                   "Search":{"properties":{"query":{},"agent_id":{}}}}}}
+                """));
+        server.start();
+
+        new Mem0ProtocolValidator(client()).validate();
+    }
+
+    @Test
     void rejectsHostedV1OrSchemasWithoutMetadata() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/openapi.json", exchange -> respond(exchange, 200,
@@ -46,6 +66,37 @@ class Mem0ProtocolValidatorTest {
         server.start();
         assertThatThrownBy(() -> new Mem0ProtocolValidator(client()).validate())
                 .isInstanceOf(MemoryException.class).hasMessageContaining("协议");
+    }
+
+    @Test
+    void rejectsCapabilitiesDeclaredOnlyByAnUnrelatedSchema() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/openapi.json", exchange -> respond(exchange, 200,
+                "{\"paths\":{\"/memories\":{\"get\":{},\"post\":{}},"
+                        + "\"/search\":{\"post\":{}}},\"components\":{\"schemas\":{"
+                        + "\"Unrelated\":{\"properties\":{\"agent_id\":{},\"metadata\":{}}}}}}"));
+        server.start();
+
+        assertThatThrownBy(() -> new Mem0ProtocolValidator(client()).validate())
+                .isInstanceOf(MemoryException.class).hasMessageContaining("协议");
+    }
+
+    @Test
+    void rejectsUnsafeBaseUrlsAndSuccessfulNonJsonResponses() throws Exception {
+        assertThatThrownBy(() -> new Mem0Client(URI.create("file:///tmp/mem0"), "key",
+                Duration.ofSeconds(1), Duration.ofSeconds(1), 1024))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new Mem0Client(URI.create("http://user@localhost:8080/?x=1#f"), "key",
+                Duration.ofSeconds(1), Duration.ofSeconds(1), 1024))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/text", exchange -> {
+            exchange.getResponseHeaders().set("Content-Type", "text/plain");
+            respond(exchange, 200, "{}");
+        });
+        server.start();
+        assertThatThrownBy(() -> client().get("/text")).isInstanceOf(MemoryException.class);
     }
 
     @Test
@@ -113,14 +164,33 @@ class Mem0ProtocolValidatorTest {
     }
 
     private static String validOpenApi() {
-        return "{\"paths\":{\"/memories\":{\"get\":{},\"post\":{}},"
-                + "\"/search\":{\"post\":{}}},\"components\":{\"schemas\":{"
-                + "\"Memory\":{\"properties\":{\"agent_id\":{},\"metadata\":{}}}}}}";
+        return """
+                {"paths":{
+                  "/memories":{
+                    "get":{"parameters":[{"name":"agent_id","in":"query"}],
+                      "responses":{"200":{"content":{"application/json":{
+                        "schema":{"$ref":"#/components/schemas/Envelope"}}}}}},
+                    "post":{"requestBody":{"content":{"application/json":{
+                      "schema":{"$ref":"#/components/schemas/Create"}}}}}},
+                  "/search":{"post":{
+                    "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Search"}}}},
+                    "responses":{"200":{"content":{"application/json":{
+                      "schema":{"$ref":"#/components/schemas/Envelope"}}}}}}}},
+                 "components":{"schemas":{
+                   "Create":{"properties":{"agent_id":{},"metadata":{},"infer":{}}},
+                   "Search":{"properties":{"query":{},"agent_id":{}}},
+                   "Envelope":{"properties":{"results":{"type":"array",
+                     "items":{"$ref":"#/components/schemas/Memory"}}}},
+                   "Memory":{"properties":{"agent_id":{},"metadata":{},"memory":{}}}}}}
+                """;
     }
 
     static void respond(com.sun.net.httpserver.HttpExchange exchange, int status, String body)
             throws java.io.IOException {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        if (exchange.getResponseHeaders().getFirst("Content-Type") == null) {
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        }
         exchange.sendResponseHeaders(status, bytes.length);
         exchange.getResponseBody().write(bytes);
         exchange.close();

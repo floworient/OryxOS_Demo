@@ -3,6 +3,7 @@ package io.oryxos.storage;
 import io.oryxos.core.memory.LongTermMemoryStore;
 import io.oryxos.core.memory.MemoryCapabilities;
 import io.oryxos.core.memory.MemoryEntry;
+import io.oryxos.core.memory.MemoryEntryPolicy;
 import io.oryxos.core.memory.MemoryException;
 import io.oryxos.core.memory.MemoryOwner;
 import io.oryxos.core.memory.MemoryScope;
@@ -10,10 +11,9 @@ import io.oryxos.core.memory.MemorySnapshot;
 import io.oryxos.storage.entity.MemoryEntryEntity;
 import io.oryxos.storage.repository.MemoryEntryRepository;
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
+import org.springframework.dao.DataAccessException;
 
 /** SQLite/JPA 长期记忆后端。 */
 public final class JpaMemoryStore implements LongTermMemoryStore {
@@ -44,10 +44,13 @@ public final class JpaMemoryStore implements LongTermMemoryStore {
     public void append(MemoryOwner owner, String content, MemoryScope scope) {
         Objects.requireNonNull(owner, "记忆 owner 不能为空");
         Objects.requireNonNull(scope, "记忆 scope 不能为空");
-        if (content == null || content.isBlank() || content.trim().length() > entryMaxCharacters) {
-            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "记忆内容为空或超过长度上限");
+        String normalized = MemoryEntryPolicy.normalizeContent(content, entryMaxCharacters);
+        try {
+            repository.saveAndFlush(new MemoryEntryEntity(owner, scope, normalized, clock.instant()));
         }
-        repository.saveAndFlush(new MemoryEntryEntity(owner, scope, content.trim(), clock.instant()));
+        catch (RuntimeException exception) {
+            throw mapFailure(exception);
+        }
     }
 
     @Override
@@ -63,13 +66,7 @@ public final class JpaMemoryStore implements LongTermMemoryStore {
 
     @Override
     public List<MemoryEntry> recallByKeyword(MemoryOwner owner, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "召回关键词不能为空");
-        }
-        String query = keyword.trim().toLowerCase(Locale.ROOT);
-        List<MemoryEntry> matches = archivalEntries(owner).stream()
-                .filter(item -> item.content().toLowerCase(Locale.ROOT).contains(query)).toList();
-        return List.copyOf(matches.subList(Math.max(0, matches.size() - recallMaxResults), matches.size()));
+        return MemoryEntryPolicy.latestKeywordMatches(archivalEntries(owner), keyword, recallMaxResults);
     }
 
     @Override
@@ -79,28 +76,40 @@ public final class JpaMemoryStore implements LongTermMemoryStore {
 
     @Override
     public List<MemoryEntry> archivalEntries(MemoryOwner owner) {
-        return repository.findByOwnerKeyAndScopeOrderByCreatedAtAscIdAsc(owner.key(), MemoryScope.ARCHIVAL)
-                .stream().map(MemoryEntryEntity::toDomain).toList();
+        try {
+            return MemoryEntryPolicy.stable(repository
+                    .findByOwnerKeyAndScopeOrderByCreatedAtAscIdAsc(owner.key(), MemoryScope.ARCHIVAL)
+                    .stream().map(MemoryEntryEntity::toDomain).toList());
+        }
+        catch (RuntimeException exception) {
+            throw mapFailure(exception);
+        }
     }
 
     private List<MemoryEntry> entries(MemoryOwner owner) {
-        return repository.findByOwnerKeyOrderByCreatedAtAscIdAsc(owner.key()).stream()
-                .map(MemoryEntryEntity::toDomain).toList();
+        try {
+            return MemoryEntryPolicy.stable(repository.findByOwnerKeyOrderByCreatedAtAscIdAsc(owner.key())
+                    .stream().map(MemoryEntryEntity::toDomain).toList());
+        }
+        catch (RuntimeException exception) {
+            throw mapFailure(exception);
+        }
     }
 
     private List<MemoryEntry> newestComplete(List<MemoryEntry> entries) {
-        List<MemoryEntry> reversed = new ArrayList<>();
-        int used = 0;
-        for (int index = entries.size() - 1; index >= 0; index--) {
-            MemoryEntry entry = entries.get(index);
-            int size = ("- [" + entry.createdAt() + "] " + entry.content() + "\n").length();
-            if (used + size > archivalMaxCharacters) {
-                break;
-            }
-            reversed.add(0, entry);
-            used += size;
+        return MemoryEntryPolicy.newestWithinPromptLimit(entries, archivalMaxCharacters);
+    }
+
+    private static MemoryException mapFailure(RuntimeException exception) {
+        if (exception instanceof MemoryException memory) {
+            return memory;
         }
-        return List.copyOf(reversed);
+        if (exception instanceof DataAccessException) {
+            return new MemoryException(MemoryException.Code.STORE_UNAVAILABLE,
+                    "SQLite 记忆存储不可用", exception);
+        }
+        return new MemoryException(MemoryException.Code.MALFORMED_STORE,
+                "SQLite 记忆数据无效", exception);
     }
 
     private static void requirePositive(int value) {
