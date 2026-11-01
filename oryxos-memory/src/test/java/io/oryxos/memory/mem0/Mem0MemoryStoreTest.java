@@ -20,6 +20,26 @@ import org.junit.jupiter.api.Test;
 class Mem0MemoryStoreTest {
     private HttpServer server;
 
+    @Test
+    void inferenceIsOptInForArchivalAndAlwaysDisabledForCore() throws Exception {
+        var requests = new java.util.ArrayList<String>();
+        server = newServer();
+        server.createContext("/memories", exchange -> {
+            requests.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            Mem0ProtocolValidatorTest.respond(exchange, 200, "{\"results\":[{\"id\":\"new\"}]}");
+        });
+        server.start();
+        var client = new Mem0Client(URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
+                "key", Duration.ofSeconds(1), Duration.ofSeconds(1), 1024);
+        var inferred = new Mem0MemoryStore(client, 4000, 20, 4000, true);
+        inferred.append(MemoryOwner.agent("alpha"), "fact", MemoryScope.ARCHIVAL);
+        inferred.append(MemoryOwner.agent("alpha"), "core", MemoryScope.CORE);
+        store().append(MemoryOwner.agent("alpha"), "default", MemoryScope.ARCHIVAL);
+        assertThat(requests.get(0)).contains("\"infer\":true");
+        assertThat(requests.get(1)).contains("\"infer\":false");
+        assertThat(requests.get(2)).contains("\"infer\":false");
+    }
+
     @AfterEach
     void stop() {
         if (server != null) {

@@ -16,14 +16,22 @@ import org.springframework.ai.tool.annotation.ToolParam;
 /** Agent 显式保存和召回长期记忆的工具入口。 */
 public final class MemoryTools {
 
-    private static final int MAX_CONTENT_CHARACTERS = 4000;
+    private final int maximumContentCharacters;
 
     private static final int MAX_KEYWORD_CHARACTERS = 256;
 
     private final MemoryService memory;
 
     public MemoryTools(MemoryService memory) {
+        this(memory, 4000);
+    }
+
+    public MemoryTools(MemoryService memory, int maximumContentCharacters) {
         this.memory = Objects.requireNonNull(memory, "MemoryService 不能为空");
+        if (maximumContentCharacters <= 0) {
+            throw new IllegalArgumentException("单条记忆上限必须大于 0");
+        }
+        this.maximumContentCharacters = maximumContentCharacters;
     }
 
     @Tool(name = "save_memory", description = "保存当前 Agent 的长期记忆，可选择 core 或 archival 分区")
@@ -32,7 +40,8 @@ public final class MemoryTools {
             @ToolParam(description = "记忆分区：core 或 archival；省略时为 archival", required = false)
             String scope) {
         Profile profile = requireProfile();
-        String normalized = requireText(content, MAX_CONTENT_CHARACTERS, "记忆内容");
+        String normalized = io.oryxos.core.memory.MemoryEntryPolicy
+                .normalizeContent(content, maximumContentCharacters);
         MemoryScope target = parseScope(scope);
         memory.save(profile, normalized, target);
         return "记忆已保存到 " + target.name().toLowerCase(Locale.ROOT) + " 分区（"
@@ -64,7 +73,7 @@ public final class MemoryTools {
         if (scope == null || scope.isBlank()) {
             return MemoryScope.ARCHIVAL;
         }
-        return switch (scope) {
+        return switch (scope.trim().toLowerCase(Locale.ROOT)) {
             case "core" -> MemoryScope.CORE;
             case "archival" -> MemoryScope.ARCHIVAL;
             default -> throw new MemoryException(MemoryException.Code.INVALID_SCOPE, "未知记忆分区");

@@ -60,7 +60,9 @@ OryxOS **不会**在每次触发后自动把「用户问题 ⇒ 模型回答」�
 | `sqlite` | `JpaMemoryStore` | 记忆按条存入 Flyway V5 创建的 `memory_entries` 表；复用既有 SQLite |
 | `mem0` | `Mem0MemoryStore` | 委托给自托管 Mem0 OSS；启动时只读校验 `/openapi.json` 与分区能力 |
 
-Mem0 写入固定使用 `infer=false`，并显式携带 owner 与 `metadata.scope`。非法 backend、非正上限、Mem0 缺地址/凭证或分区能力不满足都会阻止启动。内置混合检索能力 `HYBRID_BUILTIN` 只为 015 预留，当前版本会 fail-fast，不包含 embedding、RRF 或异步向量索引实现。
+Mem0 写入默认使用 `infer=false`，并显式携带 owner 与 `metadata.scope`。可配置 `oryxos.memory.mem0.archival-infer=true` 让服务端对归档记忆提炼；core 始终关闭推理。开启前需验证实际部署的分区隔离与响应协议，可能产生额外模型调用和正文合并；本项目尚未完成真实服务验收。非法 backend、非正上限、Mem0 缺地址/凭证或分区能力不满足都会阻止启动。内置混合检索能力 `HYBRID_BUILTIN` 只为 015 预留，当前版本会 fail-fast，不包含 embedding、RRF 或异步向量索引实现。
+
+SQLite 的 core 单独全量读取，归档上下文按时间/id 倒序分批读取，到字符预算即停止；召回先由数据库筛选候选，再精确复核 Unicode 大小写和字面包含语义。`save_memory` 正文与后端共用 `entry-max-characters` 配置，scope 接受大小写及首尾空白。
 
 ```yaml
 oryxos:

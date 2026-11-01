@@ -60,7 +60,9 @@ The long-term memory backend is pluggable via `oryxos.memory.backend`. Swapping 
 | `sqlite` | `JpaMemoryStore` | Entries stored in the Flyway V5 `memory_entries` table, reusing the existing SQLite database |
 | `mem0` | `Mem0MemoryStore` | Delegates to self-hosted Mem0 OSS; startup read-only validates `/openapi.json` and partition support |
 
-Mem0 writes use `infer=false` and explicitly carry the owner and `metadata.scope`. Unknown backends, non-positive limits, missing Mem0 URL/key, or missing partition semantics fail startup. `HYBRID_BUILTIN` is reserved for 015 and fails fast today; embeddings, RRF, and asynchronous vector indexing are not part of this delivery.
+Mem0 writes default to `infer=false` and explicitly carry the owner and `metadata.scope`. Set `oryxos.memory.mem0.archival-infer=true` to opt into server-side archival inference; core always uses false. Validate partition isolation and response compatibility against your deployment before enabling this option. Inference may incur model calls and merge content; real-service acceptance remains unverified. Unknown backends, non-positive limits, missing Mem0 URL/key, or missing partition semantics fail startup. `HYBRID_BUILTIN` is reserved for 015 and fails fast today; embeddings, RRF, and asynchronous vector indexing are not part of this delivery.
+
+SQLite reads core separately and fetches archival context in descending time/id batches until the character budget is reached. Recall filters candidates in SQL, then verifies literal matching and Unicode case folding in Java. Tools share the backend's `entry-max-characters` setting and accept case-insensitive, whitespace-trimmed scope values.
 
 ```yaml
 oryxos:

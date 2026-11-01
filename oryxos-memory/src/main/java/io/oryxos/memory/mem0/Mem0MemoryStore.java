@@ -25,12 +25,20 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
 
     private final int entryMaxCharacters;
 
+    private final boolean archivalInfer;
+
     public Mem0MemoryStore(Mem0Client client, int archivalMaxCharacters,
             int recallMaxResults, int entryMaxCharacters) {
+        this(client, archivalMaxCharacters, recallMaxResults, entryMaxCharacters, false);
+    }
+
+    public Mem0MemoryStore(Mem0Client client, int archivalMaxCharacters,
+            int recallMaxResults, int entryMaxCharacters, boolean archivalInfer) {
         this.client = java.util.Objects.requireNonNull(client);
         this.archivalMaxCharacters = positive(archivalMaxCharacters);
         this.recallMaxResults = positive(recallMaxResults);
         this.entryMaxCharacters = positive(entryMaxCharacters);
+        this.archivalInfer = archivalInfer;
     }
 
     @Override
@@ -38,7 +46,7 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
         String normalized = MemoryEntryPolicy.normalizeContent(content, entryMaxCharacters);
         String response = client.post("/memories", JsonParser.toJson(Map.of(
                 "messages", List.of(Map.of("role", "user", "content", normalized)),
-                "agent_id", owner.key(), "infer", false,
+                "agent_id", owner.key(), "infer", archivalInfer && scope == MemoryScope.ARCHIVAL,
                 "metadata", Map.of("scope", scope.name(), "created_by", "oryxos"))));
         validateCreateResponse(response);
     }

@@ -63,7 +63,7 @@ public class MemoryConfiguration {
                 settings.maxResponseBytes());
         new Mem0ProtocolValidator(client).validate();
         return new Mem0MemoryStore(client, properties.archivalMaxCharacters(),
-                properties.recallMaxResults(), properties.entryMaxCharacters());
+                properties.recallMaxResults(), properties.entryMaxCharacters(), settings.archivalInfer());
     }
 
     @Bean
@@ -81,8 +81,8 @@ public class MemoryConfiguration {
     }
 
     @Bean
-    MemoryTools memoryTools(MemoryService memory) {
-        return new MemoryTools(memory);
+    MemoryTools memoryTools(MemoryService memory, MemoryProperties properties) {
+        return new MemoryTools(memory, properties.entryMaxCharacters());
     }
 
     private static void requireText(String value, String property) {

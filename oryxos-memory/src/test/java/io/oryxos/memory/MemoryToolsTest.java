@@ -23,6 +23,20 @@ class MemoryToolsTest {
 
     private final RecordingMemoryService memory = new RecordingMemoryService();
 
+    @Test
+    void configuredLengthAndNormalizedScopeAreUsedByTools() {
+        ProfileContext.set(org.mockito.Mockito.mock(Profile.class));
+        var save = new AnnotatedToolDiscovery().discover(List.of(new MemoryTools(memory, 5000))).stream()
+                .filter(tool -> tool.getName().equals("save_memory")).findFirst().orElseThrow();
+        assertThat(save.execute("{\"content\":\"" + "x".repeat(4500)
+                + "\",\"scope\":\" CORE \"}").success()).isTrue();
+        var small = new AnnotatedToolDiscovery().discover(List.of(new MemoryTools(memory, 4))).stream()
+                .filter(tool -> tool.getName().equals("save_memory")).findFirst().orElseThrow();
+        assertThat(small.execute("{\"content\":\"12345\"}").success()).isFalse();
+        assertThat(memory.saved).hasSize(1);
+        assertThat(memory.saved.getFirst()).startsWith("CORE:");
+    }
+
     @AfterEach
     void clearProfile() {
         ProfileContext.clear();
