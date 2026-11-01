@@ -20,9 +20,11 @@ OryxOS gives agents memory across three layers. Each layer has a different scope
 
 Long-term memory is isolated by the validated `Profile.name`. The Markdown backend stores it at `.oryxos/agents/<name>/MEMORY.md`, alongside `AGENT.md`; the reserved global owner uses `.oryxos/memory/MEMORY.md`. Invalid agent names or unsafe paths fail loudly and never silently fall back to global memory.
 
+`profile create` prepares both `AGENT.md` and the partitioned `MEMORY.md` before publishing the agent directory. On Windows, manually installed agents must also include this file before startup; saving without it fails explicitly. Filesystems without secure directory replacement update an open file handle and cannot guarantee atomic replacement during a process crash; use SQLite when transactional persistence is required.
+
 ### Timestamps and two sections
 
-Every entry is written as a **timestamped** line, `- [yyyy-MM-dd HH:mm:ss] <content>`. A `MEMORY.md` file is organized into two sections:
+Every entry is written as a **timestamped** line with an internal stable-ID comment, `- [yyyy-MM-dd HH:mm:ss] <!-- oryxos-memory-id:<id> --> <content>`. Existing lines without the comment remain readable and receive persistent IDs on the next save. A `MEMORY.md` file is organized into two sections:
 
 - `## 核心记忆` (**core**) — always injected in full, never truncated
 - `## 归档记忆` (**archival**) — entries the agent deliberately saves via `save_memory`; truncated when it grows too large

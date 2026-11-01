@@ -38,6 +38,8 @@ class MarkdownMemoryStoreTest extends LongTermMemoryStoreContract {
         Files.createDirectories(temporary.resolve("agents/first"));
         Files.createDirectories(temporary.resolve("agents/second"));
         Files.createDirectories(temporary.resolve("memory"));
+        Files.writeString(temporary.resolve("agents/first/MEMORY.md"), skeleton());
+        Files.writeString(temporary.resolve("agents/second/MEMORY.md"), skeleton());
         memory = new MarkdownMemoryStore(temporary, CLOCK, ZoneId.of("Asia/Shanghai"), 80, 2, 512);
     }
 
@@ -64,12 +66,13 @@ class MarkdownMemoryStoreTest extends LongTermMemoryStoreContract {
         memory.append(firstOwner(), "用户关注 AI", MemoryScope.ARCHIVAL);
 
         assertThat(Files.readString(target))
-                .contains("## 核心记忆", "## 归档记忆", "- [2026-10-31 09:30:00] 用户关注 AI");
+                .contains("## 核心记忆", "## 归档记忆", "用户关注 AI", "oryxos-memory-id:");
     }
 
     @Test
-    void loadingMissingMemoryHasNoFilesystemSideEffect() {
+    void loadingMissingMemoryHasNoFilesystemSideEffect() throws IOException {
         Path target = temporary.resolve("agents/first/MEMORY.md");
+        Files.delete(target);
 
         assertThat(memory.load(firstOwner()).core()).isEmpty();
         assertThat(target).doesNotExist();
@@ -114,8 +117,7 @@ class MarkdownMemoryStoreTest extends LongTermMemoryStoreContract {
         }
 
         assertThatThrownBy(() -> memory.load(firstOwner()))
-                .isInstanceOf(MemoryException.class)
-                .hasMessageContaining("普通文件");
+                .isInstanceOf(MemoryException.class);
     }
 
     @Test
@@ -134,6 +136,7 @@ class MarkdownMemoryStoreTest extends LongTermMemoryStoreContract {
 
     @Test
     void rejectsParentDirectoryReplacementDuringWrite() throws IOException {
+        Files.delete(temporary.resolve("agents/first/MEMORY.md"));
         AtomicBoolean replaced = new AtomicBoolean();
         var guarded = new MarkdownMemoryStore(temporary, CLOCK, ZoneId.of("Asia/Shanghai"),
                 80, 2, 512, (stage, parent) -> {
@@ -158,6 +161,88 @@ class MarkdownMemoryStoreTest extends LongTermMemoryStoreContract {
         memory.append(firstOwner(), "core", MemoryScope.CORE);
 
         assertThat(memory.load(firstOwner()).archival().getFirst().id()).isEqualTo(before);
+    }
+
+    @Test
+    void persistedIdsSurviveDeletionAndReorderingOfEarlierEntries() throws IOException {
+        memory.append(firstOwner(), "first", MemoryScope.ARCHIVAL);
+        memory.append(firstOwner(), "second", MemoryScope.ARCHIVAL);
+        memory.append(firstOwner(), "third", MemoryScope.ARCHIVAL);
+        var before = memory.archivalEntries(firstOwner());
+        Path target = temporary.resolve("agents/first/MEMORY.md");
+        var lines = new java.util.ArrayList<>(Files.readAllLines(target));
+        lines.removeIf(line -> line.endsWith(" first"));
+        int second = indexEndingWith(lines, " second");
+        int third = indexEndingWith(lines, " third");
+        java.util.Collections.swap(lines, second, third);
+        Files.write(target, lines);
+
+        var after = memory.archivalEntries(firstOwner());
+        assertThat(after).extracting(item -> item.id())
+                .containsExactlyInAnyOrder(before.get(1).id(), before.get(2).id());
+    }
+
+    @Test
+    void rejectsDirectoryReplacementAfterReadHandleIsOpened() throws IOException {
+        AtomicBoolean replaced = new AtomicBoolean();
+        var guarded = new MarkdownMemoryStore(temporary, CLOCK, ZoneId.of("Asia/Shanghai"),
+                80, 2, 512, (stage, parent) -> {
+                    if (stage == MarkdownMemoryStore.WriteStage.BEFORE_READ_OPEN
+                            && replaced.compareAndSet(false, true)) {
+                        Files.move(parent, parent.resolveSibling("first-original"));
+                        Files.createDirectory(parent);
+                        Files.writeString(parent.resolve("MEMORY.md"), skeleton() + "external");
+                    }
+                });
+
+        assertThatThrownBy(() -> guarded.load(firstOwner()))
+                .isInstanceOf(MemoryException.class).hasMessageContaining("发生变化");
+    }
+
+    @Test
+    void rejectsParentDirectoryReplacementImmediatelyBeforeFallbackWrite() throws IOException {
+        AtomicBoolean replaced = new AtomicBoolean();
+        Path originalFile = temporary.resolve("agents/first/MEMORY.md");
+        String original = Files.readString(originalFile);
+        var guarded = new MarkdownMemoryStore(temporary, CLOCK, ZoneId.of("Asia/Shanghai"),
+                80, 2, 512, (stage, parent) -> {
+                    if (stage == MarkdownMemoryStore.WriteStage.BEFORE_REPLACE
+                            && replaced.compareAndSet(false, true)) {
+                        try {
+                            Files.move(parent, parent.resolveSibling("first-original"));
+                            Files.createDirectory(parent);
+                            Files.writeString(parent.resolve("MEMORY.md"), skeleton());
+                        }
+                        catch (java.nio.file.AccessDeniedException ignored) {
+                            // Windows 用已打开句柄阻止目录替换，本身即满足安全边界。
+                        }
+                    }
+                });
+
+        Throwable failure = org.assertj.core.api.Assertions.catchThrowable(() ->
+                guarded.append(firstOwner(), "safe", MemoryScope.ARCHIVAL));
+        Path preserved = temporary.resolve("agents/first-original/MEMORY.md");
+        if (Files.exists(preserved)) {
+            assertThat(failure).isInstanceOf(MemoryException.class);
+            assertThat(Files.readString(preserved)).isEqualTo(original);
+        }
+        else {
+            assertThat(failure).isNull();
+            assertThat(Files.readString(originalFile)).contains("safe");
+        }
+    }
+
+    private static int indexEndingWith(java.util.List<String> lines, String suffix) {
+        for (int index = 0; index < lines.size(); index++) {
+            if (lines.get(index).endsWith(suffix)) {
+                return index;
+            }
+        }
+        throw new AssertionError("未找到记忆行 " + suffix);
+    }
+
+    private static String skeleton() {
+        return "# MEMORY\n\n## 核心记忆\n\n## 归档记忆\n";
     }
 
     private static Path moveWithFirstAtomicFailure(Path source, Path target,

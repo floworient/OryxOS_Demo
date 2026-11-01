@@ -36,10 +36,11 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
     @Override
     public void append(MemoryOwner owner, String content, MemoryScope scope) {
         String normalized = MemoryEntryPolicy.normalizeContent(content, entryMaxCharacters);
-        client.post("/memories", JsonParser.toJson(Map.of(
+        String response = client.post("/memories", JsonParser.toJson(Map.of(
                 "messages", List.of(Map.of("role", "user", "content", normalized)),
                 "agent_id", owner.key(), "infer", false,
                 "metadata", Map.of("scope", scope.name(), "created_by", "oryxos"))));
+        validateCreateResponse(response);
     }
 
     @Override
@@ -111,6 +112,22 @@ public final class Mem0MemoryStore implements LongTermMemoryStore {
 
     private List<MemoryEntry> bound(List<MemoryEntry> entries) {
         return MemoryEntryPolicy.newestWithinPromptLimit(entries, archivalMaxCharacters);
+    }
+
+    private static void validateCreateResponse(String json) {
+        try {
+            var root = JsonParser.getObjectMapper().readTree(json);
+            var results = root.path("results");
+            if (!root.isObject() || !results.isArray() || results.isEmpty()) {
+                throw invalid();
+            }
+            for (var result : results) {
+                text(result, "id");
+            }
+        }
+        catch (com.fasterxml.jackson.core.JsonProcessingException | RuntimeException exception) {
+            throw invalid();
+        }
     }
 
     private static String text(com.fasterxml.jackson.databind.JsonNode node, String field) {

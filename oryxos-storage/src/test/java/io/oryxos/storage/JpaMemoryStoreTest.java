@@ -74,6 +74,12 @@ class JpaMemoryStoreTest extends LongTermMemoryStoreContract {
     @Test
     void reportsKeywordCapabilityAndOrdersEqualTimestampsByDatabaseId() {
         assertThat(memory.capabilities()).isEqualTo(MemoryCapabilities.KEYWORD);
+        for (int index = 0; index < 12; index++) {
+            memory.append(firstOwner(), "entry-" + index, io.oryxos.core.memory.MemoryScope.ARCHIVAL);
+        }
+        assertThat(memory.archivalEntries(firstOwner())).extracting(item -> item.content())
+                .containsExactly(java.util.stream.IntStream.range(0, 12)
+                        .mapToObj(index -> "entry-" + index).toArray(String[]::new));
     }
 
     @Test

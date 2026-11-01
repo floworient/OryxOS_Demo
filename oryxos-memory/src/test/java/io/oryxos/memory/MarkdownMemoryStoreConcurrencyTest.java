@@ -22,6 +22,8 @@ class MarkdownMemoryStoreConcurrencyTest {
     void concurrentAppendsForSameOwnerDoNotLoseEntries() throws Exception {
         Files.createDirectories(temporary.resolve("agents/concurrent"));
         Files.createDirectories(temporary.resolve("memory"));
+        Files.writeString(temporary.resolve("agents/concurrent/MEMORY.md"),
+                "# MEMORY\n\n## 核心记忆\n\n## 归档记忆\n");
         var store = new MarkdownMemoryStore(temporary,
                 Clock.fixed(Instant.parse("2026-10-31T00:00:00Z"), ZoneOffset.UTC),
                 ZoneOffset.UTC, 10_000, 100, 512);

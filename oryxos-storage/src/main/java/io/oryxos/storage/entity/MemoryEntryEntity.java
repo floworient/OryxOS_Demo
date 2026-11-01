@@ -50,6 +50,7 @@ public class MemoryEntryEntity {
     public MemoryEntry toDomain() {
         MemoryOwner owner = "__global__".equals(ownerKey)
                 ? MemoryOwner.global() : MemoryOwner.agent(ownerKey);
-        return new MemoryEntry("sqlite:" + id, owner, scope, content, createdAt);
+        return new MemoryEntry("sqlite:" + String.format(java.util.Locale.ROOT, "%020d", id),
+                owner, scope, content, createdAt);
     }
 }

@@ -31,6 +31,11 @@
 12. 全特性分支的 Spec-Kit 文档尾随空白和多余 EOF 空行已清理，`git diff --check 68d190d` 无输出。
 13. 最终 SpotBugs 门禁发现 Markdown 目标父目录的空值路径和 Mem0 解析异常捕获范围过宽；补齐显式父目录守卫并收窄异常类型。
 14. 最终 Checkstyle 门禁发现 Boot/OpenAPI 测试夹具行长超限；仅调整夹具排版后重新执行全仓门禁。
+15. 二次复审修复读取目录竞态与 Windows 写入回退：先绑定 NOFOLLOW 文件句柄再复验目录身份；Windows 缺文件明确拒绝，`profile create` 在临时 Agent 目录中同时初始化记忆文件。手工安装 Agent 的文件前置条件与回退的崩溃原子性限制已写入运行文档。
+16. Markdown 稳定 ID 持久化到内部注释，删除/重排其他记录不改变现存 ID；SQLite id 使用固定宽度表示，12 条同时间戳排序回归通过。
+17. Mem0 创建须返回非空 results 和有效 id；自定义有限大小 BodySubscriber 与完整响应 deadline 覆盖发出响应头后拖延正文的情形。条目解析改用固定位置，消除组合正则静态告警。
+
+最新全仓复验：2026-11-01 18:26:13，`clean verify` 退出码 0，15 模块全部 SUCCESS，总耗时 3 分 25 秒，功能/集成测试无失败或错误，Checkstyle、SpotBugs、覆盖率与打包门禁全部通过。Memory 模块 48 项测试，其中 1 项链接能力跳过。真实生命周期初始化后首次 `save_memory` 的审计集成测试通过。构建使用经授权的沙箱外执行，以避开 Windows 沙箱对 javac 真实路径解析的 AccessDeniedException。
 
 ## 最终验证命令
 

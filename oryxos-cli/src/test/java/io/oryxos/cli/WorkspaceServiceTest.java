@@ -67,6 +67,8 @@ class WorkspaceServiceTest {
         service.initialize();
         service.createProfile("zeta");
         service.createProfile("Alpha");
+        assertThat(root.resolve("agents/Alpha/MEMORY.md"))
+                .content().contains("## 核心记忆", "## 归档记忆");
         Files.writeString(root.resolve("agents/zeta/attachment.txt"), "保留");
 
         assertThat(service.listProfiles()).containsExactly("Alpha", "zeta");

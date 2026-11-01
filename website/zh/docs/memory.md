@@ -20,9 +20,11 @@ OryxOS 为 Agent 提供三层记忆。每一层有不同的作用域、生命周
 
 长期记忆按经过校验的 `Profile.name` 隔离。Markdown 档把每个 Agent 的记忆放在 `.oryxos/agents/<name>/MEMORY.md`，与 `AGENT.md` 同目录；保留的 global owner 使用 `.oryxos/memory/MEMORY.md`。非法 Agent 名或不安全路径会 fail-loud，不会静默回退到全局文件。
 
+`profile create` 会在临时 Agent 目录中同时创建双分区 `MEMORY.md`，再发布整个目录。Windows 上手工放入的已有 Agent 也需在启动前准备该文件；缺文件时保存会明确报错。无安全目录替换能力的平台使用已打开文件句柄更新，进程崩溃期间不保证原子替换；需要事务持久化时使用 SQLite 后端。
+
 ### 时间戳与两个区块
 
-每条记录都写成一行**带时间戳**的内容：`- [yyyy-MM-dd HH:mm:ss] <内容>`。一个 `MEMORY.md` 文件按两个区块组织：
+每条记录都写成一行**带时间戳**且含内部稳定 ID 注释的内容：`- [yyyy-MM-dd HH:mm:ss] <!-- oryxos-memory-id:<id> --> <内容>`。不含注释的旧行仍可读取，并会在下次保存时获得持久 ID。一个 `MEMORY.md` 文件按两个区块组织：
 
 - `## 核心记忆`（**core**）——始终完整注入，从不截断
 - `## 归档记忆`（**archival**）——Agent 用 `save_memory` 主动沉淀的条目；量大时超限截断

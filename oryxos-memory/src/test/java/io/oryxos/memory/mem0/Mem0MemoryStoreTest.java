@@ -34,7 +34,8 @@ class Mem0MemoryStoreTest {
         server.createContext("/memories", exchange -> {
             if (exchange.getRequestMethod().equals("POST")) {
                 request.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-                Mem0ProtocolValidatorTest.respond(exchange, 200, "{\"results\":[]}");
+                Mem0ProtocolValidatorTest.respond(exchange, 200,
+                        "{\"results\":[{\"id\":\"created-1\"}]}");
             }
             else {
                 assertThat(exchange.getRequestURI().getQuery()).isEqualTo("agent_id=alpha");
@@ -80,6 +81,18 @@ class Mem0MemoryStoreTest {
                         + "\"created_at\":\"2026-10-31T00:00:00Z\"}]}"));
         server.start();
         assertThatThrownBy(() -> store().load(MemoryOwner.agent("alpha")))
+                .isInstanceOf(MemoryException.class).hasMessageContaining("协议");
+    }
+
+    @Test
+    void rejectsAmbiguousSuccessfulCreateResponse() throws Exception {
+        server = newServer();
+        server.createContext("/memories", exchange ->
+                Mem0ProtocolValidatorTest.respond(exchange, 200, "{\"results\":[]}"));
+        server.start();
+
+        assertThatThrownBy(() -> store().append(MemoryOwner.agent("alpha"),
+                "value", MemoryScope.ARCHIVAL))
                 .isInstanceOf(MemoryException.class).hasMessageContaining("协议");
     }
 

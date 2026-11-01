@@ -145,6 +145,33 @@ class Mem0ProtocolValidatorTest {
     }
 
     @Test
+    void requestTimeoutCoversAResponseBodyThatStallsAfterHeaders() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/slow-body", exchange -> {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, 0);
+            exchange.getResponseBody().write('{');
+            exchange.getResponseBody().flush();
+            try {
+                Thread.sleep(500);
+                exchange.getResponseBody().write('}');
+            }
+            catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
+            finally {
+                exchange.close();
+            }
+        });
+        server.start();
+        var timeoutClient = new Mem0Client(baseUrl(), "test-key", Duration.ofSeconds(1),
+                Duration.ofMillis(50), 1024);
+
+        assertThatThrownBy(() -> timeoutClient.get("/slow-body"))
+                .isInstanceOf(MemoryException.class);
+    }
+
+    @Test
     void rejectsInvalidOpenApiJson() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/openapi.json", exchange -> respond(exchange, 200, "not-json"));

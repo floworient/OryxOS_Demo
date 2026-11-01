@@ -11,6 +11,7 @@ import io.oryxos.core.memory.MemorySnapshot;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -20,6 +21,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.OpenOption;
 import java.nio.file.SecureDirectoryStream;
 import java.nio.file.StandardOpenOption;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -38,8 +41,6 @@ import java.util.Set;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /** 以工作区 MEMORY.md 为本体的长期记忆存储。 */
 public final class MarkdownMemoryStore implements LongTermMemoryStore {
@@ -57,7 +58,7 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
             .ofPattern("uuuu-MM-dd HH:mm:ss", Locale.ROOT)
             .withResolverStyle(ResolverStyle.STRICT);
 
-    private static final Pattern ENTRY = Pattern.compile("^- \\[(.+?)] (.+)$");
+    private static final String ID_PREFIX = "<!-- oryxos-memory-id:";
 
     private final Path workspace;
 
@@ -123,8 +124,10 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
             List<MemoryEntry> core = new ArrayList<>(parsed.core());
             List<MemoryEntry> archival = new ArrayList<>(parsed.archival());
             Instant now = clock.instant();
-            MemoryEntry entry = new MemoryEntry("markdown:pending", owner, scope, normalized, now);
-            (scope == MemoryScope.CORE ? core : archival).add(entry);
+            List<MemoryEntry> partition = scope == MemoryScope.CORE ? core : archival;
+            MemoryEntry entry = new MemoryEntry(nextMarkdownId(scope, partition),
+                    owner, scope, normalized, now);
+            partition.add(entry);
             atomicWrite(target, render(core, archival), identity);
         }
         finally {
@@ -160,16 +163,24 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
     }
 
     private ParsedMemory read(Path target, MemoryOwner owner, boolean allowLegacySkeleton) {
-        if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-            return ParsedMemory.empty();
-        }
-        requireSafeTarget(target);
+        Path parent = Objects.requireNonNull(target.getParent(), "记忆文件必须位于目录中");
+        DirectoryIdentity identity = captureDirectory(parent);
         try {
-            String source = Files.readString(target, StandardCharsets.UTF_8).replace("\r\n", "\n");
+            String source;
+            writeBoundaryHook.at(WriteStage.BEFORE_READ_OPEN, parent);
+            try (FileChannel channel = FileChannel.open(target,
+                    StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+                verifyDirectory(identity);
+                source = readUtf8(channel).replace("\r\n", "\n");
+            }
             if (allowLegacySkeleton && source.equals(HEADER + "\n")) {
                 return ParsedMemory.empty();
             }
             return parse(source, owner);
+        }
+        catch (NoSuchFileException exception) {
+            verifyDirectory(identity);
+            return ParsedMemory.empty();
         }
         catch (MemoryException exception) {
             throw exception;
@@ -224,16 +235,30 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
             if (lines[index].isBlank()) {
                 continue;
             }
-            Matcher matcher = ENTRY.matcher(lines[index]);
-            if (!matcher.matches()) {
+            String line = lines[index];
+            if (line.length() < 25 || !line.startsWith("- [") || !line.startsWith("] ", 22)) {
                 throw malformed();
             }
             try {
-                Instant createdAt = LocalDateTime.parse(matcher.group(1), TIMESTAMP)
+                Instant createdAt = LocalDateTime.parse(line.substring(3, 22), TIMESTAMP)
                         .atZone(zoneId).toInstant();
-                String identity = owner.key() + "\n" + scope + "\n" + createdAt + "\n" + matcher.group(2);
-                entries.add(new MemoryEntry(markdownId(scope, identity, entries.size()),
-                        owner, scope, matcher.group(2), createdAt));
+                String content = line.substring(24);
+                String persistedId = null;
+                if (content.startsWith(ID_PREFIX)) {
+                    int endId = content.indexOf(" --> ", ID_PREFIX.length());
+                    if (endId < 0) {
+                        throw malformed();
+                    }
+                    persistedId = content.substring(ID_PREFIX.length(), endId);
+                    if (!persistedId.matches("[A-Za-z0-9:._-]+")) {
+                        throw malformed();
+                    }
+                    content = content.substring(endId + 5);
+                }
+                String identity = owner.key() + "\n" + scope + "\n" + createdAt + "\n" + content;
+                String id = persistedId == null
+                        ? legacyMarkdownId(scope, identity, entries.size()) : persistedId;
+                entries.add(new MemoryEntry(id, owner, scope, content, createdAt));
             }
             catch (DateTimeParseException | IllegalArgumentException exception) {
                 throw malformed();
@@ -254,7 +279,7 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
 
     private String renderEntry(MemoryEntry entry) {
         return "- [" + TIMESTAMP.format(entry.createdAt().atZone(zoneId)) + "] "
-                + entry.content() + "\n";
+                + "<!-- oryxos-memory-id:" + entry.id() + " --> " + entry.content() + "\n";
     }
 
     private Path resolveTarget(MemoryOwner owner) {
@@ -282,14 +307,7 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
         }
     }
 
-    private static void requireSafeTarget(Path target) {
-        if (Files.isSymbolicLink(target)
-                || !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)) {
-            throw new MemoryException(MemoryException.Code.STORE_UNAVAILABLE, "记忆文件不是安全的普通文件");
-        }
-    }
-
-    private static String markdownId(MemoryScope scope, String identity, int sequence) {
+    private static String legacyMarkdownId(MemoryScope scope, String identity, int sequence) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(identity.getBytes(StandardCharsets.UTF_8));
@@ -300,6 +318,17 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
         catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("运行环境缺少 SHA-256", exception);
         }
+    }
+
+    private static String nextMarkdownId(MemoryScope scope, List<MemoryEntry> entries) {
+        String prefix = "markdown:" + scope.name().toLowerCase(Locale.ROOT) + ":";
+        long maximum = entries.stream().map(MemoryEntry::id)
+                .filter(id -> id.startsWith(prefix))
+                .map(id -> id.substring(prefix.length()).split(":", 2)[0])
+                .filter(value -> value.matches("\\d{10}"))
+                .mapToLong(Long::parseLong).max().orElse(-1L);
+        return prefix + String.format(Locale.ROOT, "%010d", maximum + 1) + ":"
+                + java.util.UUID.randomUUID();
     }
 
     private void atomicWrite(Path target, String content, DirectoryIdentity identity) {
@@ -375,30 +404,39 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
     }
 
     private void verifiedAtomicWrite(Path target, String content, DirectoryIdentity identity) {
-        Path temporary = null;
         try {
             verifyDirectory(identity);
-            temporary = Files.createTempFile(identity.parent(), ".memory-", ".tmp");
-            verifyDirectory(identity);
-            Files.writeString(temporary, content, StandardCharsets.UTF_8);
-            writeBoundaryHook.at(WriteStage.BEFORE_REPLACE, identity.parent());
-            verifyDirectory(identity);
-            moveReplacing(temporary, target, Files::move);
-            verifyDirectory(identity);
+            try (FileChannel channel = FileChannel.open(target,
+                    StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
+                writeBoundaryHook.at(WriteStage.BEFORE_REPLACE, identity.parent());
+                verifyDirectory(identity);
+                channel.truncate(0);
+                channel.position(0);
+                var bytes = StandardCharsets.UTF_8.encode(content);
+                while (bytes.hasRemaining()) {
+                    channel.write(bytes);
+                }
+                channel.force(true);
+            }
+        }
+        catch (NoSuchFileException exception) {
+            throw unavailable("当前文件系统不支持安全创建 MEMORY.md，请先通过 oryxos init 初始化", exception);
         }
         catch (IOException exception) {
             throw unavailable("无法写入记忆文件", exception);
         }
-        finally {
-            if (temporary != null) {
-                try {
-                    Files.deleteIfExists(temporary);
-                }
-                catch (IOException ignored) {
-                    // 临时文件清理由后续运维处理，不覆盖原始写入异常。
-                }
+    }
+
+    private static String readUtf8(FileChannel channel) throws IOException {
+        StringBuilder result = new StringBuilder();
+        try (var reader = Channels.newReader(channel, StandardCharsets.UTF_8)) {
+            char[] buffer = new char[4096];
+            int count;
+            while ((count = reader.read(buffer)) >= 0) {
+                result.append(buffer, 0, count);
             }
         }
+        return result.toString();
     }
 
     private DirectoryIdentity captureDirectory(Path parent) {
@@ -447,6 +485,7 @@ public final class MarkdownMemoryStore implements LongTermMemoryStore {
     }
 
     enum WriteStage {
+        BEFORE_READ_OPEN,
         BEFORE_TEMPORARY_CREATE,
         BEFORE_REPLACE
     }

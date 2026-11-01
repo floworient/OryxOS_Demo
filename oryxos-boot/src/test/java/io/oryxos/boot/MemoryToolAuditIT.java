@@ -9,7 +9,6 @@ import io.oryxos.core.profile.ProfileContext;
 import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.tool.ToolExecutor;
 import io.oryxos.core.tool.ToolRegistry;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +23,9 @@ class MemoryToolAuditIT {
 
     @Test
     void defaultMarkdownToolsUseRegistryExecutorAuditAndAreVisibleNextLoad() throws Exception {
-        Files.createDirectories(workspace.resolve("agents/alpha"));
-        Files.createDirectories(workspace.resolve("memory"));
+        var lifecycle = new io.oryxos.cli.WorkspaceService(workspace, java.time.Clock.systemUTC());
+        lifecycle.initialize();
+        lifecycle.createProfile("alpha");
         var records = new ArrayList<ToolInvocationRecord>();
 
         new ApplicationContextRunner()

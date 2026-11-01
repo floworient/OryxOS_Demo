@@ -6,9 +6,16 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodySubscriber;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
 
 public final class Mem0Client {
     private final URI baseUrl;
@@ -53,26 +60,19 @@ public final class Mem0Client {
                 values.forEach(value -> builder.header(name, value)));
         var authenticated = builder.build();
         try {
-            HttpResponse<java.io.InputStream> response = http.send(authenticated,
-                    HttpResponse.BodyHandlers.ofInputStream());
-            byte[] body;
-            try (var stream = response.body()) {
-                body = stream.readNBytes(maxResponseBytes + 1);
-            }
+            HttpResponse<byte[]> response = http.sendAsync(authenticated,
+                    ignored -> new LimitedBodySubscriber(maxResponseBytes))
+                    .orTimeout(requestTimeout.toNanos(), TimeUnit.NANOSECONDS).join();
+            byte[] body = response.body();
             String mediaType = response.headers().firstValue("Content-Type").orElse("")
                     .split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
             boolean json = mediaType.equals("application/json") || mediaType.endsWith("+json");
-            if (body.length > maxResponseBytes || response.statusCode() < 200
-                    || response.statusCode() >= 300 || !json) {
+            if (response.statusCode() < 200 || response.statusCode() >= 300 || !json) {
                 throw unavailable("Mem0 请求失败");
             }
             return new String(body, StandardCharsets.UTF_8);
         }
-        catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw unavailable("Mem0 请求已中断");
-        }
-        catch (IOException | RuntimeException exception) {
+        catch (RuntimeException exception) {
             if (exception instanceof MemoryException memory) {
                 throw memory;
             }
@@ -113,5 +113,61 @@ public final class Mem0Client {
 
     private static MemoryException unavailable(String message) {
         return new MemoryException(MemoryException.Code.STORE_UNAVAILABLE, message);
+    }
+
+    private static final class LimitedBodySubscriber implements BodySubscriber<byte[]> {
+        private final int maximumBytes;
+
+        private final CompletableFuture<byte[]> body = new CompletableFuture<>();
+
+        private final java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+
+        private Flow.Subscription subscription;
+
+        private LimitedBodySubscriber(int maximumBytes) {
+            this.maximumBytes = maximumBytes;
+        }
+
+        @Override
+        public CompletionStage<byte[]> getBody() {
+            return body.thenApply(value -> value.clone());
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription value) {
+            subscription = value;
+            value.request(1);
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> buffers) {
+            try {
+                for (ByteBuffer buffer : buffers) {
+                    if (bytes.size() + buffer.remaining() > maximumBytes) {
+                        subscription.cancel();
+                        body.completeExceptionally(new IOException("Mem0 响应超过大小上限"));
+                        return;
+                    }
+                    byte[] chunk = new byte[buffer.remaining()];
+                    buffer.get(chunk);
+                    bytes.writeBytes(chunk);
+                }
+                subscription.request(1);
+            }
+            catch (RuntimeException exception) {
+                subscription.cancel();
+                body.completeExceptionally(exception);
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            body.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            body.complete(bytes.toByteArray());
+        }
     }
 }

@@ -108,6 +108,7 @@ public final class WorkspaceService {
         try {
             temporary = Files.createTempDirectory(agents, ".creating-");
             Files.writeString(temporary.resolve("AGENT.md"), template(name));
+            Files.writeString(temporary.resolve("MEMORY.md"), MEMORY_SKELETON);
             move(temporary, target);
             return target;
         } catch (IOException exception) {
