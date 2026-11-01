@@ -51,6 +51,7 @@ public final class AgentLoader {
         String agentName = Objects.requireNonNull(agentDirectory.getFileName(),
                 "Agent 目录必须具有名称").toString();
         try {
+            AgentName.requireValid(agentName);
             require(Files.isDirectory(agentDirectory, LinkOption.NOFOLLOW_LINKS), "sourcePath",
                     "Agent 目录不得是符号链接");
             Path realAgentDirectory = agentDirectory.toRealPath();

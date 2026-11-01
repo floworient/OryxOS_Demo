@@ -15,6 +15,7 @@
         <Or>
             <Class name="io.oryxos.tool.builtin.NotifyTools"/>
             <Class name="io.oryxos.tool.notify.WebhookNotifyAdapter"/>
+            <Class name="io.oryxos.web.memory.MemoryApiController"/>
             <Class name="io.oryxos.web.notify.NotifyChannelApiController"/>
         </Or>
         <Bug pattern="EI_EXPOSE_REP2"/>

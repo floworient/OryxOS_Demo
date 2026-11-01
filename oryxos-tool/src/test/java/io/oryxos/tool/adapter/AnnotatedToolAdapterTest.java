@@ -18,13 +18,13 @@ class AnnotatedToolAdapterTest {
         assertThat(tools).singleElement().satisfies(tool -> {
             assertThat(tool.getName()).isEqualTo("greet");
             assertThat(tool.getDescription()).isEqualTo("问候指定用户");
-            assertThat(tool.getInputSchema()).contains("arg0", "object", "用户姓名");
-            assertThat(tool.execute("{\"arg0\":\"小王\"}").content()).contains("你好，小王");
+            assertThat(tool.getInputSchema()).contains("name", "object", "用户姓名");
+            assertThat(tool.execute("{\"name\":\"小王\"}").content()).contains("你好，小王");
         });
         assertThat(fixture.calls).hasValue(1);
-        assertThat(tools.getFirst().execute("{\"arg0\":\"小王\",\"unknown\":true}").success()).isFalse();
+        assertThat(tools.getFirst().execute("{\"name\":\"小王\",\"unknown\":true}").success()).isFalse();
         assertThat(tools.getFirst().execute("{}").success()).isFalse();
-        assertThat(tools.getFirst().execute("{\"arg0\":123}").success()).isFalse();
+        assertThat(tools.getFirst().execute("{\"name\":123}").success()).isFalse();
         assertThat(fixture.calls).hasValue(1);
     }
 
@@ -41,8 +41,8 @@ class AnnotatedToolAdapterTest {
     @Test
     void acceptsDynamicMapValuesWhenGeneratedSchemaHasNoPropertyRestrictions() {
         var tool = new AnnotatedToolDiscovery().discover(List.of(new MapFixture())).getFirst();
-        assertThat(tool.execute("{\"arg0\":{\"name\":\"小王\"}}").success()).as(tool.getInputSchema()).isTrue();
-        assertThat(tool.execute("{\"arg0\":123}").success()).isFalse();
+        assertThat(tool.execute("{\"values\":{\"name\":\"小王\"}}").success()).as(tool.getInputSchema()).isTrue();
+        assertThat(tool.execute("{\"values\":123}").success()).isFalse();
     }
 
     static final class MapFixture {

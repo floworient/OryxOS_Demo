@@ -152,4 +152,3 @@
 - [ ] 运行全仓 `mvnw.cmd test`（T057）。
 - [ ] 运行 `mvnw.cmd clean verify`（T058）。
 - [ ] 执行 quickstart 临时工作区验证并记录真实 Mem0 未验证范围（T059-T060）。
-

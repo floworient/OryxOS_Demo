@@ -29,7 +29,7 @@
 
 ## R4. Markdown 格式、解析和裁剪
 
-**Decision**: 文件固定为 `# MEMORY`、`## 核心记忆`、`## 归档记忆`；新条目格式 `- [yyyy-MM-dd HH:mm:ss] <content>`，时区由 `oryxos.memory.zone`（默认系统时区）控制。换行折叠为空格。缺文件时创建；仅有旧版 `# MEMORY` 且无非空正文时升级为空骨架；其他缺失/重复/乱序分区 fail-loud。
+**Decision**: 文件固定为 `# MEMORY`、`## 核心记忆`、`## 归档记忆`；新条目格式 `- [yyyy-MM-dd HH:mm:ss] <!-- oryxos-memory-id:<id> --> <content>`，时区由 `oryxos.memory.zone`（默认系统时区）控制。换行折叠为空格。无 ID 注释的旧条目继续可读，并在下次保存时写回稳定 ID；仅有旧版 `# MEMORY` 且无非空正文时升级为空骨架；其他缺失/重复/乱序分区 fail-loud。
 
 archival 按 `"- [timestamp] content\n"` 的渲染字符数计算，从最新向前选择完整条目；若最新单条自身超过 `archival-max-characters`，上下文不返回该条并报告 `truncated=true`，不返回半条。
 
@@ -37,9 +37,9 @@ archival 按 `"- [timestamp] content\n"` 的渲染字符数计算，从最新向
 
 ## R5. 并发与原子写
 
-**Decision**: Markdown 使用 `ConcurrentHashMap<MemoryOwner, ReentrantLock>` 进程内细粒度锁；锁内重新读取、解析、追加、写临时文件，再 `ATOMIC_MOVE + REPLACE_EXISTING`，不支持时退回 `REPLACE_EXISTING`。临时文件与目标同目录。
+**Decision**: Markdown 使用 `ConcurrentHashMap<MemoryOwner, ReentrantLock>` 进程内细粒度锁。支持 `SecureDirectoryStream` 时通过受信目录句柄写临时文件并替换；不支持时绑定已初始化目标文件句柄，复验目录身份后再截断写入，缺文件则 fail-closed。读取同样先绑定 `NOFOLLOW_LINKS` 文件句柄，复验父目录身份后才读取正文。
 
-**Rationale**: 避免同 JVM 丢失更新并尽量保证目标文件不出现部分内容。Markdown 明确定位单进程/单机，不宣称跨进程锁。
+**Rationale**: 避免同 JVM 丢失更新，同时关闭父目录 check-then-use 逃逸窗口。Markdown 明确定位单进程/单机，不宣称跨进程锁；不具备安全目录替换能力的平台以 fail-closed 和句柄安全优先于原子替换。
 
 ## R6. SQLite schema 与查询语义
 
@@ -103,4 +103,3 @@ archival 按 `"- [timestamp] content\n"` 的渲染字符数计算，从最新向
 **Decision**: `MemoryCapabilities` 是单值 enum：Markdown/SQLite 返回 `KEYWORD`，Mem0 返回 `DELEGATED`；保留 `HYBRID_BUILTIN`。`archivalEntries(owner)` 返回未裁剪本体；Mem0 返回空列表。当前门面遇到 `HYBRID_BUILTIN` 抛装配错误。
 
 **Rationale**: 015 可在不破坏 Store/Service 调用方的情况下加入检索管线和索引对账，同时本 feature 不提供假混合检索。
-

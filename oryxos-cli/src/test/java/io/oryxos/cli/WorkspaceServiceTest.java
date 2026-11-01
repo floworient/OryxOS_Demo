@@ -27,16 +27,24 @@ class WorkspaceServiceTest {
         for (String directory : List.of("agents", "skills", "output", "memory", "sessions", "logs")) {
             assertThat(root.resolve(directory)).isDirectory();
         }
-        assertThat(root.resolve("memory/MEMORY.md")).isRegularFile();
+        assertThat(root.resolve("memory/MEMORY.md")).hasContent("""
+                # MEMORY
+
+                ## 核心记忆
+
+                ## 归档记忆
+                """);
         for (String bootstrap : List.of("AGENTS.md", "SOUL.md", "USER.md")) {
             assertThat(root.resolve(bootstrap)).isRegularFile();
         }
 
         Files.writeString(root.resolve("AGENTS.md"), "用户内容");
+        Files.writeString(root.resolve("memory/MEMORY.md"), "用户旧记忆");
         for (int i = 0; i < 10; i++) {
             service.initialize();
         }
         assertThat(Files.readString(root.resolve("AGENTS.md"))).isEqualTo("用户内容");
+        assertThat(Files.readString(root.resolve("memory/MEMORY.md"))).isEqualTo("用户旧记忆");
     }
 
     @Test
@@ -59,6 +67,8 @@ class WorkspaceServiceTest {
         service.initialize();
         service.createProfile("zeta");
         service.createProfile("Alpha");
+        assertThat(root.resolve("agents/Alpha/MEMORY.md"))
+                .content().contains("## 核心记忆", "## 归档记忆");
         Files.writeString(root.resolve("agents/zeta/attachment.txt"), "保留");
 
         assertThat(service.listProfiles()).containsExactly("Alpha", "zeta");

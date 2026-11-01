@@ -5,6 +5,7 @@ import io.oryxos.core.agent.ReActLoop;
 import io.oryxos.core.audit.ToolInvocationRecorder;
 import io.oryxos.core.context.ContextLoader;
 import io.oryxos.core.context.PromptBuilder;
+import io.oryxos.core.memory.MemoryService;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.core.profile.ProfileRegistry;
 import io.oryxos.core.provider.ProviderService;
@@ -30,9 +31,9 @@ public class ReActConfiguration {
     }
 
     @Bean
-    PromptBuilder promptBuilder(ContextLoader loader, ToolRegistry tools) {
+    PromptBuilder promptBuilder(ContextLoader loader, ToolRegistry tools, MemoryService memory) {
         return new PromptBuilder(loader, tools, new ToolSchemaAdapter()::adapt,
-                (session, profile) -> "", Clock.systemDefaultZone());
+                memory, Clock.systemDefaultZone());
     }
 
     @Bean(destroyMethod = "close")

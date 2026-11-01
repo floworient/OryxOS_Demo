@@ -26,7 +26,7 @@ Every Agent is a single directory: `.oryxos/agents/<name>/`. There is no separat
 
 - `AGENT.md` = YAML frontmatter (the Agent's Profile: `name`, `description`, `identity`, `provider`/`model`, `tools`, `mcp_servers`, `channels`, `bootstrap`, `settings`, `schedules`) + a body of task instructions injected into the system prompt. `AgentLoader.deriveProfile(agentDir)` turns the frontmatter into the `Profile` the runtime understands.
 - Optional `skills/*.md` sub-instructions, `scripts/`, and `REFERENCE.md` sit in the same directory and are loaded **on demand** through the ordinary `read_file` / `shell` tools — no global skill index, no `use_skill`.
-- Long-term memory is **per-agent**: `.oryxos/agents/<name>/MEMORY.md` (falling back to the global `.oryxos/memory/MEMORY.md` when there is no agent context). Memory lines are timestamped, and every trigger of an agent is auto-recorded to that agent's archival memory.
+- Long-term memory is isolated per agent; the default Markdown backend uses `.oryxos/agents/<name>/MEMORY.md`. Agent triggers are never auto-recorded. Only an explicit, audited `save_memory` call writes to core or archival memory.
 
 ## Dynamic Agent Lifecycle
 

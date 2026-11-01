@@ -1,5 +1,6 @@
 package io.oryxos.cli;
 
+import io.oryxos.core.profile.AgentName;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -8,23 +9,21 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.regex.Pattern;
 
 /** 轻量工作区与 Agent 文件生命周期服务。 */
 public final class WorkspaceService {
+    private static final String MEMORY_SKELETON = """
+            # MEMORY
+
+            ## 核心记忆
+
+            ## 归档记忆
+            """;
+
     private static final List<String> DIRECTORIES = List.of(
             "agents", "skills", "output", "memory", "sessions", "logs");
 
     private static final List<String> ROOT_FILES = List.of("AGENTS.md", "SOUL.md", "USER.md");
-
-    private static final Pattern PROFILE_NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,63}");
-
-    private static final Set<String> WINDOWS_DEVICES = Set.of(
-            "CON", "PRN", "AUX", "NUL",
-            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9");
 
     private final Path root;
 
@@ -54,7 +53,7 @@ public final class WorkspaceService {
             for (String file : ROOT_FILES) {
                 created += createFileIfMissing(root.resolve(file), bootstrapContent(file));
             }
-            created += createFileIfMissing(root.resolve("memory/MEMORY.md"), "# MEMORY\n");
+            created += createFileIfMissing(root.resolve("memory/MEMORY.md"), MEMORY_SKELETON);
             return new InitResult(root, created, existing);
         } catch (IOException exception) {
             throw failure("初始化工作区失败", exception);
@@ -109,6 +108,7 @@ public final class WorkspaceService {
         try {
             temporary = Files.createTempDirectory(agents, ".creating-");
             Files.writeString(temporary.resolve("AGENT.md"), template(name));
+            Files.writeString(temporary.resolve("MEMORY.md"), MEMORY_SKELETON);
             move(temporary, target);
             return target;
         } catch (IOException exception) {
@@ -274,13 +274,7 @@ public final class WorkspaceService {
     }
 
     private static void validateName(String name) {
-        if (name == null || !PROFILE_NAME.matcher(name).matches() || name.equals(".") || name.equals("..")) {
-            throw new IllegalArgumentException("Agent 名称非法: " + name);
-        }
-        String base = name.split("\\.", 2)[0].toUpperCase(Locale.ROOT);
-        if (WINDOWS_DEVICES.contains(base)) {
-            throw new IllegalArgumentException("Agent 名称是系统保留名: " + name);
-        }
+        AgentName.requireValid(name);
     }
 
     private static int createFileIfMissing(Path target, String content) throws IOException {

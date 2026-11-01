@@ -20,7 +20,7 @@
 
 | 字段 | 类型 | 约束 |
 | --- | --- | --- |
-| `id` | String | 后端稳定 id；Markdown 可由 owner/scope/时间/序号派生 |
+| `id` | String | 后端稳定 id；Markdown 将单调序号与 UUID 持久化到条目注释中 |
 | `owner` | MemoryOwner | 必填 |
 | `scope` | MemoryScope | 必填 |
 | `content` | String | trim 后非空；最多 4000 字符；内部换行已折叠 |
@@ -73,11 +73,11 @@
 
 ## 核心记忆
 
-- [2026-10-31 09:30:00] 核心内容
+- [2026-10-31 09:30:00] <!-- oryxos-memory-id:markdown:core:0000000000:<uuid> --> 核心内容
 
 ## 归档记忆
 
-- [2026-10-31 09:31:00] 归档内容
+- [2026-10-31 09:31:00] <!-- oryxos-memory-id:markdown:archival:0000000000:<uuid> --> 归档内容
 ```
 
 物理文件按 owner 隔离；渲染时间使用配置 zone，解析后转 Instant。
@@ -111,4 +111,3 @@ validated input
   -> MemoryException
   -> tool failure; no success claim; no automatic retry
 ```
-

@@ -55,6 +55,18 @@ springdoc:
     path: /swagger-ui
 
 oryxos:
+  memory:
+    backend: markdown
+    archival-max-characters: 4000
+    recall-max-results: 20
+    entry-max-characters: 4000
+    zone: ${TZ:Asia/Shanghai}
+    mem0:
+      base-url: ${MEM0_BASE_URL:}
+      api-key: ${MEM0_API_KEY:}
+      connect-timeout: 3s
+      request-timeout: 10s
+      max-response-bytes: 1048576
   http:
     allowed-domains: []
   tool:

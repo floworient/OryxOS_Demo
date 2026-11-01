@@ -1,5 +1,6 @@
 package io.oryxos.web.api;
 
+import io.oryxos.core.memory.MemoryException;
 import io.oryxos.core.notify.NotifyChannelConflictException;
 import io.oryxos.core.notify.NotifyChannelNotFoundException;
 import java.util.stream.Collectors;
@@ -47,6 +48,13 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException exception) {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error("VALIDATION_ERROR", exception.getMessage()));
+    }
+
+    @ExceptionHandler(MemoryException.class)
+    ResponseEntity<ApiResponse<Void>> handleMemoryException(MemoryException exception) {
+        log.warn("记忆服务读取失败 code={}", exception.code());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("MEMORY_UNAVAILABLE", "记忆服务暂不可用"));
     }
 
     @ExceptionHandler(Exception.class)

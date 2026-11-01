@@ -10,14 +10,14 @@
 
 ## Technical Context
 
-**Language/Version**: Java 21  
-**Primary Dependencies**: Spring Boot 3.5.8、Spring AI 1.1.2、Spring Data JPA、Flyway、JDK `HttpClient`、Jackson（经 Spring AI/Boot）  
-**Storage**: `.oryxos/agents/<name>/MEMORY.md`、SQLite `memory_entries`、自托管 Mem0 OSS REST  
-**Testing**: JUnit 5、AssertJ、Mockito、Spring Boot Test、MockMvc、JDK 回环 HttpServer、Maven Surefire/Failsafe  
-**Target Platform**: 企业私有化单体可执行 JAR；Windows/Linux；JDK 21  
-**Project Type**: Maven 多模块 Java runtime + REST service  
-**Performance Goals**: Memory 读取不缓存但只处理单 Agent 数据；API/Prompt archival 最多 4000 字符；外部响应最多 1 MiB  
-**Constraints**: core 不依赖具体实现；所有工具经过 ToolExecutor；core 永不截断/检索；Mem0 写不重试；无真实密钥测试  
+**Language/Version**: Java 21
+**Primary Dependencies**: Spring Boot 3.5.8、Spring AI 1.1.2、Spring Data JPA、Flyway、JDK `HttpClient`、Jackson（经 Spring AI/Boot）
+**Storage**: `.oryxos/agents/<name>/MEMORY.md`、SQLite `memory_entries`、自托管 Mem0 OSS REST
+**Testing**: JUnit 5、AssertJ、Mockito、Spring Boot Test、MockMvc、JDK 回环 HttpServer、Maven Surefire/Failsafe
+**Target Platform**: 企业私有化单体可执行 JAR；Windows/Linux；JDK 21
+**Project Type**: Maven 多模块 Java runtime + REST service
+**Performance Goals**: Memory 读取不缓存但只处理单 Agent 数据；API/Prompt archival 最多 4000 字符；外部响应最多 1 MiB
+**Constraints**: core 不依赖具体实现；所有工具经过 ToolExecutor；core 永不截断/检索；Mem0 写不重试；无真实密钥测试
 **Scale/Scope**: 三后端、2 个工具、1 个 API、1 个 Flyway migration、约 8 组契约/集成测试
 
 ## Constitution Check
@@ -197,4 +197,3 @@ oryxos-*/src/test/java/...  # 同包契约、单元与集成测试
 | Memory 正文进入审计 | Memory tool 专用摘要审计；canary 测试 |
 | Prompt 历史回归 | 保留 PromptBuilder 裁剪职责；现有测试加 MemoryService fake |
 | 015 预留变成空实现 | 只保留 enum/条目接口；`HYBRID_BUILTIN` 当前 fail-fast |
-
