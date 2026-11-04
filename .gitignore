@@ -13,4 +13,5 @@ website/node_modules/
 website/.npm-cache/
 website/.vitepress/dist/
 website/.vitepress/cache/
+.worktrees/
 
