@@ -13,6 +13,7 @@
 - 相同 profileName/key 总是相同。
 - cron、zone、message 不参与身份。
 - profileName 或 key 任一不同，测试矩阵不得出现冲突。
+- 外部构造只接受规范的小写 UUID 文本，避免同一 UUID 出现多个字符串身份。
 
 ## ScheduledTaskDefinition
 
@@ -59,6 +60,10 @@ LOCK_ACQUIRED -> STARTED -> SESSION_READY? -> SUCCEEDED | FAILED -> RECORDED?
 | `definition` | ScheduledTaskDefinition | 注册时不可变快照，用于幂等比较 |
 
 同一 Profile 已注册定义集合完全相等时重复注册为 no-op；不同则拒绝，必须显式注销。
+
+## Registration Generation
+
+每次 Profile 注册创建一个独立、初始 inactive 的 generation。只有所有定义、future 和内部索引提交后才切换为 active；注销和回滚先切换为 inactive，再取消 future。回调取得 Profile 锁后必须再次确认 generation active，确保旧代次或未提交代次不会进入 Session/Agent 链路。关闭是终态，不允许创建新 generation。
 
 ## Profile Execution Lock
 

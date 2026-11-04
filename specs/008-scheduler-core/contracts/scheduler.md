@@ -74,6 +74,7 @@ public interface ScheduledTaskStore {
 - 所有输入拒绝 null。
 - `find` 和 `executions` 返回不可变/防御快照。
 - `InMemoryScheduledTaskStore` 必须支持并发 reconcile/record/read，不承诺跨重启恢复。
+- 本阶段只保证默认内存实现；逐定义接口不宣称提供 Profile 级数据库事务。后续持久化适配器在被选为生产实现前，必须在实现内部提供批量事务或等价补偿，不能仅因实现了本接口就宣称注册回滚具备数据库原子性。
 
 ## AgentScheduler 契约
 
@@ -109,14 +110,16 @@ public final class AgentScheduler implements AutoCloseable {
 ### registerProfile
 
 - 先构造并验证该 Profile 全部 definition 与 CronTrigger。
-- 若该 Profile 已注册且定义集合完全相同，直接返回。
+- 若该 Profile 已注册且定义集合完全相同，直接返回；集合比较与 YAML 排列顺序无关。
 - 若已注册但定义集合不同，抛出 `IllegalStateException`，不改变旧注册。
 - 首次登记按“reconcile -> schedule -> 暂存 future”执行；任一步失败都 cancel 本次 futures、retire 本次 definitions，并抛出不含 message 的异常。
 - `TaskScheduler.schedule` 返回 null 视为注册失败。
+- 每次注册使用独立 generation；全部 future 与内部状态提交后才激活。提交前被底层调度器调用的回调必须空操作。
 
 ### unregisterProfile
 
 - 对该 Profile 所有 future 调用 `cancel(false)`，retire 活动 definitions，清除句柄。
+- 先失活当前 generation，再取消 future；已出队但尚未开始业务调用的旧回调必须空操作。
 - 不移除 `profileName -> lock`，不等待或中断正在执行的 Agent。
 - 未注册 Profile 为幂等 no-op。
 
@@ -124,14 +127,16 @@ public final class AgentScheduler implements AutoCloseable {
 
 - 对 profile lock 使用 `tryLock`；失败时只写安全 skip 日志并返回。
 - 取得锁后记录 startedAt，调用 `sessions.getOrCreate("scheduler", "scheduler", profileName)`，再调用 `agents.process(session, message)`。
+- 取得锁后再次验证 generation 仍为活动代次；该验证是回调开始与注销之间的线性化点。
 - 成功/失败都构造一条 TaskExecution 并尝试 `store.recordExecution`。
+- 系统时钟回拨时，finishedAt 钳制为不早于 startedAt；匿名异常使用首个非空父类简单名作为安全 errorType。
 - Agent/Session 异常不从 Runnable 外抛；Store 异常单独记录。
 - 所有路径在 finally 释放锁。
 
 ### close
 
 - 取消全部未来触发并 retire 活动 definitions。
-- 幂等，不强制中断运行中的 Agent。
+- 幂等且为终态；关闭后注册会被拒绝，不强制中断运行中的 Agent。
 
 ## Boot 装配契约
 

@@ -95,4 +95,55 @@ class AgentLoaderTest {
 
         assertThat(new AgentLoader().loadAll(workspace)).isEmpty();
     }
+
+    @Test
+    void invalidCronRejectsWholeAgent() throws Exception {
+        writeScheduledAgent("weather", "not-a-cron", "Asia/Shanghai");
+
+        assertThat(new AgentLoader().loadAll(workspace)).isEmpty();
+    }
+
+    @Test
+    void invalidZoneRejectsWholeAgent() throws Exception {
+        writeScheduledAgent("weather", "0 0 8 * * *", "Mars/Olympus");
+
+        assertThat(new AgentLoader().loadAll(workspace)).isEmpty();
+    }
+
+    @Test
+    void duplicateScheduleKeyRejectsWholeAgent() throws Exception {
+        Path agentDir = Files.createDirectories(workspace.resolve("agents/weather"));
+        Files.writeString(agentDir.resolve("AGENT.md"), """
+                ---
+                name: weather
+                description: duplicate schedule
+                identity: {agent_name: Scheduler, prompt: Run on time}
+                provider: {name: qwen, model: qwen-plus}
+                schedules:
+                  - {key: daily, cron: "0 0 8 * * *", zone: Asia/Shanghai, message: first}
+                  - {key: daily, cron: "0 0 9 * * *", zone: Asia/Shanghai, message: second}
+                ---
+                body
+                """);
+
+        assertThat(new AgentLoader().loadAll(workspace)).isEmpty();
+    }
+
+    private void writeScheduledAgent(String name, String cron, String zone) throws Exception {
+        Path agentDir = Files.createDirectories(workspace.resolve("agents").resolve(name));
+        Files.writeString(agentDir.resolve("AGENT.md"), """
+                ---
+                name: %s
+                description: schedule validation
+                identity: {agent_name: Scheduler, prompt: Run on time}
+                provider: {name: qwen, model: qwen-plus}
+                schedules:
+                  - key: daily
+                    cron: "%s"
+                    zone: %s
+                    message: run
+                ---
+                body
+                """.formatted(name, cron, zone));
+    }
 }
