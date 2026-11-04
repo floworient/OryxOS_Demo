@@ -164,7 +164,9 @@ public final class ToolExecutor implements AutoCloseable {
             if ("save_memory".equals(name)) {
                 return auditMemorySave(input);
             }
-            if (name == null || tools.find(name).map(item -> item.source() != ToolSource.BUILTIN).orElse(true)) {
+            // argv 可携带任意位置的秘密，Shell 输入仅保存摘要，不依赖参数名猜测凭证。
+            if ("shell".equals(name) || name == null
+                    || tools.find(name).map(item -> item.source() != ToolSource.BUILTIN).orElse(true)) {
                 byte[] bytes = (input == null ? "" : input).getBytes(java.nio.charset.StandardCharsets.UTF_8);
                 byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
                 return JsonParser.toJson(Map.of("bytes", bytes.length,

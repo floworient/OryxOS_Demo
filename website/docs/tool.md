@@ -19,8 +19,8 @@ This delivery adds 11 built-ins. The existing `notify` tool uses the same regist
 
 | Tool | Implemented behavior |
 | --- | --- |
-| `read_file` | Read bounded UTF-8 text from the current Agent or a bound public Skill |
-| `write_file` | Atomically write UTF-8 text inside the current Agent directory |
+| `read_file` | Read bounded UTF-8 text from the Agent, approved ordinary roots, or a bound public Skill |
+| `write_file` | Atomically write UTF-8 text inside the Agent or administrator-approved ordinary roots |
 | `list_dir` | Deterministically list an approved directory, up to 200 entries |
 | `edit_file` | Replace only when `old_text` occurs exactly once |
 | `grep` | Linear-time RE2/J regex search with file, byte, and 200-result limits; no backreferences or lookaround |
@@ -42,6 +42,8 @@ Example `.oryxos/application.yaml`:
 
 ```yaml
 oryxos:
+  file:
+    allowed-paths: []
   http:
     allowed-domains:
       - api.duckduckgo.com
@@ -54,7 +56,13 @@ oryxos:
 
 Every shell alias must map to an existing absolute regular file. Allow-listing an interpreter such as Node, Python, or PowerShell grants code-execution authority equivalent to the OryxOS process user. Passing argv directly is not file-system or network isolation.
 
-Relative file paths are resolved from the current Agent directory. That directory is readable and writable. A public Skill becomes readable only through the Agent's validated `skills/*.link` binding and is always read-only. Traversal, drive/UNC bypasses, and native symlink escapes are rejected. Arbitrary extra file roots are not currently configurable.
+Relative paths resolve from the current Agent directory, which is readable and writable. `oryxos.file.allowed-paths` grants read/write access to additional ordinary directories. Each root must be an existing absolute ordinary directory without native link components; blank, relative, missing, or linked roots fail startup. Configuration is a startup snapshot: restart after changing it. An empty list grants no additional roots but retains Agent access and bound-Skill reads. Empty HTTP and Shell allow lists deny their respective operations.
+
+A public Skill is readable only through a validated `skills/*.link` binding and is always read-only. Granting its ancestor does not expose unbound Skills or allow Skill writes. Listing or searching from an ancestor prunes the public Skill root; a bound Skill remains directly readable/searchable at its context-provided real path. Extra file roots do not grant Shell working-directory access, which remains limited to the current Agent. Traversal, drive/UNC authorization bypasses, and native link escapes are rejected.
+
+Necessary path, binding, and Skill-metadata checks may perform validation IO. A denied operation cannot read its target body, modify files, start a process, or send a request. `edit_file` approves read and write access before reading the body. Sandbox denials return fixed category messages, are not retryable, and use the existing single final audit record. Shell audit inputs retain only UTF-8 byte count and SHA-256, keeping arbitrary argv credentials out of storage. Error-message redaction and audit-input redaction are verified separately.
+
+Lesson 24's `file.allowed_paths`, `shell.allowed_commands`, and `http.allowed_domains` map to `oryxos.file.allowed-paths`, `oryxos.tool.allowed-commands`, and `oryxos.http.allowed-domains`. Shell retains its alias-to-absolute-executable map; there is no second configuration source.
 
 These controls are application-level allow lists, not container, MicroVM, or multi-tenant isolation.
 

@@ -33,6 +33,10 @@ class HttpToolsTest {
         requests = new AtomicInteger();
         posted = new AtomicReference<>();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/ready", exchange -> {
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
         server.createContext("/get", exchange -> {
             requests.incrementAndGet();
             byte[] body = "hello".getBytes(StandardCharsets.UTF_8);
@@ -53,6 +57,12 @@ class HttpToolsTest {
             exchange.sendResponseHeaders(302, -1);
             exchange.close();
         });
+        server.createContext("/encoded", exchange -> {
+            requests.incrementAndGet();
+            posted.set(exchange.getRequestURI().toASCIIString());
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
         server.createContext("/slow", exchange -> {
             requests.incrementAndGet();
             try {
@@ -70,6 +80,9 @@ class HttpToolsTest {
         baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
         var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2))
                 .followRedirects(HttpClient.Redirect.NEVER).build();
+        // 就绪请求只预热夹具，不计入业务端点计数；工具本身仍使用原有 300ms 超时。
+        client.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(baseUrl + "/ready"))
+                .timeout(Duration.ofSeconds(2)).GET().build(), java.net.http.HttpResponse.BodyHandlers.discarding());
         tools = new HttpTools(new WhitelistSandbox(Set.of("127.0.0.1")), client,
                 Duration.ofMillis(300), 1024 * 1024);
     }
@@ -77,6 +90,28 @@ class HttpToolsTest {
     @AfterEach
     void stop() {
         server.stop(0);
+    }
+
+    @Test
+    void deniedGetAndPostSendNoRequestsAndReturnSafeReason() {
+        tools = new HttpTools(new WhitelistSandbox(Set.of()));
+        for (String name : java.util.List.of("http_get", "http_post")) {
+            String input = "{\"url\":\"" + baseUrl + "/get?token=canary\""
+                    + (name.equals("http_post") ? ",\"body\":\"payload\"}" : "}");
+            var result = tool(name).execute(input);
+            assertThat(result.success()).isFalse();
+            assertThat(result.retryable()).isFalse();
+            assertThat(result.errorMessage()).isEqualTo("HTTP 请求被 Sandbox 拒绝");
+        }
+        assertThat(requests).hasValue(0);
+    }
+
+    @Test
+    void approvedRequestPreservesEncodedPathAndQueryOnTheWire() {
+        String target = "/encoded/a%2Fb?q=a%26b%3Dc&x=%2B%25";
+        assertThat(tool("http_get").execute("{\"url\":\"" + baseUrl + target + "\"}").success()).isTrue();
+        assertThat(posted).hasValue(target);
+        assertThat(requests).hasValue(1);
     }
 
     @Test

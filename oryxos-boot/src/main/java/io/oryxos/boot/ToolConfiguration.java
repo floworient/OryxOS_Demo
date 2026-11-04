@@ -34,17 +34,29 @@ import org.springframework.core.env.Environment;
 import org.springframework.util.ClassUtils;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({HttpSandboxProperties.class, ToolProperties.class})
+@EnableConfigurationProperties({HttpSandboxProperties.class, ToolProperties.class, FileSandboxProperties.class})
 public class ToolConfiguration {
 
     @Bean("toolSandbox")
-    Sandbox toolSandbox(HttpSandboxProperties http, ToolProperties tools,
+    Sandbox toolSandbox(HttpSandboxProperties http, ToolProperties tools, FileSandboxProperties files,
             @org.springframework.beans.factory.annotation.Value("${oryxos.workspace:./.oryxos}")
             String workspace) {
         var commands = new java.util.LinkedHashMap<String, Path>();
         tools.getAllowedCommands().forEach((alias, executable) -> commands.put(alias, Path.of(executable)));
+        List<Path> roots;
+        try {
+            roots = files.getAllowedPaths().stream().map(value -> {
+                if (value == null || value.isBlank()) {
+                    throw new IllegalArgumentException();
+                }
+                return Path.of(value);
+            }).toList();
+        }
+        catch (RuntimeException exception) {
+            throw new IllegalArgumentException("文件白名单配置非法");
+        }
         return new WhitelistSandbox(http.getAllowedDomains(), commands,
-                new SkillBindingResolver(Path.of(workspace)));
+                new SkillBindingResolver(Path.of(workspace)), roots, Path.of(workspace).resolve("skills"));
     }
 
     @Bean

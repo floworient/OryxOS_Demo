@@ -8,6 +8,7 @@ import io.oryxos.core.tool.ToolResult;
 import io.oryxos.tool.notify.NotifyAdapterRegistry;
 import io.oryxos.tool.notify.NotifyTarget;
 import io.oryxos.tool.notify.NotifyTargetResolver;
+import io.oryxos.tool.sandbox.SandboxViolationException;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -61,6 +62,9 @@ public final class NotifyTools implements OryxTool {
             NotifyTarget target = targetResolver.resolve(channel);
             adapterRegistry.require(channel.type()).send(target, input.content());
             return new ToolResult(true, "已推送", null, false);
+        }
+        catch (SandboxViolationException exception) {
+            return new ToolResult(false, "", exception.getMessage(), false);
         }
         catch (RuntimeException exception) {
             return new ToolResult(false, "", "通知推送失败，请检查渠道配置", false);

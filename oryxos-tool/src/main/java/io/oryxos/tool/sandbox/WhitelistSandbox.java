@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -23,12 +24,21 @@ public final class WhitelistSandbox implements Sandbox {
 
     private final SkillBindingResolver skillBindings;
 
+    private final List<Path> allowedFileRoots;
+
+    private final Path publicSkillRoot;
+
     public WhitelistSandbox(Set<String> allowedDomains) {
         this(allowedDomains, Map.of(), null);
     }
 
     public WhitelistSandbox(Set<String> allowedDomains, Map<String, Path> allowedCommands,
             SkillBindingResolver skillBindings) {
+        this(allowedDomains, allowedCommands, skillBindings, List.of(), null);
+    }
+
+    public WhitelistSandbox(Set<String> allowedDomains, Map<String, Path> allowedCommands,
+            SkillBindingResolver skillBindings, List<Path> allowedFileRoots, Path publicSkillRoot) {
         this.allowedDomains = Set.copyOf(allowedDomains).stream()
                 .map(WhitelistSandbox::normalizeRule)
                 .collect(Collectors.toUnmodifiableSet());
@@ -40,84 +50,104 @@ public final class WhitelistSandbox implements Sandbox {
             try {
                 if (!executable.isAbsolute() || !Files.isRegularFile(executable, LinkOption.NOFOLLOW_LINKS)
                         || Files.isSymbolicLink(executable)) {
-                    throw new IllegalArgumentException("Shell executable 必须是绝对普通文件: " + alias);
+                    throw new IllegalArgumentException("Shell executable 配置非法");
                 }
                 commands.put(alias, executable.toRealPath());
             }
             catch (IOException exception) {
-                throw new IllegalArgumentException("Shell executable 不可访问: " + alias, exception);
+                throw new IllegalArgumentException("Shell executable 配置非法");
             }
         });
         this.allowedCommands = Map.copyOf(commands);
         this.skillBindings = skillBindings;
+        this.allowedFileRoots = validateRoots(allowedFileRoots);
+        this.publicSkillRoot = publicSkillRoot == null ? null : publicSkillRoot.toAbsolutePath().normalize();
     }
 
     @Override
     public URI enforce(HttpRequestAction action) {
-        URI uri = normalize(action.target());
-        String host = uri.getHost();
-        boolean allowed = allowedDomains.stream().anyMatch(rule -> matches(rule, host));
-        if (!allowed) {
-            throw new SecurityException("目标地址不在 HTTP 白名单中");
+        try {
+            URI uri = normalize(action.target());
+            if (allowedDomains.stream().noneMatch(rule -> matches(rule, uri.getHost()))) {
+                throw new SecurityException();
+            }
+            return uri;
         }
-        return uri;
+        catch (RuntimeException exception) {
+            throw new SandboxViolationException(SandboxViolationException.HTTP_DENIED);
+        }
     }
 
     @Override
     public Path enforce(ShellExecuteAction action) {
         Path executable = allowedCommands.get(action.executableAlias());
         if (executable == null) {
-            throw new SecurityException("Shell executable 不在白名单中");
+            throw new SandboxViolationException(SandboxViolationException.SHELL_DENIED);
         }
         return executable;
     }
 
     @Override
     public Path enforce(FileAccessAction action) {
+        try {
+            return approveFile(action);
+        }
+        catch (IOException | RuntimeException exception) {
+            throw new SandboxViolationException(SandboxViolationException.FILE_DENIED);
+        }
+    }
+
+    private Path approveFile(FileAccessAction action) throws IOException {
         if (skillBindings == null) {
-            throw new SecurityException("文件 Sandbox 未配置 Skill 绑定解析器");
+            throw new SecurityException();
         }
         Path requested = action.requested();
         if (requested.toString().isBlank() || hasTraversal(requested)) {
             throw new SecurityException("文件路径非法");
         }
-        try {
-            java.util.List<SkillBinding> bindings = skillBindings.resolve(action.profile());
-            Path sourcePath = action.profile().sourcePath();
-            Path parent = sourcePath.getParent();
-            if (parent == null) {
-                throw new SecurityException("Agent 定义缺少父目录");
-            }
-            Path agent = parent.toRealPath();
-            Path candidate = requested.isAbsolute() ? requested.normalize() : agent.resolve(requested).normalize();
-            if (action.mode() == FileAccessMode.WRITE) {
-                return approveWrite(candidate, agent);
-            }
-            if (Files.notExists(candidate, LinkOption.NOFOLLOW_LINKS)) {
-                throw new SecurityException("文件目标不存在");
-            }
-            Path real = candidate.toRealPath();
-            if (within(real, agent)) {
-                rejectLinks(candidate, agent);
+        List<SkillBinding> bindings = skillBindings.resolve(action.profile());
+        Path sourcePath = action.profile().sourcePath();
+        Path parent = sourcePath.getParent();
+        if (parent == null) {
+            throw new SecurityException("Agent 定义缺少父目录");
+        }
+        Path agent = parent.toRealPath();
+        Path candidate = requested.isAbsolute() ? requested.normalize() : agent.resolve(requested).normalize();
+        Path agentsDirectory = parent.getParent();
+        Path workspace = agentsDirectory == null ? null : agentsDirectory.getParent();
+        if (workspace == null) {
+            throw new SecurityException("Agent 定义缺少工作区边界");
+        }
+        Path skills = publicSkillRoot == null
+                ? workspace.resolve("skills").toAbsolutePath().normalize() : publicSkillRoot;
+        if (action.mode() == FileAccessMode.WRITE) {
+            return approveWrite(candidate, agent, skills);
+        }
+        if (Files.notExists(candidate, LinkOption.NOFOLLOW_LINKS)) {
+            throw new SecurityException("文件目标不存在");
+        }
+        Path real = candidate.toRealPath();
+        rejectLinks(candidate);
+        if (protectedSkill(candidate, real, skills)) {
+            if (action.mode() != FileAccessMode.WORKING_DIRECTORY
+                    && bindings.stream().anyMatch(binding -> within(real, binding.directory()))) {
                 return real;
             }
-            if (action.mode() == FileAccessMode.WORKING_DIRECTORY) {
-                throw new SecurityException("Shell 工作目录只允许当前 Agent 目录");
-            }
-            for (SkillBinding binding : bindings) {
-                if (within(real, binding.directory())) {
-                    rejectLinks(candidate, binding.directory());
-                    return real;
-                }
-            }
-            throw new SecurityException("文件目标不在当前 Agent 可见边界内");
+            throw new SecurityException();
         }
-        catch (IOException exception) {
-            throw new SecurityException("文件路径不可访问", exception);
+        if (within(real, agent)) {
+            return real;
         }
+        if (action.mode() == FileAccessMode.WORKING_DIRECTORY) {
+            throw new SecurityException("Shell 工作目录只允许当前 Agent 目录");
+        }
+        if (allowedFileRoots.stream().anyMatch(root -> within(real, root))) {
+            return real;
+        }
+        throw new SecurityException("文件目标不在当前 Agent 可见边界内");
     }
 
-    private static Path approveWrite(Path candidate, Path agent) throws IOException {
+    private Path approveWrite(Path candidate, Path agent, Path skills) throws IOException {
         Path existing = candidate;
         while (existing != null && Files.notExists(existing, LinkOption.NOFOLLOW_LINKS)) {
             existing = existing.getParent();
@@ -126,13 +156,11 @@ public final class WhitelistSandbox implements Sandbox {
             throw new SecurityException("文件目标缺少可验证父目录");
         }
         Path realParent = existing.toRealPath();
-        if (!within(realParent, agent)) {
-            throw new SecurityException("文件写入只允许当前 Agent 目录");
-        }
-        rejectLinks(existing, agent);
+        rejectLinks(existing);
         Path suffix = existing.relativize(candidate);
         Path approved = realParent.resolve(suffix).normalize();
-        if (!within(approved, agent)) {
+        if (protectedSkill(candidate, approved, skills)
+                || !(within(approved, agent) || allowedFileRoots.stream().anyMatch(root -> within(approved, root)))) {
             throw new SecurityException("文件写入越界");
         }
         return approved;
@@ -151,16 +179,36 @@ public final class WhitelistSandbox implements Sandbox {
         return false;
     }
 
-    private static void rejectLinks(Path candidate, Path boundary) {
+    private static void rejectLinks(Path candidate) throws IOException {
         Path current = candidate;
-        while (current != null && !current.equals(boundary)) {
-            if (Files.isSymbolicLink(current)) {
+        while (current != null) {
+            if (Files.isSymbolicLink(current)
+                    || !current.toRealPath().equals(current.toAbsolutePath().normalize())) {
                 throw new SecurityException("文件路径包含原生链接");
             }
             current = current.getParent();
         }
-        if (current == null) {
-            throw new SecurityException("文件路径不属于已批准边界");
+    }
+
+    private static boolean protectedSkill(Path candidate, Path real, Path skills) throws IOException {
+        return within(candidate, skills) || (Files.exists(skills) && within(real, skills.toRealPath()));
+    }
+
+    private static List<Path> validateRoots(List<Path> roots) {
+        try {
+            var validated = new java.util.LinkedHashSet<Path>();
+            for (Path root : roots) {
+                if (root == null || !root.isAbsolute() || hasTraversal(root)
+                        || !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
+                    throw new IllegalArgumentException();
+                }
+                rejectLinks(root);
+                validated.add(root.toRealPath());
+            }
+            return List.copyOf(validated);
+        }
+        catch (IOException | RuntimeException exception) {
+            throw new IllegalArgumentException("文件白名单配置非法");
         }
     }
 
@@ -174,8 +222,12 @@ public final class WhitelistSandbox implements Sandbox {
         }
         String host = normalizeHost(input.getHost());
         try {
-            return new URI(scheme.toLowerCase(Locale.ROOT), null, host, input.getPort(),
-                    input.getPath(), input.getQuery(), null);
+            // 多参数 URI 构造器接受解码值，会把 %2F/%26/%3D 重新解释为分隔符。
+            // 仅规范化已校验的 scheme/host；路径和查询保持原始编码与空查询语义。
+            String port = input.getPort() == -1 ? "" : ":" + input.getPort();
+            String query = input.getRawQuery() == null ? "" : "?" + input.getRawQuery();
+            return new URI(scheme.toLowerCase(Locale.ROOT) + "://" + host + port
+                    + input.getRawPath() + query);
         }
         catch (URISyntaxException exception) {
             throw new SecurityException("目标地址非法", exception);

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.oryxos.core.tool.ToolRegistry;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -16,6 +18,42 @@ class ToolConfigurationTest {
 
     @TempDir
     Path workspace;
+
+    @Test
+    void bindsExtraRootsWithDefaultDenyAndDefensiveSnapshot() throws Exception {
+        Path data = Files.createDirectories(workspace.resolve("business"));
+        new ApplicationContextRunner().withUserConfiguration(ToolConfiguration.class)
+                .withPropertyValues("oryxos.workspace=" + workspace,
+                        "oryxos.file.allowed-paths[0]=" + data)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(io.oryxos.tool.sandbox.Sandbox.class);
+                    assertThat(context.getBean(FileSandboxProperties.class).getAllowedPaths())
+                            .containsExactly(data.toString());
+                });
+        var properties = new FileSandboxProperties();
+        assertThat(properties.getAllowedPaths()).isEmpty();
+        properties.setAllowedPaths(null);
+        assertThat(properties.getAllowedPaths()).isEmpty();
+        var input = new java.util.ArrayList<>(List.of(data.toString()));
+        properties.setAllowedPaths(input);
+        input.clear();
+        assertThat(properties.getAllowedPaths()).containsExactly(data.toString());
+    }
+
+    @Test
+    void invalidFileRootsFailStartupWithSafeReason() {
+        for (String invalid : List.of("relative-canary", workspace.resolve("missing-canary").toString(), " ")) {
+            new ApplicationContextRunner().withUserConfiguration(ToolConfiguration.class)
+                    .withPropertyValues("oryxos.workspace=" + workspace, "oryxos.file.allowed-paths[0]=" + invalid)
+                    .run(context -> {
+                        assertThat(context).hasFailed();
+                        assertThat(context.getStartupFailure()).hasStackTraceContaining("文件白名单配置非法")
+                                .hasStackTraceContaining("IllegalArgumentException");
+                        assertThat(context.getStartupFailure().getMessage()).doesNotContain("canary");
+                    });
+        }
+    }
 
     @Test
     void registersElevenBuiltinsAndAnnotatedJavaToolsIntoOneRegistry() {

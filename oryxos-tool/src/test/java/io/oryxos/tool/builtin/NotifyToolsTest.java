@@ -10,6 +10,7 @@ import io.oryxos.tool.notify.NotifyAdapterRegistry;
 import io.oryxos.tool.notify.NotifyChannelAdapter;
 import io.oryxos.tool.notify.NotifyTarget;
 import io.oryxos.tool.notify.NotifyTargetResolver;
+import io.oryxos.tool.sandbox.WhitelistSandbox;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -17,9 +18,34 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class NotifyToolsTest {
+
+    @Test
+    void deniedTargetNeverCallsAdapterAndReturnsSafeReason() {
+        var sends = new java.util.concurrent.atomic.AtomicInteger();
+        var adapter = new NotifyChannelAdapter() {
+            @Override
+            public String channelType() {
+                return "webhook";
+            }
+
+            @Override
+            public void send(NotifyTarget target, String content) {
+                sends.incrementAndGet();
+            }
+        };
+        var tool = new NotifyTools(new NotifyChannelService(registry(channel()), Clock.systemUTC()),
+                new NotifyTargetResolver(System::getenv, new WhitelistSandbox(Set.of())),
+                new NotifyAdapterRegistry(List.of(adapter)));
+        var result = tool.execute("{\"content\":\"hello\"}");
+        assertThat(result.success()).isFalse();
+        assertThat(result.retryable()).isFalse();
+        assertThat(result.errorMessage()).isEqualTo("HTTP 请求被 Sandbox 拒绝");
+        assertThat(sends).hasValue(0);
+    }
 
     @Test
     void resolvesSandboxesThenSendsUsingDefaultChannel() {

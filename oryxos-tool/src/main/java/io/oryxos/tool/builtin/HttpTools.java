@@ -5,6 +5,7 @@ import io.oryxos.core.tool.OryxTool;
 import io.oryxos.core.tool.ToolResult;
 import io.oryxos.tool.sandbox.HttpRequestAction;
 import io.oryxos.tool.sandbox.Sandbox;
+import io.oryxos.tool.sandbox.SandboxViolationException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -113,6 +114,9 @@ public final class HttpTools {
         }
         catch (HttpTimeoutException exception) {
             return failed("HTTP 请求超时");
+        }
+        catch (SandboxViolationException exception) {
+            return failed(exception.getMessage());
         }
         catch (InterruptedException exception) {
             Thread.currentThread().interrupt();

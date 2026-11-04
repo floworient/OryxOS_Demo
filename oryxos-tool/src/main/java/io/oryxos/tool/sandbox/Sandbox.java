@@ -8,10 +8,10 @@ public interface Sandbox {
     URI enforce(HttpRequestAction action);
 
     default Path enforce(FileAccessAction action) {
-        throw new SecurityException("Sandbox 未配置文件访问能力");
+        throw new SandboxViolationException(SandboxViolationException.FILE_DENIED);
     }
 
     default Path enforce(ShellExecuteAction action) {
-        throw new SecurityException("Sandbox 未配置 Shell 执行能力");
+        throw new SandboxViolationException(SandboxViolationException.SHELL_DENIED);
     }
 }

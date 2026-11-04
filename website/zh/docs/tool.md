@@ -19,8 +19,8 @@ interface OryxTool {
 
 | 工具 | 行为与边界 |
 | --- | --- |
-| `read_file` | 读取当前 Agent 或已绑定公共 Skill 的 UTF-8 文本 |
-| `write_file` | 在当前 Agent 目录原子写入 UTF-8 文本 |
+| `read_file` | 读取当前 Agent、管理员批准普通目录或已绑定公共 Skill 的 UTF-8 文本 |
+| `write_file` | 在当前 Agent 或管理员批准普通目录原子写入 UTF-8 文本 |
 | `list_dir` | 稳定列出批准目录，最多 200 项 |
 | `edit_file` | 仅当 `old_text` 恰好出现一次时替换 |
 | `grep` | RE2/J 线性时间正则搜索，受文件数、字节数和 200 条结果上限约束；不支持反向引用和环视 |
@@ -42,6 +42,8 @@ HTTP 工具仅允许 Accept、Accept-Language、Content-Type 和 User-Agent head
 
 ```yaml
 oryxos:
+  file:
+    allowed-paths: []
   http:
     allowed-domains:
       - api.duckduckgo.com
@@ -54,7 +56,13 @@ oryxos:
 
 Shell alias 必须映射到存在的绝对普通文件。把 Node、Python 或 PowerShell 等解释器加入白名单，等于授予 OryxOS 进程用户相应的代码执行权限；argv 直传不提供文件或网络隔离。
 
-文件相对路径以当前 Agent 目录为基准。当前 Agent 目录可读写；公共 Skill 只有通过 `skills/*.link` 绑定后才可读，始终不可写。目录穿越、盘符/UNC 绕过和原生符号链接逃逸会被拒绝。当前没有“任意额外文件根”配置。
+文件相对路径以当前 Agent 目录为基准。当前 Agent 目录可读写；`oryxos.file.allowed-paths` 可增加普通目录的读写权限，每项必须是存在的绝对普通目录，包含原生链接组件、相对路径、空白或不存在的根会在启动时拒绝。配置在启动时形成快照，修改后须重启。空列表只表示不额外授权，仍保留 Agent 自有目录读写和绑定 Skill 只读；空 HTTP/Shell 白名单则拒绝对应请求。
+
+公共 Skill 只有通过 `skills/*.link` 绑定后才可读，始终不可写。即使管理员授权公共 Skill 的上级目录，未绑定 Skill 仍不可见；从上级目录列举和搜索时会剪枝公共 Skill 根，已绑定 Skill 可通过上下文提供的真实路径直接读取/搜索。额外文件根不会扩大 Shell 工作目录权限，工作目录仍限当前 Agent。目录穿越、盘符/UNC 授权绕过和原生链接逃逸会被拒绝。
+
+拒绝前允许必要的路径、绑定和 Skill 元数据校验，但不能读取被拒绝操作的目标正文、修改文件、启动进程或发送网络请求。`edit_file` 先通过读写授权再读取正文。安全拒绝提供固定类别原因，复用现有一次最终审计，且不可重试；Shell 输入仅保存 UTF-8 字节数及 SHA-256 摘要，不将 argv 凭证明文写入审计。错误消息脱敏和审计输入脱敏分别验证。
+
+第 24 课中的 `file.allowed_paths`、`shell.allowed_commands`、`http.allowed_domains` 分别对应当前的 `oryxos.file.allowed-paths`、`oryxos.tool.allowed-commands`、`oryxos.http.allowed-domains`；Shell 保留 alias 到绝对 executable 的映射，未引入第二套配置。
 
 这些检查是应用层白名单，不是容器、MicroVM 或多租户安全边界。
 

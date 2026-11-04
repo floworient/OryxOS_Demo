@@ -1,6 +1,8 @@
 package io.oryxos.tool.builtin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 
 import io.oryxos.core.context.SkillBindingResolver;
 import io.oryxos.core.profile.Profile;
@@ -13,6 +15,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Assumptions;
@@ -83,6 +86,63 @@ class FileToolsTest {
                 + "\",\"content\":\"篡改\"}").success()).isFalse();
         assertThat(Files.readString(definition)).contains("技能正文");
         assertThat(call("read_file", jsonPath(secret)).success()).isFalse();
+    }
+
+    @Test
+    void extraRootAllowsFileToolsButWideTraversalCannotExposePublicSkills() throws Exception {
+        Path data = Files.createDirectories(workspace.resolve("business"));
+        Path file = Files.writeString(data.resolve("data.txt"), "old needle");
+        Path bound = Files.createDirectories(workspace.resolve("skills/news"));
+        Files.writeString(bound.resolve("SKILL.md"), "---\nname: news\ndescription: 新闻\n---\nbound");
+        Path hidden = Files.createDirectories(workspace.resolve("skills/private-canary"));
+        Files.writeString(hidden.resolve("secret-canary.txt"), "needle secret-canary");
+        Path bindings = Files.createDirectories(profile.sourcePath().getParent().resolve("skills"));
+        Files.writeString(bindings.resolve("daily.link"), "../../../skills/news");
+        tools = new FileTools(new WhitelistSandbox(Set.of(), Map.of(), new SkillBindingResolver(workspace),
+                List.of(workspace), workspace.resolve("skills")));
+        assertThat(call("read_file", jsonPath(file)).content()).isEqualTo("old needle");
+        assertThat(call("edit_file", "{\"path\":\"" + escaped(file)
+                + "\",\"old_text\":\"old\",\"new_text\":\"new\"}").success()).isTrue();
+        assertThat(call("write_file", "{\"path\":\"" + escaped(file)
+                + "\",\"content\":\"new needle\"}").success()).isTrue();
+        assertThat(Files.readString(file)).isEqualTo("new needle");
+        assertThat(call("list_dir", jsonPath(workspace)).content()).doesNotContain("skills");
+        for (String name : List.of("grep", "glob")) {
+            String pattern = name.equals("grep") ? "needle" : "**";
+            var result = call(name, "{\"path\":\"" + escaped(workspace)
+                    + "\",\"pattern\":\"" + pattern + "\"}");
+            assertThat(result.success()).isTrue();
+            assertThat(result.content()).contains("data.txt").doesNotContain("canary", "SKILL.md");
+        }
+        assertThat(call("list_dir", jsonPath(bound)).content()).contains("SKILL.md");
+        assertThat(call("read_file", jsonPath(hidden.resolve("secret-canary.txt"))).success()).isFalse();
+    }
+
+    @Test
+    void deniedSkillEditChecksWritePermissionBeforeReadingContent() throws Exception {
+        Path skill = Files.createDirectories(workspace.resolve("skills/news"));
+        Files.writeString(skill.resolve("SKILL.md"),
+                "---\nname: news\ndescription: 新闻\n---\n技能正文");
+        Path target = Files.writeString(skill.resolve("reference.txt"), "before old after").toRealPath();
+        Path bindings = Files.createDirectories(profile.sourcePath().getParent().resolve("skills"));
+        Files.writeString(bindings.resolve("daily.link"), "../../../skills/news");
+        var contentReads = new AtomicInteger();
+
+        // 仅观测业务文件内容读取，保留真实 NIO 操作；路径与绑定校验的元数据读取不计入。
+        try (var observedFiles = mockStatic(Files.class, CALLS_REAL_METHODS)) {
+            observedFiles.when(() -> Files.readAllBytes(target)).thenAnswer(invocation -> {
+                contentReads.incrementAndGet();
+                return invocation.callRealMethod();
+            });
+
+            var result = call("edit_file", "{\"path\":\"" + escaped(target)
+                    + "\",\"old_text\":\"old\",\"new_text\":\"new\"}");
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.retryable()).isFalse();
+            assertThat(contentReads.get()).as("写权限被拒绝时不得先读取文件正文").isZero();
+        }
+        assertThat(Files.readString(target)).isEqualTo("before old after");
     }
 
     @Test

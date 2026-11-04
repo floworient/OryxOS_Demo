@@ -8,6 +8,7 @@ import io.oryxos.core.tool.ToolResult;
 import io.oryxos.tool.sandbox.FileAccessAction;
 import io.oryxos.tool.sandbox.FileAccessMode;
 import io.oryxos.tool.sandbox.Sandbox;
+import io.oryxos.tool.sandbox.SandboxViolationException;
 import io.oryxos.tool.sandbox.ShellExecuteAction;
 import java.io.IOException;
 import java.io.InputStream;
@@ -125,6 +126,9 @@ public final class ShellTools {
                 close(process.getOutputStream());
                 readers.shutdownNow();
             }
+        }
+        catch (SandboxViolationException exception) {
+            return failed(exception.getMessage());
         }
         catch (InterruptedException exception) {
             if (process != null) {

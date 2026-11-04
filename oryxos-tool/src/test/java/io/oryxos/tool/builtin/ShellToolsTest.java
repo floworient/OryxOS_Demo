@@ -49,6 +49,35 @@ class ShellToolsTest {
     }
 
     @Test
+    void deniedAliasesNeverStartHelperAndExposeOnlySafeReason() throws Exception {
+        Path marker = workspace.resolve("agents/shell-agent/started.txt");
+        List<String> arguments = List.of("-cp", classpath, Helper.class.getName(), "mark", marker.toString());
+        for (String alias : List.of("missing", "Java", " java")) {
+            var result = shell.tool().execute(org.springframework.ai.util.json.JsonParser.toJson(
+                    Map.of("executable", alias, "arguments", arguments)));
+            assertThat(result.success()).isFalse();
+            assertThat(result.retryable()).isFalse();
+            assertThat(result.errorMessage()).isEqualTo("Shell 命令被 Sandbox 拒绝");
+            assertThat(marker).doesNotExist();
+        }
+        assertThat(execute(List.of("mark", marker.toString()), null, 5).success()).isTrue();
+        assertThat(Files.readString(marker)).isEqualTo("started\n");
+    }
+
+    @Test
+    void extraFileRootDoesNotAuthorizeProcessWorkingDirectory() throws Exception {
+        Path business = Files.createDirectories(workspace.resolve("business"));
+        Path java = Path.of(ProcessHandle.current().info().command().orElseThrow());
+        shell = new ShellTools(new WhitelistSandbox(Set.of(), Map.of("java", java),
+                new SkillBindingResolver(workspace), List.of(business), workspace.resolve("skills")));
+        Path marker = business.resolve("started.txt");
+        var result = execute(List.of("mark", marker.toString()), business.toString(), 5);
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).isEqualTo("文件访问被 Sandbox 拒绝");
+        assertThat(marker).doesNotExist();
+    }
+
+    @Test
     void passesMetacharactersAsLiteralArgvAndUsesApprovedWorkingDirectory() {
         ToolResult result = execute(List.of("echo", "a&b", "$(touch nope)", "x;y"), null, null);
 
@@ -167,6 +196,8 @@ class ShellToolsTest {
 
         public static void main(String[] arguments) throws Exception {
             switch (arguments[0]) {
+                case "mark" -> Files.writeString(Path.of(arguments[1]), "started\n",
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
                 case "echo" -> System.out.print(String.join("|", java.util.Arrays.copyOfRange(
                         arguments, 1, arguments.length)));
                 case "flood" -> {

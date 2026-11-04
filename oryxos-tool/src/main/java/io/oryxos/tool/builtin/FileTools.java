@@ -8,6 +8,7 @@ import io.oryxos.core.tool.ToolResult;
 import io.oryxos.tool.sandbox.FileAccessAction;
 import io.oryxos.tool.sandbox.FileAccessMode;
 import io.oryxos.tool.sandbox.Sandbox;
+import io.oryxos.tool.sandbox.SandboxViolationException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -18,6 +19,9 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.FileVisitResult;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,10 +55,10 @@ public final class FileTools {
     public FileTools(Sandbox sandbox) {
         this.sandbox = java.util.Objects.requireNonNull(sandbox);
         this.tools = List.of(
-                tool("read_file", "读取当前 Agent 或已绑定 Skill 中的 UTF-8 文本文件", PATH_SCHEMA, this::read),
-                tool("write_file", "在当前 Agent 目录创建或覆盖 UTF-8 文本文件", schema("content"), this::write),
-                tool("list_dir", "列出当前 Agent 或已绑定 Skill 中的目录", PATH_SCHEMA, this::list),
-                tool("edit_file", "在当前 Agent 文件中唯一替换一段文本", editSchema(), this::edit),
+                tool("read_file", "读取批准目录或已绑定 Skill 中的 UTF-8 文本文件", PATH_SCHEMA, this::read),
+                tool("write_file", "在当前 Agent 或管理员批准目录创建或覆盖 UTF-8 文本文件", schema("content"), this::write),
+                tool("list_dir", "列出批准目录内可见的条目", PATH_SCHEMA, this::list),
+                tool("edit_file", "在获准读写的文件中唯一替换一段文本", editSchema(), this::edit),
                 tool("grep", "在批准目录中使用 Java 正则搜索 UTF-8 文本", schema("pattern"), this::grep),
                 tool("glob", "在批准目录中按 glob 模式查找路径", schema("pattern"), this::glob));
     }
@@ -92,12 +96,14 @@ public final class FileTools {
         }
         List<Path> entries;
         try (var stream = Files.list(directory)) {
-            entries = stream.sorted(java.util.Comparator.comparing(FileTools::fileName))
+            entries = stream.filter(entry -> visible(entry, FileAccessMode.LIST))
+                    .sorted(java.util.Comparator.comparing(FileTools::fileName))
                     .limit(MAX_RESULTS + 1L).toList();
         }
         boolean truncated = entries.size() > MAX_RESULTS;
         var values = new ArrayList<Map<String, Object>>();
         for (Path entry : entries.stream().limit(MAX_RESULTS).toList()) {
+            checkCancelled();
             var value = new LinkedHashMap<String, Object>();
             value.put("name", fileName(entry));
             value.put("type", Files.isSymbolicLink(entry) ? "link"
@@ -121,6 +127,7 @@ public final class FileTools {
         String newText = string(input, "new_text", true);
         Path requested = path(input);
         Path readable = approved(requested, FileAccessMode.READ);
+        Path writable = approved(requested, FileAccessMode.WRITE);
         requireRegular(readable);
         String original = decodeText(readBounded(readable));
         int first = original.indexOf(oldText);
@@ -129,7 +136,6 @@ public final class FileTools {
         }
         byte[] replacement = boundedContent(original.substring(0, first) + newText
                 + original.substring(first + oldText.length()));
-        Path writable = approved(requested, FileAccessMode.WRITE);
         requireExistingParent(writable);
         atomicWrite(writable, replacement);
         return success(JsonParser.toJson(Map.of("replacements", 1, "bytes_written", replacement.length)));
@@ -149,7 +155,13 @@ public final class FileTools {
         long totalBytes = 0;
         int visited = 0;
         boolean truncated = false;
-        for (Path file : searchableFiles(root)) {
+        SearchPaths traversal = searchablePaths(root);
+        truncated = traversal.truncated();
+        for (Path file : traversal.paths()) {
+            checkCancelled();
+            if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+                continue;
+            }
             if (++visited > MAX_SEARCH_FILES) {
                 truncated = true;
                 break;
@@ -162,12 +174,13 @@ public final class FileTools {
                 continue;
             }
             if (size > MAX_FILE_BYTES || totalBytes + size > MAX_SEARCH_BYTES) {
-                truncated = totalBytes + size > MAX_SEARCH_BYTES;
+                truncated = truncated || totalBytes + size > MAX_SEARCH_BYTES;
                 continue;
             }
             totalBytes += size;
             String text;
             try {
+                checkCancelled();
                 text = decodeText(Files.readAllBytes(file));
             }
             catch (IOException | IllegalArgumentException exception) {
@@ -175,6 +188,7 @@ public final class FileTools {
             }
             String[] lines = text.split("\\R", -1);
             for (int index = 0; index < lines.length; index++) {
+                checkCancelled();
                 if (pattern.matcher(lines[index]).find()) {
                     if (matches.size() >= MAX_RESULTS) {
                         truncated = true;
@@ -204,7 +218,10 @@ public final class FileTools {
         var matches = new ArrayList<String>();
         int visited = 0;
         boolean truncated = false;
-        for (Path file : searchablePaths(root)) {
+        SearchPaths traversal = searchablePaths(root);
+        truncated = traversal.truncated();
+        for (Path file : traversal.paths()) {
+            checkCancelled();
             if (++visited > MAX_SEARCH_FILES) {
                 truncated = true;
                 break;
@@ -221,34 +238,83 @@ public final class FileTools {
         return success(result("matches", matches, truncated));
     }
 
-    private List<Path> searchableFiles(Path root) throws IOException {
-        return searchablePaths(root).stream()
-                .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
-                        && !Files.isSymbolicLink(path))
-                .toList();
-    }
-
-    private List<Path> searchablePaths(Path root) throws IOException {
+    private SearchPaths searchablePaths(Path root) throws IOException {
         if (Files.isRegularFile(root, LinkOption.NOFOLLOW_LINKS)) {
-            return List.of(root);
+            return new SearchPaths(List.of(approved(root, FileAccessMode.READ)), false);
         }
         if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
             throw new IllegalArgumentException("搜索目标不是普通文件或目录");
         }
-        try (var stream = Files.walk(root)) {
-            return stream.filter(path -> !path.equals(root) && !Files.isSymbolicLink(path))
-                    .sorted(java.util.Comparator.comparing(path -> normalize(root.relativize(path))))
-                    .limit(MAX_SEARCH_FILES + 1L)
-                    .toList();
+        var paths = new ArrayList<Path>();
+        var visitor = new SimpleFileVisitor<Path>() {
+            private int visited;
+            private boolean truncated;
+
+            private boolean overLimit() {
+                checkCancelled();
+                truncated = ++visited > MAX_SEARCH_FILES;
+                return truncated;
+            }
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attributes) {
+                if (overLimit()) {
+                    return FileVisitResult.TERMINATE;
+                }
+                if (!visible(directory, FileAccessMode.SEARCH)) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                if (!directory.equals(root)) {
+                    paths.add(directory);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                if (overLimit()) {
+                    return FileVisitResult.TERMINATE;
+                }
+                if (!attributes.isSymbolicLink() && visible(file, FileAccessMode.READ)) {
+                    paths.add(approved(file, FileAccessMode.READ));
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        };
+        Files.walkFileTree(root, visitor);
+        paths.sort(java.util.Comparator.comparing(path -> normalize(root.relativize(path))));
+        return new SearchPaths(List.copyOf(paths), visitor.truncated);
+    }
+
+    private boolean visible(Path path, FileAccessMode mode) {
+        try {
+            approved(path, mode);
+            return true;
+        }
+        catch (SandboxViolationException exception) {
+            return false;
         }
     }
 
+    private record SearchPaths(List<Path> paths, boolean truncated) {
+    }
+
     private Path approved(Path requested, FileAccessMode mode) {
+        checkCancelled();
         Profile profile = ProfileContext.current();
         if (profile == null) {
             throw new SecurityException("缺少当前 Agent 上下文");
         }
-        return sandbox.enforce(new FileAccessAction(profile, requested, mode));
+        Path approved = sandbox.enforce(new FileAccessAction(profile, requested, mode));
+        // 正在进行的路径校验可能无法被系统中断；返回后不得继续后续业务 IO。
+        checkCancelled();
+        return approved;
+    }
+
+    private static void checkCancelled() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new java.util.concurrent.CancellationException("文件工具执行已取消");
+        }
     }
 
     private static Map<String, Object> input(String json, Set<String> allowed, Set<String> required) {
@@ -302,10 +368,12 @@ public final class FileTools {
     }
 
     private static byte[] readBounded(Path path) throws IOException {
+        checkCancelled();
         long size = Files.size(path);
         if (size > MAX_FILE_BYTES) {
             throw new IllegalArgumentException("文件超过 1 MiB 上限");
         }
+        checkCancelled();
         return Files.readAllBytes(path);
     }
 
@@ -341,6 +409,7 @@ public final class FileTools {
     }
 
     private static void atomicWrite(Path target, byte[] bytes) throws IOException {
+        checkCancelled();
         Path parent = target.getParent();
         if (parent == null) {
             throw new IOException("写入目标缺少父目录");
@@ -367,6 +436,7 @@ public final class FileTools {
     }
 
     private static void verifyParent(Path parent, Path expectedReal, Object expectedKey) throws IOException {
+        checkCancelled();
         var attributes = Files.readAttributes(parent, java.nio.file.attribute.BasicFileAttributes.class,
                 LinkOption.NOFOLLOW_LINKS);
         if (!attributes.isDirectory() || attributes.isSymbolicLink()
@@ -419,11 +489,19 @@ public final class FileTools {
             @Override
             public ToolResult execute(String jsonInput) {
                 try {
+                    checkCancelled();
                     ToolResult result = operation.execute(jsonInput);
+                    checkCancelled();
                     if (result.content().getBytes(StandardCharsets.UTF_8).length > MAX_OUTPUT_BYTES) {
                         return failed("文件工具输出超过上限");
                     }
                     return result;
+                }
+                catch (java.util.concurrent.CancellationException exception) {
+                    return failed("文件工具执行已取消");
+                }
+                catch (SandboxViolationException exception) {
+                    return failed(exception.getMessage());
                 }
                 catch (RuntimeException | IOException exception) {
                     return failed("文件工具执行失败");

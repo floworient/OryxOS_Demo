@@ -55,6 +55,9 @@ springdoc:
     path: /swagger-ui
 
 oryxos:
+  file:
+    # 额外普通目录，启动时校验；为空仍保留 Agent 读写及绑定 Skill 只读。
+    allowed-paths: []
   memory:
     backend: markdown
     archival-max-characters: 4000

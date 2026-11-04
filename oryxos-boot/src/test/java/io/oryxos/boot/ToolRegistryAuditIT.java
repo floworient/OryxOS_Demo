@@ -67,6 +67,49 @@ class ToolRegistryAuditIT {
         }
     }
 
+    @Test
+    void deniedShellArgumentsDoNotLeakCredentialsIntoPersistedAudit() throws Exception {
+        Path agent = Files.createDirectories(workspace.resolve("agents/runner"));
+        Path source = Files.writeString(agent.resolve("AGENT.md"), "---\nname: runner\n---\n审计契约");
+        var application = new SpringApplication(TestApplication.class);
+        application.setWebApplicationType(WebApplicationType.NONE);
+        application.setDefaultProperties(Map.of(
+                "oryxos.workspace", workspace.toString(),
+                "spring.datasource.url", "jdbc:sqlite:" + workspace.resolve("shell-audit.db"),
+                "spring.datasource.driver-class-name", "org.sqlite.JDBC",
+                "spring.jpa.hibernate.ddl-auto", "validate",
+                "spring.jpa.properties.hibernate.dialect", "org.hibernate.community.dialect.SQLiteDialect",
+                "spring.flyway.locations", "classpath:db/migration/sqlite"));
+        String password = "canary-shell-password-not-real";
+        String token = "canary-shell-token-not-real";
+
+        try (var context = application.run()) {
+            var profile = new Profile("runner", "执行", new Profile.Identity("助手", "执行"),
+                    new Profile.ProviderRef("stub", "stub", null), List.of("shell"), List.of(),
+                    List.of(), List.of(), List.of(), new Profile.Settings(3, 10), source);
+            ProfileContext.set(profile);
+
+            // 未授权 alias 不启动进程；审计仍须保护分离参数及 --key=value 中的凭证。
+            var result = context.getBean(ToolExecutor.class).execute("session-denied-shell",
+                    new ToolCallIntent("call-denied-shell", "shell",
+                            "{\"executable\":\"unconfigured\",\"arguments\":[\"--password\",\""
+                                    + password + "\",\"--token=" + token + "\"]}"));
+
+            assertThat(result.success()).isFalse();
+            assertThat(result.retryable()).isFalse();
+            assertThat(result.errorMessage()).isNotBlank().doesNotContain(password, token);
+            var rows = context.getBean(JdbcTemplate.class).queryForList(
+                    "select input_json, result_json, success, error_message from tool_invocations "
+                            + "where session_id=? and tool_name=?", "session-denied-shell", "shell");
+            assertThat(rows).singleElement().satisfies(row -> {
+                assertThat(((Number) row.get("success")).intValue()).isZero();
+                assertThat(row.get("error_message")).isEqualTo(result.errorMessage());
+                assertThat(row.get("result_json").toString()).doesNotContain(password, token);
+                assertThat(row.get("input_json").toString()).doesNotContain(password, token);
+            });
+        }
+    }
+
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @Import({StorageConfiguration.class, ToolConfiguration.class,
