@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.nio.file.LinkOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.support.CronExpression;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -137,9 +140,31 @@ public final class AgentLoader {
             Map<String, Object> map = castMap((Map<?, ?>) item, "schedules");
             String key = string(map, "key");
             require(keys.add(key), "schedules.key", "同一 Agent 内必须唯一");
-            result.add(new Profile.ScheduleRef(key, string(map, "cron"), string(map, "zone"), string(map, "message")));
+            String cron = validCron(string(map, "cron"));
+            String zone = validZone(string(map, "zone"));
+            result.add(new Profile.ScheduleRef(key, cron, zone, string(map, "message")));
         }
         return result;
+    }
+
+    private static String validCron(String value) {
+        try {
+            CronExpression.parse(value);
+            return value;
+        }
+        catch (IllegalArgumentException exception) {
+            throw new ProfileValidationException("schedules.cron", "必须是合法 cron 表达式");
+        }
+    }
+
+    private static String validZone(String value) {
+        try {
+            ZoneId.of(value);
+            return value;
+        }
+        catch (DateTimeException exception) {
+            throw new ProfileValidationException("schedules.zone", "必须是合法时区");
+        }
     }
 
     private static Profile.Settings settings(Object value) {

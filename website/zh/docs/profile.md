@@ -62,6 +62,16 @@ settings:
 
 Provider 凭证不属于 Agent frontmatter。通过工作区 `application.yaml` 与环境变量配置 Provider，不在 `AGENT.md` 中写 API key。
 
+## 定时任务行为与边界
+
+应用启动时会从所有已加载 Profile 的 `schedules` 动态注册规则。`cron` 使用 Spring 六字段格式，`zone` 必须是 Java `ZoneId` 可解析的显式时区（推荐使用 `Asia/Shanghai` 这类 IANA region ID；固定 offset 不处理夏令时变化）；非法 cron、非法时区、空字段或同一 Agent 内重复 `key` 会使整个 Agent 在加载阶段被拒绝。
+
+每条规则的稳定身份只由 `(Agent name, schedule key)` 派生。修改 cron、时区或消息不会改变身份。触发时运行时固定使用 `channel=scheduler`、`user=scheduler` 和目标 Profile 名取得确定性 Session，再调用与 CLI、HTTP 相同的 `AgentService` 链路；不会建立独立的 ReAct 或 Tool 执行通道。
+
+同一 Profile 的所有规则在单个 JVM 内共享互斥锁。已有执行尚未结束时，新触发会立即跳过，不排队也不自动补跑；不同 Profile 可独立执行。执行失败会被隔离并记录安全的错误类型，不会自动重试。
+
+当前调度 Store 是线程安全的内存实现。活动定义和执行历史不会跨重启恢复，规则变更通过重启重新加载。本阶段没有调度管理 REST/CLI、运行时修改 cron、启停、立即执行、失败重试或多实例协调；多实例部署不会去重，同一规则可能在每个实例各执行一次。
+
 ## Tool 可见性
 
 `tools:` 与 `mcp_servers:` 是两条不同的授权路径：

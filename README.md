@@ -101,6 +101,14 @@ schedules:
 
 公共 Skill 位于 `.oryxos/skills/<name>/`。Agent 通过自身 `skills/` 下的普通 UTF-8 `.link` 相对引用文件选择可见 Skill；它不是操作系统软连接。运行时只预载 Skill 的名称、描述和已校验路径，正文与附属资源由 Agent 按需读取。
 
+### 定时任务核心能力
+
+应用启动时会读取所有已加载 Profile 的 `schedules`，按每条规则声明的 cron 和显式时区动态注册，不使用写死业务规则的 `@Scheduled`。任务身份由 `(Agent name, schedule key)` 稳定派生，因此修改 cron、时区或消息不会改变身份；触发时固定使用 `channel=scheduler`、`user=scheduler` 的确定性 Session，并复用与 CLI、HTTP 相同的 `AgentService`、ReAct、Tool 和审计链路。
+
+同一 Profile 的所有规则在单个 JVM 内共享互斥锁：已有任务运行时，后续触发立即跳过且不排队；不同 Profile 可由 4 线程调度池并行执行。执行异常会被当前回调隔离，后续触发仍可继续。
+
+当前阶段的调度定义与执行历史只保存在进程内存中，重启后由 `AGENT.md` 重新注册且历史不会恢复。尚未提供调度管理 REST/CLI、运行时修改、自动重试、持久化恢复或多实例去重；多实例部署时同一规则可能在每个实例各执行一次。
+
 <a id="architecture"></a>
 
 ## 架构

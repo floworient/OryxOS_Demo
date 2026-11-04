@@ -62,6 +62,16 @@ Inspect configuration and logs in the Agent directory. Use only approved tools f
 
 Provider credentials are not Agent frontmatter. Configure providers through workspace `application.yaml` plus environment variables; do not put API keys in `AGENT.md`.
 
+## Scheduler behavior and boundaries
+
+At application startup, OryxOS dynamically registers `schedules` from every loaded Profile. `cron` uses Spring's six-field format, and `zone` must be an explicit value accepted by Java `ZoneId` (an IANA region ID such as `Asia/Shanghai` is recommended; a fixed offset does not follow daylight-saving changes). An invalid cron or zone, a blank field, or a duplicate `key` within one Agent rejects that entire Agent during loading.
+
+Each rule has a stable identity derived only from `(Agent name, schedule key)`. Changing its cron, zone, or message does not change that identity. On a trigger, the runtime obtains a deterministic Session with `channel=scheduler`, `user=scheduler`, and the target Profile name, then calls the same `AgentService` chain used by CLI and HTTP. It does not create a separate ReAct or Tool execution path.
+
+All rules for one Profile share a single-process lock. If one execution is still running, a new trigger is skipped immediately, without queuing or a delayed catch-up run; different Profiles can execute independently. A failed execution is isolated and records only a safe error type. It is not retried automatically.
+
+The current scheduler Store is an in-memory, thread-safe implementation. Active definitions and execution history do not survive a restart; definitions are loaded again from `AGENT.md`. This phase has no scheduler management REST/CLI, runtime cron changes, enable/disable or run-now controls, failure retries, or multi-instance coordination. With multiple instances, the same rule may run once on each instance.
+
 ## Tool visibility
 
 `tools:` and `mcp_servers:` are separate authorization paths:
