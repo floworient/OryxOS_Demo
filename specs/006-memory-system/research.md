@@ -43,7 +43,7 @@ archival 按 `"- [timestamp] content\n"` 的渲染字符数计算，从最新向
 
 ## R6. SQLite schema 与查询语义
 
-**Decision**: 新增 Flyway V5 表：`id INTEGER PRIMARY KEY AUTOINCREMENT`、`owner_key VARCHAR(64)`、`scope VARCHAR(16)`、`content TEXT`、`created_at TIMESTAMP`，并建立 `(owner_key, scope, created_at, id)` 索引。Repository 只按 owner/scope 稳定升序读取；大小写匹配与最近 N 选择在 Java 完成。
+**Decision**: 新增 Flyway V5 表：`id INTEGER PRIMARY KEY AUTOINCREMENT`、`owner_key VARCHAR(64)`、`scope VARCHAR(16)`、`content TEXT`、`created_at TIMESTAMP`，并建立 `(owner_key, scope, created_at, id)` 索引。课程对齐后 core 单独全量读取，archival 按时间/id 倒序分页，字符预算满足后停止。召回使用 SQLite instr/lower 筛选 ASCII 候选，非 ASCII 正文保留候选以避免 SQLite lower 的 Unicode 局限，再用 Java Locale.ROOT 复核；命中最新 N 后停止，结果升序返回。
 
 **Rationale**: 保持 SQLite/PostgreSQL 未来一致语义，不依赖 collation；id 解决同一时间戳稳定排序。
 
@@ -59,7 +59,7 @@ archival 按 `"- [timestamp] content\n"` 的渲染字符数计算，从最新向
 
 ## R8. Mem0 infer 行为
 
-**Decision**: `save_memory` 对 Mem0 发送单条 user message、`infer=false`，将调用方 content 作为本体保存；不允许外部自动提炼改变 core/archival 明确写入语义。
+**Decision**: `save_memory` 对 Mem0 发送单条 user message，默认 `infer=false`。课程对齐后允许显式配置 `oryxos.memory.mem0.archival-infer=true`，仅对 archival 开启服务端提炼；core 始终不提炼。提炼可能改变正文/合并记录，须真实服务验证 metadata 分区隔离，不能将开关接通视为智能记忆验收通过。
 
 **Rationale**: 本 feature 明确不做自动抽取，三后端应尽量保持可比较的内容语义。未来若允许 `infer=true`，需单独配置与 spec。
 
@@ -100,6 +100,6 @@ archival 按 `"- [timestamp] content\n"` 的渲染字符数计算，从最新向
 
 ## R13. 015 预留边界
 
-**Decision**: `MemoryCapabilities` 是单值 enum：Markdown/SQLite 返回 `KEYWORD`，Mem0 返回 `DELEGATED`；保留 `HYBRID_BUILTIN`。`archivalEntries(owner)` 返回未裁剪本体；Mem0 返回空列表。当前门面遇到 `HYBRID_BUILTIN` 抛装配错误。
+**Decision**: `MemoryCapabilities` 是单值 enum：Markdown/SQLite 返回 `KEYWORD`，Mem0 返回 `DELEGATED`；保留 `HYBRID_BUILTIN`。`archivalEntries(owner)` 在三个后端均返回未裁剪归档条目，Mem0 通过 owner 查询并过滤分区。当前门面遇到 `HYBRID_BUILTIN` 抛装配错误。
 
 **Rationale**: 015 可在不破坏 Store/Service 调用方的情况下加入检索管线和索引对账，同时本 feature 不提供假混合检索。

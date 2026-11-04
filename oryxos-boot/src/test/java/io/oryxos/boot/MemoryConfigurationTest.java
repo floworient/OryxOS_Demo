@@ -46,6 +46,32 @@ class MemoryConfigurationTest {
 
     private HttpServer server;
 
+    @Test
+    void bindsCustomContentLimitAndOptInArchivalInference() {
+        runner().withPropertyValues("oryxos.memory.entry-max-characters=5000",
+                        "oryxos.memory.mem0.archival-infer=true")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    var settings = context.getBean(MemoryProperties.class);
+                    assertThat(settings.entryMaxCharacters()).isEqualTo(5000);
+                    assertThat(settings.mem0().archivalInfer()).isTrue();
+                    var profile = mock(io.oryxos.core.profile.Profile.class);
+                    when(profile.name()).thenReturn("alpha");
+                    io.oryxos.core.profile.ProfileContext.set(profile);
+                    try {
+                        // 通过工具校验后到达后端（目录不存在），不能被旧的 4000 字符常量提前拒绝。
+                        org.assertj.core.api.Assertions.assertThatThrownBy(() -> context
+                                .getBean(io.oryxos.memory.MemoryTools.class)
+                                .saveMemory("x".repeat(4500), " CORE "))
+                                .isInstanceOf(io.oryxos.core.memory.MemoryException.class)
+                                .hasMessageContaining("目录");
+                    }
+                    finally {
+                        io.oryxos.core.profile.ProfileContext.clear();
+                    }
+                });
+    }
+
     @AfterEach
     void stopServer() {
         if (server != null) {

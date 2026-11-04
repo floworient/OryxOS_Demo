@@ -91,6 +91,27 @@ class JpaMemoryStoreTest extends LongTermMemoryStoreContract {
         assertThat(repository.count()).isZero();
     }
 
+    @Test
+    void recallTreatsWildcardsLiterallyAndPreservesUnicodeCaseFoldingAcrossPages() {
+        var scope = io.oryxos.core.memory.MemoryScope.ARCHIVAL;
+        memory.append(firstOwner(), "literal 100%_", scope);
+        memory.append(firstOwner(), "İSTANBUL", scope);
+        for (int index = 0; index < 140; index++) {
+            memory.append(firstOwner(), "无关 " + index, scope);
+        }
+        memory.append(secondOwner(), "100%_ istanbul", scope);
+        assertThat(memory.recallByKeyword(firstOwner(), "100%_"))
+                .extracting(item -> item.content()).containsExactly("literal 100%_");
+        assertThat(memory.recallByKeyword(firstOwner(), "i"))
+                .extracting(item -> item.content()).containsExactly("literal 100%_", "İSTANBUL");
+        var snapshot = memory.load(firstOwner());
+        assertThat(snapshot.archivalTruncated()).isTrue();
+        assertThat(snapshot.archival().getLast().content()).isEqualTo("无关 139");
+        var largeWindow = new JpaMemoryStore(repository, Clock.systemUTC(), 10000, 20, 512);
+        assertThat(largeWindow.load(firstOwner()).archival()).hasSize(142);
+        assertThat(largeWindow.load(firstOwner()).archivalTruncated()).isFalse();
+    }
+
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @Import(StorageConfiguration.class)

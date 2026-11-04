@@ -186,7 +186,7 @@ public final class ToolExecutor implements AutoCloseable {
         var value = JsonParser.getObjectMapper().readTree(input);
         String content = value.path("content").isTextual() ? value.path("content").asText() : "";
         String requestedScope = value.path("scope").isTextual()
-                ? value.path("scope").asText().toLowerCase(java.util.Locale.ROOT) : "archival";
+                ? value.path("scope").asText().trim().toLowerCase(java.util.Locale.ROOT) : "archival";
         String scope = requestedScope.equals("core") || requestedScope.equals("archival")
                 ? requestedScope : "<invalid>";
         byte[] bytes = content.getBytes(java.nio.charset.StandardCharsets.UTF_8);

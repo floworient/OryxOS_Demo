@@ -13,6 +13,9 @@ import io.oryxos.storage.repository.MemoryEntryRepository;
 import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.Locale;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.dao.DataAccessException;
 
 /** SQLite/JPA 长期记忆后端。 */
@@ -55,18 +58,61 @@ public final class JpaMemoryStore implements LongTermMemoryStore {
 
     @Override
     public MemorySnapshot load(MemoryOwner owner) {
-        List<MemoryEntry> all = entries(owner);
-        List<MemoryEntry> core = all.stream().filter(item -> item.scope() == MemoryScope.CORE).toList();
-        List<MemoryEntry> archival = all.stream()
-                .filter(item -> item.scope() == MemoryScope.ARCHIVAL).toList();
-        List<MemoryEntry> selected = newestComplete(archival);
-        return new MemorySnapshot(owner, core, selected, selected.size() < archival.size(),
-                "sqlite", capabilities());
+        try {
+            List<MemoryEntry> core = repository
+                    .findByOwnerKeyAndScopeOrderByCreatedAtAscIdAsc(owner.key(), MemoryScope.CORE)
+                    .stream().map(MemoryEntryEntity::toDomain).toList();
+            List<MemoryEntry> selected = new ArrayList<>();
+            int used = 0;
+            for (int page = 0; ; page++) {
+                var batch = repository.findByOwnerKeyAndScopeOrderByCreatedAtDescIdDesc(
+                        owner.key(), MemoryScope.ARCHIVAL, PageRequest.of(page, 64));
+                for (var entity : batch) {
+                    MemoryEntry entry = entity.toDomain();
+                    int length = MemoryEntryPolicy.promptLineCharacters(entry.content());
+                    if ((long) used + length > archivalMaxCharacters) {
+                        return snapshot(owner, core, selected, true);
+                    }
+                    selected.add(entry);
+                    used += length;
+                }
+                if (batch.size() < 64) {
+                    return snapshot(owner, core, selected, false);
+                }
+            }
+        }
+        catch (RuntimeException exception) {
+            throw mapFailure(exception);
+        }
     }
 
     @Override
     public List<MemoryEntry> recallByKeyword(MemoryOwner owner, String keyword) {
-        return MemoryEntryPolicy.latestKeywordMatches(archivalEntries(owner), keyword, recallMaxResults);
+        if (keyword == null || keyword.isBlank()) {
+            throw new MemoryException(MemoryException.Code.INVALID_CONTENT, "召回关键词不能为空");
+        }
+        String query = keyword.trim().toLowerCase(Locale.ROOT);
+        try {
+            List<MemoryEntry> selected = new ArrayList<>();
+            for (int page = 0; ; page++) {
+                var batch = repository.keywordCandidates(owner.key(), query, PageRequest.of(page, 64));
+                for (var entity : batch) {
+                    MemoryEntry entry = entity.toDomain();
+                    if (entry.content().toLowerCase(Locale.ROOT).contains(query)) {
+                        selected.add(entry);
+                        if (selected.size() == recallMaxResults) {
+                            return MemoryEntryPolicy.stable(selected);
+                        }
+                    }
+                }
+                if (batch.size() < 64) {
+                    return MemoryEntryPolicy.stable(selected);
+                }
+            }
+        }
+        catch (RuntimeException exception) {
+            throw mapFailure(exception);
+        }
     }
 
     @Override
@@ -86,18 +132,10 @@ public final class JpaMemoryStore implements LongTermMemoryStore {
         }
     }
 
-    private List<MemoryEntry> entries(MemoryOwner owner) {
-        try {
-            return MemoryEntryPolicy.stable(repository.findByOwnerKeyOrderByCreatedAtAscIdAsc(owner.key())
-                    .stream().map(MemoryEntryEntity::toDomain).toList());
-        }
-        catch (RuntimeException exception) {
-            throw mapFailure(exception);
-        }
-    }
-
-    private List<MemoryEntry> newestComplete(List<MemoryEntry> entries) {
-        return MemoryEntryPolicy.newestWithinPromptLimit(entries, archivalMaxCharacters);
+    private MemorySnapshot snapshot(MemoryOwner owner, List<MemoryEntry> core,
+            List<MemoryEntry> archival, boolean truncated) {
+        return new MemorySnapshot(owner, core, MemoryEntryPolicy.stable(archival), truncated,
+                "sqlite", capabilities());
     }
 
     private static MemoryException mapFailure(RuntimeException exception) {

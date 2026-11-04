@@ -70,6 +70,7 @@ oryxos:
       connect-timeout: 3s
       request-timeout: 10s
       max-response-bytes: 1048576
+      archival-infer: false
   http:
     allowed-domains: []
   tool:

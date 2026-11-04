@@ -18,6 +18,7 @@ public record MemoryProperties(
             @DefaultValue("") String apiKey,
             @DefaultValue("3s") Duration connectTimeout,
             @DefaultValue("10s") Duration requestTimeout,
-            @DefaultValue("1048576") int maxResponseBytes) {
+            @DefaultValue("1048576") int maxResponseBytes,
+            @DefaultValue("false") boolean archivalInfer) {
     }
 }

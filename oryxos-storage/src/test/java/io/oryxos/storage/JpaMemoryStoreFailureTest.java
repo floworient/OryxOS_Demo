@@ -16,7 +16,8 @@ class JpaMemoryStoreFailureTest {
     @Test
     void mapsRepositoryOutageToSanitizedStoreUnavailable() {
         MemoryEntryRepository repository = mock(MemoryEntryRepository.class);
-        when(repository.findByOwnerKeyOrderByCreatedAtAscIdAsc("alpha"))
+        when(repository.findByOwnerKeyAndScopeOrderByCreatedAtAscIdAsc(
+                "alpha", io.oryxos.core.memory.MemoryScope.CORE))
                 .thenThrow(new DataAccessResourceFailureException("jdbc:sqlite:secret-path"));
         var store = new JpaMemoryStore(repository, Clock.systemUTC(), 4000, 20, 4000);
 
