@@ -8,11 +8,29 @@ import java.util.List;
 import java.util.Map;
 
 import io.oryxos.core.audit.LlmCallRecord;
+import io.oryxos.core.provider.ProviderCatalog;
+import io.oryxos.core.provider.ProviderService;
 import io.oryxos.provider.support.StubChatModel;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.prompt.Prompt;
 
 class ProviderRoutingTest {
+
+    @Test
+    void exposesImmutableConfiguredProviderNamesThroughCoreContract() {
+        ProviderCatalog catalog = new ProviderRegistry(
+                List.of(definition("alpha"), definition("beta")), Map.of());
+
+        assertThat(catalog.configuredNames()).containsExactlyInAnyOrder("alpha", "beta");
+        assertThat(catalog.configuredNames()).isUnmodifiable();
+    }
+
+    @Test
+    void providerServiceRemainsAFunctionalInterface() {
+        ProviderService service = (sessionId, profile, prompt) -> null;
+
+        assertThat(service).isNotNull();
+    }
 
     @Test
     void twoProvidersAndAgentsNeverCrossRouteAndAuditActualNames() {

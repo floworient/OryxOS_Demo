@@ -2,6 +2,8 @@ package io.oryxos.storage;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import io.oryxos.core.session.Session;
+import io.oryxos.core.session.SessionAcquisition;
+import io.oryxos.core.session.SessionDetails;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.session.SessionSummary;
 import io.oryxos.storage.entity.SessionEntity;
@@ -11,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.time.Instant;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
@@ -29,19 +32,46 @@ public class JpaSessionManager implements SessionManager {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Session getOrCreate(String channel, String userId, String profileName) {
-        Session candidate = new Session(channel, userId, profileName);
-        return find(candidate.id()).orElse(candidate);
+    @Transactional
+    public synchronized Session getOrCreate(String channel, String userId, String profileName) {
+        SessionAcquisition acquired = acquire(channel, userId, profileName);
+        return repository.findByIdAndStatus(acquired.sessionId(), "active")
+                .map(entity -> entity.restore(decode(entity.messagesJson())))
+                .orElseThrow(() -> new IllegalStateException("活动会话获取后不可见"));
     }
 
     @Override
     @Transactional
-    public void save(Session session) {
+    public synchronized SessionAcquisition acquire(String channel, String userId, String profileName) {
+        try {
+            Optional<SessionEntity> active = repository
+                    .findFirstByChannelAndUserIdAndProfileNameAndStatus(
+                            channel, userId, profileName, "active");
+            if (active.isPresent()) {
+                SessionEntity entity = active.orElseThrow();
+                return new SessionAcquisition(entity.id(), false);
+            }
+            Session session = new Session(channel, userId, profileName);
+            String json = JsonParser.toJson(List.of());
+            repository.saveAndFlush(new SessionEntity(session, json));
+            return new SessionAcquisition(session.id(), true);
+        }
+        catch (RuntimeException exception) {
+            throw new IllegalStateException("会话获取或创建失败", exception);
+        }
+    }
+
+    @Override
+    @Transactional
+    public synchronized void save(Session session) {
         try {
             List<Map<String, Object>> data = session.messages().stream().map(JpaSessionManager::encode).toList();
             String json = JsonParser.toJson(data);
             decode(json);
+            Optional<SessionEntity> stored = repository.findById(session.id());
+            if (stored.isPresent() && !"active".equals(stored.orElseThrow().status())) {
+                throw new IllegalStateException("不能保存已归档会话");
+            }
             repository.saveAndFlush(new SessionEntity(session, json));
         }
         catch (RuntimeException exception) {
@@ -53,10 +83,41 @@ public class JpaSessionManager implements SessionManager {
     @Transactional(readOnly = true)
     public Optional<Session> find(String sessionId) {
         try {
-            return repository.findById(sessionId).map(entity -> entity.restore(decode(entity.messagesJson())));
+            return repository.findByIdAndStatus(sessionId, "active")
+                    .map(entity -> entity.restore(decode(entity.messagesJson())));
         }
         catch (RuntimeException exception) {
             throw new IllegalStateException("会话恢复失败 sessionId=" + sessionId, exception);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SessionDetails> details(String sessionId) {
+        try {
+            return repository.findById(sessionId)
+                    .map(entity -> entity.details(decode(entity.messagesJson())));
+        }
+        catch (RuntimeException exception) {
+            throw new IllegalStateException("会话详情读取失败 sessionId=" + sessionId, exception);
+        }
+    }
+
+    @Override
+    @Transactional
+    public synchronized boolean archive(String sessionId) {
+        try {
+            Optional<SessionEntity> active = repository.findByIdAndStatus(sessionId, "active");
+            if (active.isEmpty()) {
+                return false;
+            }
+            SessionEntity entity = active.orElseThrow();
+            entity.archive(Instant.now());
+            repository.saveAndFlush(entity);
+            return true;
+        }
+        catch (RuntimeException exception) {
+            throw new IllegalStateException("会话归档失败 sessionId=" + sessionId, exception);
         }
     }
 

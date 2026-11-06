@@ -3,7 +3,6 @@ package io.oryxos.core.session;
 import io.oryxos.core.provider.ProviderResponse;
 import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.tool.ToolResult;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,20 +30,42 @@ public final class Session {
     private Instant lastActiveAt;
 
     public Session(String channel, String userId, String profileName) {
-        this(channel, userId, profileName, Instant.now(), Instant.now(), List.of());
+        this(UUID.randomUUID().toString(), channel, userId, profileName,
+                Instant.now(), Instant.now(), List.of());
     }
 
     public Session(String channel, String userId, String profileName, Instant createdAt,
             Instant lastActiveAt, List<Message> messages) {
+        this(UUID.randomUUID().toString(), channel, userId, profileName,
+                createdAt, lastActiveAt, messages);
+    }
+
+    public Session(String id, String channel, String userId, String profileName, Instant createdAt,
+            Instant lastActiveAt, List<? extends Message> messages) {
+        this.id = canonicalId(id);
         this.channel = required(channel);
         this.userId = required(userId);
         this.profileName = required(profileName);
-        String identity = channel.length() + ":" + channel + userId.length() + ":" + userId
-                + profileName.length() + ":" + profileName;
-        this.id = UUID.nameUUIDFromBytes(identity.getBytes(StandardCharsets.UTF_8)).toString();
         this.createdAt = java.util.Objects.requireNonNull(createdAt);
         this.lastActiveAt = java.util.Objects.requireNonNull(lastActiveAt);
-        this.messages.addAll(messages.stream().map(Session::snapshot).toList());
+        if (lastActiveAt.isBefore(createdAt)) {
+            throw new IllegalArgumentException("会话最后活跃时间不能早于创建时间");
+        }
+        this.messages.addAll(java.util.Objects.requireNonNull(messages).stream()
+                .map(Session::snapshotMessage).toList());
+    }
+
+    private static String canonicalId(String value) {
+        try {
+            String canonical = UUID.fromString(required(value)).toString();
+            if (!canonical.equals(value)) {
+                throw new IllegalArgumentException("会话标识必须是规范 UUID");
+            }
+            return canonical;
+        }
+        catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("会话标识必须是规范 UUID", exception);
+        }
     }
 
     private static String required(String value) {
@@ -79,7 +100,7 @@ public final class Session {
     }
 
     public List<Message> messages() {
-        return messages.stream().map(Session::snapshot).toList();
+        return messages.stream().map(Session::snapshotMessage).toList();
     }
 
     public void append(String text) {
@@ -106,7 +127,7 @@ public final class Session {
         lastActiveAt = Instant.now();
     }
 
-    private static Message snapshot(Message message) {
+    static Message snapshotMessage(Message message) {
         if (message instanceof UserMessage) {
             return new UserMessage(message.getText());
         }

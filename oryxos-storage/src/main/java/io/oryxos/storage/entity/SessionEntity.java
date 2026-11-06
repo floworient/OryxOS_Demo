@@ -1,7 +1,9 @@
 package io.oryxos.storage.entity;
 
 import io.oryxos.core.session.Session;
+import io.oryxos.core.session.SessionDetails;
 import io.oryxos.core.session.SessionSummary;
+import io.oryxos.core.session.SessionStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -60,6 +62,22 @@ public class SessionEntity {
         return messagesJson;
     }
 
+    public String id() {
+        return id;
+    }
+
+    public String status() {
+        return status;
+    }
+
+    public void archive(Instant archivedAt) {
+        if (!"active".equals(status)) {
+            throw new IllegalStateException("只能归档活动会话");
+        }
+        this.status = "archived";
+        this.archivedAt = java.util.Objects.requireNonNull(archivedAt);
+    }
+
     public SessionSummary summary() {
         return new SessionSummary(id, profileName, status, lastActiveAt);
     }
@@ -68,10 +86,16 @@ public class SessionEntity {
         if (!"active".equals(status)) {
             throw new IllegalStateException("本节不支持恢复已归档会话");
         }
-        var session = new Session(channel, userId, profileName, createdAt, lastActiveAt, messages);
-        if (!session.id().equals(id)) {
-            throw new IllegalStateException("会话身份与存储标识不一致");
-        }
-        return session;
+        return new Session(id, channel, userId, profileName, createdAt, lastActiveAt, messages);
+    }
+
+    public SessionDetails details(List<Message> messages) {
+        SessionStatus sessionStatus = switch (status) {
+            case "active" -> SessionStatus.ACTIVE;
+            case "archived" -> SessionStatus.ARCHIVED;
+            default -> throw new IllegalStateException("未知会话状态");
+        };
+        return new SessionDetails(id, channel, userId, profileName, sessionStatus,
+                createdAt, lastActiveAt, archivedAt, messages);
     }
 }
