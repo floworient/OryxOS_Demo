@@ -215,6 +215,8 @@ java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar serve --port 80
 
 启动完成后访问 [http://localhost:8080](http://localhost:8080) 查看 OryxOS 项目首页，API 文档位于 [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)。
 
+当前 Web Service 提供连续 Session 的创建、发消息、查询和归档，无状态 Agent 调用，以及 Profile、Memory、Tool、Health、Info 共 10 个核心 REST 端点；统一使用包含 `code`、`message`、`data`、`timestamp` 的响应信封。详细契约见[中文 REST API 参考](website/zh/docs/api.md)。当前接口没有认证、RBAC 或限流，且会话互斥只保证单 JVM 行为，应部署在受网关和网络策略保护的可信内网。
+
 飞书、企微和钉钉模块当前尚无可运行的渠道适配器；`gateway` 只报告实际装配的 HTTP/Channel 组件，不把模块标记类当作已实现渠道。
 
 <a id="roadmap"></a>
@@ -226,7 +228,7 @@ java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar serve --port 80
 - [x] **Agent Runtime**：实现 ReAct Loop、`ToolExecutor`、12 条 CLI 命令和基础 Session。
 - [x] **Tool Runtime**：实现统一注册、11 个基础 Tool、Java `@Tool`、MCP Client 和应用层 Sandbox。
 - [ ] **Memory**：完成长期记忆、分区语义和 Memory Tool。
-- [ ] **Web API**：提供 REST API、OpenAPI 和统一错误响应。
+- [x] **Web API**：提供 10 个核心 REST 端点、OpenAPI、统一响应和错误映射。
 - [x] **Persistence & Audit**：完成 SQLite 持久化、Flyway 迁移和调用审计。
 - [ ] **Multi-Agent Runtime**：支持多 Agent、动态调度和端到端示例。
 - [ ] **Enterprise Integration**：增加知识库、人格和飞书、企业微信、钉钉渠道。

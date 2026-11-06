@@ -40,7 +40,8 @@ class MemoryApiControllerTest {
     @BeforeEach
     void setUp() {
         profiles.register(profile);
-        mvc = MockMvcBuilders.standaloneSetup(new MemoryApiController(profiles, memory))
+        mvc = MockMvcBuilders.standaloneSetup(
+                        new MemoryApiController(new MemoryQueryService(profiles, memory)))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
@@ -77,6 +78,20 @@ class MemoryApiControllerTest {
                 .andExpect(jsonPath("$.data.core").isEmpty())
                 .andExpect(jsonPath("$.data.archival").isEmpty());
         verify(memory).loadLongTerm(profile);
+    }
+
+    @Test
+    void queryAndCompatibilityRoutesUseTheSameProjection() throws Exception {
+        MemoryOwner owner = MemoryOwner.agent("daily-tech");
+        when(memory.loadLongTerm(profile)).thenReturn(new MemorySnapshot(owner, List.of(), List.of(),
+                false, "sqlite", MemoryCapabilities.KEYWORD));
+
+        mvc.perform(get("/api/v1/memory").queryParam("agentName", "daily-tech"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.owner").value("daily-tech"));
+        mvc.perform(get("/api/v1/agents/daily-tech/memory"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.owner").value("daily-tech"));
     }
 
     @Test

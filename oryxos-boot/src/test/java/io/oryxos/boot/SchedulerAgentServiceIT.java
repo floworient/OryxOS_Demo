@@ -14,7 +14,6 @@ import io.oryxos.core.provider.ProviderService;
 import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.scheduler.ScheduleId;
 import io.oryxos.core.scheduler.ScheduledTaskStore;
-import io.oryxos.core.session.Session;
 import io.oryxos.core.tool.OryxTool;
 import io.oryxos.core.tool.ToolResult;
 import io.oryxos.provider.DefaultProviderService;
@@ -64,8 +63,11 @@ class SchedulerAgentServiceIT {
 
             callback.run();
 
-            String sessionId = new Session("scheduler", "scheduler", "weather").id();
             JdbcTemplate jdbc = context.getBean(JdbcTemplate.class);
+            String sessionId = jdbc.queryForObject("""
+                    select session_id from sessions
+                    where channel='scheduler' and user_id='scheduler' and profile_name='weather'
+                    """, String.class);
             assertThat(jdbc.queryForObject(
                             "select count(*) from sessions where session_id=?", Integer.class, sessionId))
                     .isEqualTo(1);

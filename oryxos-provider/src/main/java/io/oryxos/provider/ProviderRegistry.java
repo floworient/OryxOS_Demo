@@ -8,11 +8,12 @@ import java.util.Set;
 
 import io.oryxos.core.provider.ProviderErrorCode;
 import io.oryxos.core.provider.ProviderException;
+import io.oryxos.core.provider.ProviderCatalog;
 import org.springframework.ai.chat.model.ChatModel;
 import io.oryxos.provider.dashscope.DashScopeChatModelFactory;
 import io.oryxos.provider.openai.OpenAiCompatibleChatModelFactory;
 
-public final class ProviderRegistry {
+public final class ProviderRegistry implements ProviderCatalog {
 
     private final Map<String, ProviderDefinition> definitions;
 
@@ -75,6 +76,7 @@ public final class ProviderRegistry {
         return new ProviderRegistry(definitions, models);
     }
 
+    @Override
     public Set<String> configuredNames() {
         return configuredNames;
     }

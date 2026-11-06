@@ -42,8 +42,11 @@ class SessionGetOrCreateTest {
                     assertThat(message.getText()).isEqualTo("第一问"));
             sessions.save(restored);
             sessions.save(sessions.getOrCreate("cli", "alice", "weather"));
-            assertThat(second.getBean(JdbcTemplate.class)
-                    .queryForObject("select count(*) from sessions", Integer.class)).isEqualTo(1);
+            var jdbc = second.getBean(JdbcTemplate.class);
+            assertThat(jdbc.queryForObject("select count(*) from sessions", Integer.class)).isEqualTo(4);
+            assertThat(jdbc.queryForObject("select count(*) from sessions where channel='cli' "
+                    + "and user_id='alice' and profile_name='weather' and status='active'",
+                    Integer.class)).isEqualTo(1);
         }
     }
 

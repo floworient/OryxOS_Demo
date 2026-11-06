@@ -117,6 +117,12 @@ class BootCliQueryTest {
 
                 public Optional<Session> find(String id) { return Optional.empty(); }
 
+                public Optional<io.oryxos.core.session.SessionDetails> details(String id) {
+                    return Optional.empty();
+                }
+
+                public boolean archive(String id) { return false; }
+
                 public List<SessionSummary> list() {
                     return List.of(new SessionSummary("session-1", "digest", "archived",
                             Instant.parse("2026-10-28T08:00:00Z")));
