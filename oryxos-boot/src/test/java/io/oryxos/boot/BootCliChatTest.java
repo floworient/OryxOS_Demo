@@ -65,6 +65,12 @@ class BootCliChatTest {
 
                 public Session getOrCreate(String channel, String userId, String profileName) { return session; }
 
+                public Optional<io.oryxos.core.session.SessionDetails> details(String id) {
+                    return Optional.empty();
+                }
+
+                public boolean archive(String id) { return false; }
+
                 public java.util.List<io.oryxos.core.session.SessionSummary> list() { return java.util.List.of(); }
             };
         }

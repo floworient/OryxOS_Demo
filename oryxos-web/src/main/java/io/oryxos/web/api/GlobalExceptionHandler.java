@@ -3,6 +3,7 @@ package io.oryxos.web.api;
 import io.oryxos.core.memory.MemoryException;
 import io.oryxos.core.notify.NotifyChannelConflictException;
 import io.oryxos.core.notify.NotifyChannelNotFoundException;
+import io.oryxos.core.provider.ProviderException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,28 @@ public class GlobalExceptionHandler {
         log.warn("记忆服务读取失败 code={}", exception.code());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiResponse.error("MEMORY_UNAVAILABLE", "记忆服务暂不可用"));
+    }
+
+    @ExceptionHandler(ProviderException.class)
+    ResponseEntity<ApiResponse<Void>> handleProviderException(ProviderException exception) {
+        log.warn("Provider 调用失败 code={} provider={}",
+                exception.errorCode(), exception.providerName());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("PROVIDER_UNAVAILABLE", "模型服务暂不可用"));
+    }
+
+    @ExceptionHandler(AgentCallTimeoutException.class)
+    ResponseEntity<ApiResponse<Void>> handleAgentCallTimeout(AgentCallTimeoutException exception) {
+        log.warn("Agent 同步调用超过截止时间");
+        return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT)
+                .body(ApiResponse.error("AGENT_TIMEOUT", "Agent 调用超时"));
+    }
+
+    @ExceptionHandler(SessionStorageException.class)
+    ResponseEntity<ApiResponse<Void>> handleSessionStorage(SessionStorageException exception) {
+        log.error("会话存储操作失败", exception);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("STORAGE_ERROR", "会话存储暂不可用"));
     }
 
     @ExceptionHandler(Exception.class)

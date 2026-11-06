@@ -3,6 +3,9 @@ package io.oryxos.web.notify;
 import io.oryxos.core.notify.NotifyChannel;
 import io.oryxos.core.notify.NotifyChannelService;
 import io.oryxos.web.api.ApiResponse;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -18,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/notify-channels")
+@RequestMapping(value = "/api/v1/notify-channels", produces = "application/json")
 public class NotifyChannelApiController {
 
     private final NotifyChannelService service;
@@ -31,6 +34,12 @@ public class NotifyChannelApiController {
     }
 
     @PostMapping
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201",
+            description = "已创建通知渠道",
+            headers = @Header(name = "Location", description = "新渠道的 URI",
+                    schema = @Schema(type = "string")),
+            content = @Content(mediaType = "application/json",
+                    schema = @Schema(ref = "#/components/schemas/ApiResponseNotifyChannelView")))
     public ResponseEntity<ApiResponse<NotifyChannelView>> create(
             @Valid @RequestBody CreateNotifyChannelRequest request) {
         NotifyChannel channel = service.create(new NotifyChannelService.CreateCommand(
@@ -61,6 +70,8 @@ public class NotifyChannelApiController {
     }
 
     @DeleteMapping("/{name}")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204",
+            description = "已删除通知渠道")
     public ResponseEntity<Void> delete(@PathVariable("name") String name) {
         service.delete(name);
         return ResponseEntity.noContent().build();

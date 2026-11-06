@@ -17,8 +17,19 @@
             <Class name="io.oryxos.tool.notify.WebhookNotifyAdapter"/>
             <Class name="io.oryxos.web.memory.MemoryApiController"/>
             <Class name="io.oryxos.web.notify.NotifyChannelApiController"/>
+            <Class name="io.oryxos.web.agent.AgentInvocationWebService"/>
+            <Class name="io.oryxos.web.memory.MemoryQueryService"/>
+            <Class name="io.oryxos.web.profile.ProfileApiController"/>
+            <Class name="io.oryxos.web.session.SessionWebService"/>
+            <Class name="io.oryxos.web.system.SystemApiController"/>
+            <Class name="io.oryxos.web.tool.ToolApiController"/>
         </Or>
         <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- 核心阶段按明确契约开放 /api/** 调试 CORS；文档要求仅部署于受保护的可信内网。 -->
+    <Match>
+        <Class name="io.oryxos.web.config.CorsConfiguration"/>
+        <Bug pattern="PERMISSIVE_CORS"/>
     </Match>
     <!-- ShellTools 仅执行 Sandbox 返回的白名单 executable，参数通过 argv 直传且不经过 Shell 解释。 -->
     <Match>
