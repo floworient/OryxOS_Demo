@@ -9,9 +9,13 @@ target/
 .settings/
 .oryxos/
 *.log
+config/application.yml
+bin/*.pid
 website/node_modules/
 website/.npm-cache/
 website/.vitepress/dist/
 website/.vitepress/cache/
 .worktrees/
+frontend/node_modules/
+oryxos-web/src/main/resources/static/console/
 

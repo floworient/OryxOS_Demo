@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import java.util.List;
 
 /** 连续 Web Session 的 REST 适配器。 */
 @RestController
@@ -47,6 +49,12 @@ public final class SessionApiController {
                     .body(body);
         }
         return ResponseEntity.ok(body);
+    }
+
+    @GetMapping
+    public ApiResponse<List<SessionSummaryView>> list(
+            @RequestParam(required = false) String status) {
+        return ApiResponse.success(service.list(status));
     }
 
     @PostMapping("/{id}/messages")

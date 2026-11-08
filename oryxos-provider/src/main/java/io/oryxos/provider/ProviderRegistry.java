@@ -12,6 +12,7 @@ import io.oryxos.core.provider.ProviderCatalog;
 import org.springframework.ai.chat.model.ChatModel;
 import io.oryxos.provider.dashscope.DashScopeChatModelFactory;
 import io.oryxos.provider.openai.OpenAiCompatibleChatModelFactory;
+import io.oryxos.provider.mock.MockChatModel;
 
 public final class ProviderRegistry implements ProviderCatalog {
 
@@ -55,6 +56,10 @@ public final class ProviderRegistry implements ProviderCatalog {
         new ProviderRegistry(definitions, Map.of());
         var models = new LinkedHashMap<String, ChatModel>();
         for (var definition : definitions) {
+            if (definition.type() == ProviderDefinition.Type.MOCK) {
+                models.put(definition.name(), new MockChatModel(definition.model()));
+                continue;
+            }
             String apiKey;
             try {
                 apiKey = credentialResolver.resolve(definition.name(), definition.apiKey());
@@ -70,6 +75,7 @@ public final class ProviderRegistry implements ProviderCatalog {
             var model = switch (resolved.type()) {
                 case DASHSCOPE -> dashScopeFactory.create(resolved);
                 case OPENAI_COMPATIBLE -> openAiFactory.create(resolved);
+                case MOCK -> throw new IllegalStateException("Mock Provider 不应解析凭据");
             };
             models.put(resolved.name(), model);
         }

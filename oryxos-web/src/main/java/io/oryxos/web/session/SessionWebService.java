@@ -11,6 +11,8 @@ import io.oryxos.web.api.ApiException;
 import io.oryxos.web.api.SessionStorageException;
 import io.oryxos.web.api.Utf8MessageValidator;
 import java.util.Objects;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -80,6 +82,22 @@ public final class SessionWebService {
     public SessionView get(String sessionId) {
         return SessionView.from(storage(() -> sessions.details(sessionId)).orElseThrow(
                 () -> notFound("SESSION_NOT_FOUND", "会话不存在")));
+    }
+
+    public List<SessionSummaryView> list(String status) {
+        Optional<SessionStatus> filter;
+        if (status == null || status.isBlank()) {
+            filter = Optional.empty();
+        }
+        else if ("active".equalsIgnoreCase(status.trim())) {
+            filter = Optional.of(SessionStatus.ACTIVE);
+        }
+        else {
+            throw new IllegalArgumentException("status 仅支持 active");
+        }
+        return storage(() -> sessions.listRecent(100, filter)).stream()
+                .map(SessionSummaryView::from)
+                .toList();
     }
 
     public SessionArchiveView archive(String sessionId) {

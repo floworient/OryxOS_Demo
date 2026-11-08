@@ -36,8 +36,12 @@ class SessionSummaryQueryTest {
             assertThat(summaries).extracting(summary -> summary.id())
                     .containsExactly("c-session", "a-session", "b-session");
             assertThat(summaries.get(0).profileName()).isEqualTo("archive");
-            assertThat(summaries.get(0).status()).isEqualTo("archived");
+            assertThat(summaries.get(0).status()).isEqualTo(io.oryxos.core.session.SessionStatus.ARCHIVED);
             assertThat(summaries.get(0).lastActiveAt()).isAfter(newer);
+            assertThat(summaries).allMatch(summary -> summary.messageCount() == 0);
+            assertThat(context.getBean(SessionManager.class)
+                    .listRecent(2, java.util.Optional.of(io.oryxos.core.session.SessionStatus.ACTIVE)))
+                    .extracting(summary -> summary.id()).containsExactly("a-session", "b-session");
         }
     }
 

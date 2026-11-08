@@ -2,6 +2,7 @@ package io.oryxos.tool.sandbox;
 
 import io.oryxos.core.context.SkillBinding;
 import io.oryxos.core.context.SkillBindingResolver;
+import io.oryxos.core.tool.SandboxAllowlistReader;
 import java.io.IOException;
 import java.net.IDN;
 import java.net.URI;
@@ -62,6 +63,11 @@ public final class WhitelistSandbox implements Sandbox {
         this.skillBindings = skillBindings;
         this.allowedFileRoots = validateRoots(allowedFileRoots);
         this.publicSkillRoot = publicSkillRoot == null ? null : publicSkillRoot.toAbsolutePath().normalize();
+    }
+
+    public SandboxAllowlistReader.Summary allowlistSummary() {
+        return new SandboxAllowlistReader.Summary(allowedDomains.stream().sorted().toList(),
+                allowedFileRoots.size(), allowedCommands.keySet().stream().sorted().toList());
     }
 
     @Override

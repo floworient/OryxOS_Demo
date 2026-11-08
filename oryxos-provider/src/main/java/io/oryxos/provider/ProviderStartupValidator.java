@@ -29,6 +29,9 @@ public final class ProviderStartupValidator {
         }
         var referenced = profiles.referencedProviderNames();
         for (var definition : definitions) {
+            if (definition.type() == ProviderDefinition.Type.MOCK) {
+                continue;
+            }
             try {
                 credentialResolver.resolve(definition.name(), definition.apiKey());
             }

@@ -1,0 +1,7 @@
+# 演示工作区专用配置。
+# 复制到 .oryxos/application.yaml；Provider 凭证仍放在 config/application.yml（不入库）。
+# 注意：Spring 对列表键是整体替换，本文件不要重复声明 oryxos.providers。
+oryxos:
+  http:
+    allowed-domains:
+      - api.open-meteo.com

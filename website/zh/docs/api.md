@@ -46,6 +46,10 @@ java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar serve --port 80
 
 同一 `profileName`、`userId` 和 `web` 渠道仅复用当前活动会话。新建返回 `201 Created`，复用返回 `200 OK`；两者都设置 `Location: /api/v1/sessions/{id}`。会话 ID 是随机 UUID。归档后再次调用会创建新一代 UUID，不会复活旧会话。
 
+`GET /api/v1/sessions`
+
+返回最近 100 条会话摘要，按 `lastActiveAt` 倒序、会话 ID 升序稳定排列。可选 `status=active`；其他过滤值返回校验错误。摘要包含会话身份、渠道、状态、时间和 `messageCount`，不包含消息正文。管理台 `/console/` 使用该接口发现并打开真实会话。
+
 ### 向连续会话发送消息
 
 `POST /api/v1/sessions/{id}/messages`

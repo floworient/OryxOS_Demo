@@ -13,6 +13,7 @@ import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.tool.ToolRegistry;
 import io.oryxos.core.tool.ToolExecutor;
+import io.oryxos.core.tool.ToolSource;
 import io.oryxos.provider.ToolSchemaAdapter;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -39,8 +40,16 @@ public class ReActConfiguration {
     @Bean(destroyMethod = "close")
     ToolExecutor toolExecutor(ToolRegistry tools,
             ObjectProvider<BiConsumer<Profile, ToolCallIntent>> policies, ToolInvocationRecorder recorder) {
-        BiConsumer<Profile, ToolCallIntent> policy = policies.getIfUnique(() -> (profile, call) -> {
-            throw new SecurityException("尚未配置工具安全策略");
+        BiConsumer<Profile, ToolCallIntent> policy = policies.getIfUnique(() -> {
+            boolean noCustomPolicy = policies.stream().findAny().isEmpty();
+            return (profile, call) -> {
+                // 内置 GET 在发出请求前仍会校验 HTTP 域名白名单。
+                if (noCustomPolicy && "http_get".equals(call.name())
+                        && tools.find("http_get").filter(tool -> tool.source() == ToolSource.BUILTIN).isPresent()) {
+                    return;
+                }
+                throw new SecurityException("尚未配置唯一的工具安全策略");
+            };
         });
         return new ToolExecutor(tools, policy, recorder);
     }

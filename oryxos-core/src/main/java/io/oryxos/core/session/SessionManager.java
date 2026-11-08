@@ -20,4 +20,14 @@ public interface SessionManager {
     boolean archive(String sessionId);
 
     List<SessionSummary> list();
+
+    default List<SessionSummary> listRecent(int limit, Optional<SessionStatus> status) {
+        if (limit < 1 || limit > 100) {
+            throw new IllegalArgumentException("会话列表上限必须在 1 到 100 之间");
+        }
+        return list().stream()
+                .filter(item -> status.isEmpty() || item.status() == status.orElseThrow())
+                .limit(limit)
+                .toList();
+    }
 }

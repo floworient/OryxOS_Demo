@@ -158,6 +158,15 @@ class WhitelistSandboxTest {
     }
 
     @Test
+    void allowlistSummaryUsesEffectiveNormalizedRules() {
+        var summary = new WhitelistSandbox(Set.of("Z.example", "a.example", "z.example"))
+                .allowlistSummary();
+        assertThat(summary.httpDomains()).containsExactly("a.example", "z.example");
+        assertThat(summary.fileRootCount()).isZero();
+        assertThat(summary.commandAliases()).isEmpty();
+    }
+
+    @Test
     void normalizingHostPreservesEncodedPathAndQuerySemantics() {
         Sandbox sandbox = new WhitelistSandbox(Set.of("example.com"));
         for (String suffix : List.of("/a%2Fb?q=a%26b%3Dc", "/%252F?q=%2B+%25%2f",

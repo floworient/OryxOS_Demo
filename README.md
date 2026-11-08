@@ -207,6 +207,8 @@ java -jar oryxos-boot/target/oryxos-boot-0.1.0-SNAPSHOT-exec.jar --version
 
 当前提供 `init`、`status`、`chat`、`serve`、`gateway`、四条 `profile` 命令，以及 `provider/tool/session list`，共 12 条业务命令。工作区按 `-Doryxos.root` → `ORYXOS_ROOT` → 当前目录 `.oryxos/` 解析；`profile delete` 会归档整个 Agent 目录，不做永久删除。完整用法见[中文 CLI 参考](website/zh/docs/cli.md)。
 
+调试 Agent 主流程时，可在外部配置中显式声明 `type: MOCK`、`model: mock-memory`，并让测试 Agent 绑定 `save_memory`。输入 `记住：<事实>` 会经正式的 AgentService、ReAct、Tool、Memory、Session 与审计链运行两轮，不需要 API Key 或公网；它不代表真实模型协议和质量验证。管理台位于 `/console/`，`GET /api/v1/sessions` 可返回最近 100 条安全会话摘要用于对账。
+
 启动现有 HTTP 服务：
 
 ```bash

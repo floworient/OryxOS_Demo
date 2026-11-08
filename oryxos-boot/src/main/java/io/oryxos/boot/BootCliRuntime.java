@@ -106,7 +106,8 @@ public final class BootCliRuntime implements CliRuntime, AutoCloseable {
         try (var context = application.run(workspaceArgument(workspace))) {
             return context.getBean(SessionManager.class).list().stream()
                     .map(summary -> new SessionInfo(summary.id(), summary.profileName(),
-                            summary.status(), summary.lastActiveAt()))
+                            summary.status().name().toLowerCase(java.util.Locale.ROOT),
+                            summary.lastActiveAt()))
                     .toList();
         }
     }

@@ -2,6 +2,7 @@ package io.oryxos.boot;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.sun.net.httpserver.HttpServer;
 import io.oryxos.core.agent.AgentService;
 import io.oryxos.core.audit.LlmCallRecorder;
 import io.oryxos.core.profile.AgentLoader;
@@ -13,12 +14,14 @@ import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.session.Session;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.ToolExecutor;
 import io.oryxos.core.tool.ToolResult;
 import io.oryxos.provider.DefaultProviderService;
 import io.oryxos.provider.ProviderDefinition;
 import io.oryxos.provider.ProviderRegistry;
 import io.oryxos.storage.config.StorageConfiguration;
 import java.nio.file.Files;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +49,43 @@ class ReActConfigurationTest {
 
     @TempDir
     Path workspace;
+
+    @Test
+    void defaultPolicyLetsHttpGetReachItsDomainSandbox() throws Exception {
+        prepare();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        var requests = new AtomicInteger();
+        server.createContext("/forecast", exchange -> {
+            requests.incrementAndGet();
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try (var context = application(false).run("--oryxos.http.allowed-domains[0]=127.0.0.1")) {
+            var profile = new Profile("weather", "天气", new Profile.Identity("助手", "天气"),
+                    new Profile.ProviderRef("stub", "stub-model", null), List.of("http_get"),
+                    List.of(), List.of(), List.of(), List.of(), new Profile.Settings(3, 10),
+                    workspace.resolve("agents/weather/AGENT.md"));
+            var executor = context.getBean(ToolExecutor.class);
+            int port = server.getAddress().getPort();
+            ProfileContext.set(profile);
+            try {
+                var allowed = executor.execute("allowed", new ToolCallIntent("allowed", "http_get",
+                        "{\"url\":\"http://127.0.0.1:" + port + "/forecast?tz=Asia%2FShanghai\"}"));
+                assertThat(allowed.success()).as(allowed.errorMessage()).isTrue();
+                var denied = executor.execute("denied", new ToolCallIntent("denied", "http_get",
+                        "{\"url\":\"http://localhost:" + port + "/forecast\"}"));
+                assertThat(denied.errorMessage()).isEqualTo("HTTP 请求被 Sandbox 拒绝");
+                assertThat(requests).hasValue(1);
+            }
+            finally {
+                ProfileContext.clear();
+            }
+        }
+        finally {
+            server.stop(0);
+        }
+    }
 
     @Test
     void providerToolSessionAndAuditShareOneChainAndPersistAfterRestart() throws Exception {

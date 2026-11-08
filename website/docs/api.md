@@ -46,6 +46,10 @@ Message bodies must not exceed 32,768 bytes after UTF-8 encoding. Synchronous Ag
 
 Only the current active session is reused for the same `profileName`, `userId`, and `web` channel. A new session returns `201 Created`; a reused session returns `200 OK`. Both set `Location: /api/v1/sessions/{id}`. IDs are random UUIDs. Creating after archival produces a new generation with a new UUID instead of reviving the archived session.
 
+`GET /api/v1/sessions`
+
+Returns at most the 100 most recent session summaries, ordered by `lastActiveAt` descending and session ID ascending. The only public filter is optional `status=active`; other values are validation errors. Summaries include identity, channel, status, timestamps, and `messageCount`, but no message bodies. The `/console/` UI uses this endpoint to discover real sessions.
+
 ### Send a message to a continuous session
 
 `POST /api/v1/sessions/{id}/messages`

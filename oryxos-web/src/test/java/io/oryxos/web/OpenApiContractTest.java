@@ -14,6 +14,7 @@ import io.oryxos.core.memory.MemoryService;
 import io.oryxos.core.notify.NotifyChannelService;
 import io.oryxos.core.profile.ProfileRegistry;
 import io.oryxos.core.provider.ProviderCatalog;
+import io.oryxos.core.tool.SandboxAllowlistReader;
 import io.oryxos.core.tool.ToolRegistry;
 import io.oryxos.web.agent.AgentApiController;
 import io.oryxos.web.agent.AgentInvocationWebService;
@@ -25,6 +26,7 @@ import io.oryxos.web.memory.MemoryQueryService;
 import io.oryxos.web.notify.NotifyChannelApiController;
 import io.oryxos.web.notify.NotifyChannelMasker;
 import io.oryxos.web.profile.ProfileApiController;
+import io.oryxos.web.sandbox.SandboxAllowlistController;
 import io.oryxos.web.session.SessionApiController;
 import io.oryxos.web.session.SessionWebService;
 import io.oryxos.web.system.SystemApiController;
@@ -65,9 +67,10 @@ class OpenApiContractTest {
     }
 
     @Test
-    void openApiContainsExactlyTheTenCoreOperations() throws Exception {
+    void openApiContainsCoreOperationsIncludingSessionList() throws Exception {
         var request = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
-        request.andExpect(jsonPath("$.paths['/api/v1/sessions'].post").exists())
+        request.andExpect(jsonPath("$.paths['/api/v1/sessions'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/sessions'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/sessions/{id}/messages'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/sessions/{id}'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/sessions/{id}'].delete").exists())
@@ -80,6 +83,7 @@ class OpenApiContractTest {
                 .andExpect(jsonPath("$.paths['/api/v1/agents/{name}/memory'].get").exists());
 
         JsonNode document = JSON.readTree(request.andReturn().getResponse().getContentAsByteArray());
+        assertSuccessEnvelope(document, "/api/v1/sessions", "get");
         assertSuccessEnvelope(document, "/api/v1/sessions", "post");
         assertSuccessEnvelope(document, "/api/v1/sessions/{id}/messages", "post");
         assertSuccessEnvelope(document, "/api/v1/sessions/{id}", "get");
@@ -114,6 +118,7 @@ class OpenApiContractTest {
         JsonNode document = openApiDocument();
 
         List<String[]> operations = List.of(
+                new String[] {"/api/v1/sessions", "get"},
                 new String[] {"/api/v1/sessions", "post"},
                 new String[] {"/api/v1/sessions/{id}/messages", "post"},
                 new String[] {"/api/v1/sessions/{id}", "get"},
@@ -168,13 +173,28 @@ class OpenApiContractTest {
         return JSON.readTree(response.getResponse().getContentAsByteArray());
     }
 
+    @Test
+    void sandboxExposesOnlySafeSummaryFields() throws Exception {
+        var response = mvc.perform(get("/api/v1/sandbox/allowlist")).andExpect(status().isOk()).andReturn();
+        JsonNode result = JSON.readTree(response.getResponse().getContentAsByteArray());
+        assertThat(result.path("code").asText()).isEqualTo("SUCCESS");
+        assertThat(result.path("data")).isEqualTo(JSON.readTree("""
+                {"httpDomains":["example.com"],"fileRootCount":2,"commandAliases":["git"]}
+                """));
+    }
+
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @Import({CorsConfiguration.class, OpenApiConfiguration.class, GlobalExceptionHandler.class,
             SessionApiController.class, AgentApiController.class, ProfileApiController.class,
             MemoryQueryService.class, MemoryApiController.class, ToolApiController.class,
-            SystemApiController.class, NotifyChannelApiController.class})
+            SystemApiController.class, NotifyChannelApiController.class, SandboxAllowlistController.class})
     static class TestApplication {
+
+        @Bean
+        SandboxAllowlistReader allowlistReader() {
+            return () -> new SandboxAllowlistReader.Summary(List.of("example.com"), 2, List.of("git"));
+        }
 
         @Bean
         ProfileRegistry profiles() { return new ProfileRegistry(); }

@@ -84,6 +84,21 @@ class SessionApiControllerTest {
     }
 
     @Test
+    void listsSafeSessionSummariesInUnifiedEnvelope() throws Exception {
+        var summary = new SessionSummaryView("session-1", "daily-tech", "web", "user-1",
+                SessionStatus.ACTIVE, Instant.parse("2026-11-04T00:00:00Z"),
+                Instant.parse("2026-11-04T00:01:00Z"), 4);
+        when(service.list("active")).thenReturn(List.of(summary));
+
+        mvc.perform(get("/api/v1/sessions").queryParam("status", "active"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data[0].id").value("session-1"))
+                .andExpect(jsonPath("$.data[0].messageCount").value(4))
+                .andExpect(content().string(not(containsString("messages"))));
+    }
+
+    @Test
     void rejectsInvalidRequestsBeforeCallingService() throws Exception {
         mvc.perform(post("/api/v1/sessions").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"profileName\":\"\",\"userId\":\"\"}"))

@@ -9,6 +9,9 @@ import org.springframework.ai.util.json.JsonParser;
 
 public final class AnnotatedToolAdapter implements OryxTool {
 
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory
+            .getLogger(AnnotatedToolAdapter.class);
+
     private final ToolCallback callback;
 
     public AnnotatedToolAdapter(ToolCallback callback) {
@@ -48,6 +51,8 @@ public final class AnnotatedToolAdapter implements OryxTool {
             return new ToolResult(true, callback.call(jsonInput), null, false);
         }
         catch (RuntimeException | java.io.IOException exception) {
+            LOGGER.debug("Java 工具执行失败 toolName={} errorType={}", getName(),
+                    exception.getClass().getSimpleName(), exception);
             return failed();
         }
     }

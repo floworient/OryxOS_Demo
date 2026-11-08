@@ -2,6 +2,7 @@ package io.oryxos.boot;
 
 import io.oryxos.core.context.SkillBindingResolver;
 import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.SandboxAllowlistReader;
 import io.oryxos.core.tool.ToolRegistration;
 import io.oryxos.core.tool.ToolRegistry;
 import io.oryxos.core.tool.ToolSource;
@@ -38,7 +39,7 @@ import org.springframework.util.ClassUtils;
 public class ToolConfiguration {
 
     @Bean("toolSandbox")
-    Sandbox toolSandbox(HttpSandboxProperties http, ToolProperties tools, FileSandboxProperties files,
+    WhitelistSandbox toolSandbox(HttpSandboxProperties http, ToolProperties tools, FileSandboxProperties files,
             @org.springframework.beans.factory.annotation.Value("${oryxos.workspace:./.oryxos}")
             String workspace) {
         var commands = new java.util.LinkedHashMap<String, Path>();
@@ -57,6 +58,12 @@ public class ToolConfiguration {
         }
         return new WhitelistSandbox(http.getAllowedDomains(), commands,
                 new SkillBindingResolver(Path.of(workspace)), roots, Path.of(workspace).resolve("skills"));
+    }
+
+    @Bean
+    SandboxAllowlistReader sandboxAllowlistReader(@Qualifier("toolSandbox") WhitelistSandbox sandbox) {
+        var summary = sandbox.allowlistSummary();
+        return () -> summary;
     }
 
     @Bean

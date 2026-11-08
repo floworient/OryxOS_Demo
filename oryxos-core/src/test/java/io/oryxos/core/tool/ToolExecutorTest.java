@@ -224,15 +224,26 @@ class ToolExecutorTest {
     }
 
     @Test
-    void thrownFailuresAreAuditedWithoutSecretOrRetry() {
+    void thrownFailureIsAuditedAndDoesNotPreventALaterIndependentCall() {
         profile();
         try (var executor = new ToolExecutor(registry(
-                tool(() -> { throw new IllegalStateException("secret-token"); })),
+                tool(() -> {
+                    if (calls.get() == 1) {
+                        throw new IllegalStateException("secret-token");
+                    }
+                    return new ToolResult(true, "healthy", null, false);
+                })),
                 (p, call) -> { }, records::add)) {
-            assertThat(executor.execute("s", intent).errorMessage()).doesNotContain("secret-token");
+            assertThat(executor.execute("failed-session", intent).errorMessage())
+                    .doesNotContain("secret-token");
+            assertThat(executor.execute("healthy-session", intent).content()).isEqualTo("healthy");
         }
-        assertThat(calls).hasValue(1);
-        assertThat(records).singleElement().satisfies(record -> assertThat(record.success()).isFalse());
+        assertThat(calls).hasValue(2);
+        assertThat(records).hasSize(2);
+        assertThat(records.get(0).sessionId()).isEqualTo("failed-session");
+        assertThat(records.get(0).success()).isFalse();
+        assertThat(records.get(1).sessionId()).isEqualTo("healthy-session");
+        assertThat(records.get(1).success()).isTrue();
     }
 
     @Test

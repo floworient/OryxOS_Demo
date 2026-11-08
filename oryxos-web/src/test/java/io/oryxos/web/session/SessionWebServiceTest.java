@@ -15,6 +15,7 @@ import io.oryxos.core.session.SessionAcquisition;
 import io.oryxos.core.session.SessionDetails;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.session.SessionStatus;
+import io.oryxos.core.session.SessionSummary;
 import io.oryxos.web.api.AgentCallExecutor;
 import io.oryxos.web.api.ApiException;
 import io.oryxos.web.api.Utf8MessageValidator;
@@ -125,6 +126,21 @@ class SessionWebServiceTest {
                         error -> assertThat(error.code())
                                 .isEqualTo("SESSION_CHANNEL_NOT_WRITABLE"));
         verify(agents, never()).process(cli, "hello");
+    }
+
+    @Test
+    void listsRecentSessionSummariesWithOnlyThePublicActiveFilter() {
+        var summary = new SessionSummary(java.util.UUID.randomUUID().toString(), "daily-tech",
+                "web", "user-1", SessionStatus.ACTIVE,
+                Instant.parse("2026-11-04T00:00:00Z"),
+                Instant.parse("2026-11-04T00:01:00Z"), 4);
+        when(sessions.listRecent(100, Optional.of(SessionStatus.ACTIVE))).thenReturn(List.of(summary));
+
+        assertThat(service.list("active")).containsExactly(SessionSummaryView.from(summary));
+        verify(sessions).listRecent(100, Optional.of(SessionStatus.ACTIVE));
+        assertThatThrownBy(() -> service.list("archived"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("status");
     }
 
     @Test

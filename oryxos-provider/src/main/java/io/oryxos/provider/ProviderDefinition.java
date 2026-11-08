@@ -11,7 +11,8 @@ public record ProviderDefinition(
 
     public enum Type {
         DASHSCOPE,
-        OPENAI_COMPATIBLE
+        OPENAI_COMPATIBLE,
+        MOCK
     }
 
     @Override

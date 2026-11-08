@@ -44,6 +44,9 @@ public class SessionEntity {
     @Column(name = "archived_at")
     private Instant archivedAt;
 
+    @Column(name = "message_count", nullable = false)
+    private int messageCount;
+
     protected SessionEntity() {
     }
 
@@ -56,6 +59,7 @@ public class SessionEntity {
         this.status = "active";
         this.createdAt = session.createdAt();
         this.lastActiveAt = session.lastActiveAt();
+        this.messageCount = session.messages().size();
     }
 
     public String messagesJson() {
@@ -79,7 +83,8 @@ public class SessionEntity {
     }
 
     public SessionSummary summary() {
-        return new SessionSummary(id, profileName, status, lastActiveAt);
+        return new SessionSummary(id, profileName, channel, userId, sessionStatus(),
+                createdAt, lastActiveAt, messageCount);
     }
 
     public Session restore(List<Message> messages) {
@@ -90,12 +95,15 @@ public class SessionEntity {
     }
 
     public SessionDetails details(List<Message> messages) {
-        SessionStatus sessionStatus = switch (status) {
+        return new SessionDetails(id, channel, userId, profileName, sessionStatus(),
+                createdAt, lastActiveAt, archivedAt, messages);
+    }
+
+    private SessionStatus sessionStatus() {
+        return switch (status) {
             case "active" -> SessionStatus.ACTIVE;
             case "archived" -> SessionStatus.ARCHIVED;
             default -> throw new IllegalStateException("未知会话状态");
         };
-        return new SessionDetails(id, channel, userId, profileName, sessionStatus,
-                createdAt, lastActiveAt, archivedAt, messages);
     }
 }

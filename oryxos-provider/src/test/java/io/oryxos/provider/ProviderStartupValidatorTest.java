@@ -2,6 +2,7 @@ package io.oryxos.provider;
 
 import static io.oryxos.provider.DefaultProviderServiceChatTest.profile;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
@@ -68,6 +69,19 @@ class ProviderStartupValidatorTest {
                         assertThat(error.getMessage()).contains("base-url");
                     });
         }
+    }
+
+    @Test
+    void referencedMockProviderDoesNotRequireCredential() {
+        var profiles = new ProfileRegistry();
+        profiles.register(profile("memory", "mock", "mock-memory", null));
+        var properties = new ProviderProperties(List.of(
+                new ProviderDefinition("mock", ProviderDefinition.Type.MOCK,
+                        "mock-memory", null, null)));
+
+        assertThatCode(() -> new ProviderStartupValidator(new CredentialResolver(name -> null))
+                .validateAndPrune(profiles, properties)).doesNotThrowAnyException();
+        assertThat(profiles.find("memory")).isPresent();
     }
 
     private static ProviderDefinition definition(String name, String apiKey) {

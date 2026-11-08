@@ -33,7 +33,8 @@ class SessionMigrationV6Test {
         }
 
         Flyway flyway = Flyway.configure().dataSource(url, null, null)
-                .locations("classpath:db/migration/sqlite").load();
+                .locations("classpath:db/migration/sqlite")
+                .target(MigrationVersion.fromVersion("6")).load();
         flyway.migrate();
 
         assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");

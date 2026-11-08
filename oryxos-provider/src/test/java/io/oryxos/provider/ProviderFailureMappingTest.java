@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.oryxos.core.audit.LlmCallRecord;
 import io.oryxos.core.audit.LlmCallStatus;
@@ -19,6 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
@@ -36,8 +38,10 @@ class ProviderFailureMappingTest {
                 .isInstanceOfSatisfying(ProviderException.class,
                         error -> assertThat(error.errorCode()).isEqualTo(expected));
         assertThat(audit).singleElement().satisfies(record -> {
+            assertThat(record.sessionId()).isEqualTo("s");
             assertThat(record.status()).isEqualTo(LlmCallStatus.FAILED);
             assertThat(record.errorCode()).isEqualTo(expected.name());
+            assertThat(record.toString()).doesNotContain("canary-provider-secret");
         });
     }
 
@@ -49,6 +53,39 @@ class ProviderFailureMappingTest {
                 .isInstanceOfSatisfying(ProviderException.class,
                         error -> assertThat(error.errorCode())
                                 .isEqualTo(ProviderErrorCode.AUDIT_PERSISTENCE_FAILED));
+    }
+
+    @org.junit.jupiter.api.Test
+    void failedCallDoesNotPreventALaterIndependentCallOnTheSameService() {
+        var audit = new ArrayList<LlmCallRecord>();
+        var attempts = new AtomicInteger();
+        var success = StubChatModel.text("healthy", "m");
+        ChatModel recoverable = prompt -> {
+            if (attempts.getAndIncrement() == 0) {
+                throw new ResourceAccessException("network", new ConnectException());
+            }
+            return success.call(prompt);
+        };
+        var definition = new ProviderDefinition("alpha", ProviderDefinition.Type.DASHSCOPE,
+                "m", null, "canary-provider-secret");
+        var service = new DefaultProviderService(new ProviderRegistry(List.of(definition),
+                Map.of("alpha", recoverable)), record -> {
+                    audit.add(record);
+                    return record;
+                });
+
+        assertThatThrownBy(() -> service.chat("failed-session",
+                profile("a", "alpha", "m", null), new Prompt("first")))
+                .isInstanceOf(ProviderException.class);
+        assertThat(service.chat("healthy-session",
+                profile("a", "alpha", "m", null), new Prompt("second")).content())
+                .isEqualTo("healthy");
+
+        assertThat(audit).hasSize(2);
+        assertThat(audit.get(0).sessionId()).isEqualTo("failed-session");
+        assertThat(audit.get(0).status()).isEqualTo(LlmCallStatus.FAILED);
+        assertThat(audit.get(1).sessionId()).isEqualTo("healthy-session");
+        assertThat(audit.get(1).status()).isEqualTo(LlmCallStatus.SUCCESS);
     }
 
     private static java.util.stream.Stream<Arguments> failures() {
@@ -68,7 +105,7 @@ class ProviderFailureMappingTest {
     private static DefaultProviderService service(RuntimeException failure, List<LlmCallRecord> audit,
             io.oryxos.core.audit.LlmCallRecorder recorder) {
         var definition = new ProviderDefinition("alpha", ProviderDefinition.Type.DASHSCOPE,
-                "m", null, "key");
+                "m", null, "canary-provider-secret");
         return new DefaultProviderService(new ProviderRegistry(List.of(definition),
                 Map.of("alpha", StubChatModel.failure(failure))), record -> {
                     audit.add(record);

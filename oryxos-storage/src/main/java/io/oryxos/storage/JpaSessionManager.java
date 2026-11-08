@@ -6,6 +6,7 @@ import io.oryxos.core.session.SessionAcquisition;
 import io.oryxos.core.session.SessionDetails;
 import io.oryxos.core.session.SessionManager;
 import io.oryxos.core.session.SessionSummary;
+import io.oryxos.core.session.SessionStatus;
 import io.oryxos.storage.entity.SessionEntity;
 import io.oryxos.storage.repository.SessionRepository;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.util.json.JsonParser;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 @Component
 public class JpaSessionManager implements SessionManager {
@@ -127,6 +129,20 @@ public class JpaSessionManager implements SessionManager {
         return repository.findAllByOrderByLastActiveAtDescIdAsc().stream()
                 .map(SessionEntity::summary)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SessionSummary> listRecent(int limit, Optional<SessionStatus> status) {
+        if (limit < 1 || limit > 100) {
+            throw new IllegalArgumentException("会话列表上限必须在 1 到 100 之间");
+        }
+        var page = PageRequest.of(0, limit);
+        var entities = status.isEmpty()
+                ? repository.findAllByOrderByLastActiveAtDescIdAsc(page)
+                : repository.findByStatusOrderByLastActiveAtDescIdAsc(
+                        status.orElseThrow().name().toLowerCase(java.util.Locale.ROOT), page);
+        return entities.stream().map(SessionEntity::summary).toList();
     }
 
     private static Map<String, Object> encode(Message message) {
