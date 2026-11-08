@@ -1,0 +1,23 @@
+# OryxOS 外部运行配置模板。
+# 复制为 config/application.yml 后填写真实凭证；config/application.yml 不纳入版本管理。
+# bin/start.sh 通过 -Dspring.config.additional-location 加载它，覆盖 JAR 内置的 application.yaml。
+#
+# 注意：列表类键（如 oryxos.providers）Spring 是整体替换而不是合并；
+# 在这里覆盖时，要把想保留的 Provider 全部列出来。
+
+oryxos:
+  providers:
+    # DeepSeek：走 OpenAI 兼容协议。
+    # type 必须是 DASHSCOPE 或 OPENAI_COMPATIBLE；model 为调用时使用的模型名。
+    - name: deepseek
+      type: OPENAI_COMPATIBLE
+      model: deepseek-chat
+      base-url: https://api.deepseek.com
+      api-key: "sk-7c2695d162ec4960ba97d4bc28cd486a" # ← 填入你的 DeepSeek API Key（留空且被 Agent 引用时，启动会报错）
+
+    # 可按同样格式追加其他 OpenAI 兼容供应商，例如 Kimi。
+    # - name: kimi
+    #   type: OPENAI_COMPATIBLE
+    #   model: moonshot-v1-8k
+    #   base-url: https://api.moonshot.cn/v1
+    #   api-key: ""
