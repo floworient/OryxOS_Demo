@@ -5,7 +5,7 @@ import { weatherProfile } from './helpers'
 
 it('shows the schedule section and preserves the conversation draft', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    const data = url.endsWith('/profiles') ? [weatherProfile] : url.includes('/sessions?') ? []
+    const data = url.endsWith('/profiles') ? [weatherProfile] : url.includes('/sessions') ? []
       : url.endsWith('/health') ? { status: 'UP' } : { providers: ['deepseek'] }
     return new Response(JSON.stringify({ code: 'SUCCESS', data }))
   }))
@@ -14,7 +14,7 @@ it('shows the schedule section and preserves the conversation draft', async () =
     await flushPromises()
     const nav = app.get('nav[aria-label="控制台导航"]')
     expect(nav.findAll('button').map(button => button.text())).toEqual(
-      ['Agent', 'Provider', 'Tool', 'Sandbox 白名单', '长期记忆', '定时任务', '运行状态', '会话'],
+      ['Agent', 'Provider', 'Tool', '通知渠道', 'Sandbox 白名单', '长期记忆', '定时任务', 'Agent 调用', '运行状态', '会话'],
     )
     const draft = app.get('textarea')
     await draft.setValue('未发送的草稿')

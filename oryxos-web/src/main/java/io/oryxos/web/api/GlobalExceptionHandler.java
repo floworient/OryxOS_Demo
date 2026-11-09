@@ -60,8 +60,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ProviderException.class)
     ResponseEntity<ApiResponse<Void>> handleProviderException(ProviderException exception) {
-        log.warn("Provider 调用失败 code={} provider={}",
-                exception.errorCode(), exception.providerName());
+        log.warn("Provider 调用失败 code={} provider={} rootCause={} message={}",
+                exception.errorCode(), exception.providerName(),
+                exception.getCause() != null ? exception.getCause().getClass().getName() : "n/a",
+                exception.getCause() != null ? String.valueOf(exception.getCause().getMessage()) : "n/a");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiResponse.error("PROVIDER_UNAVAILABLE", "模型服务暂不可用"));
     }

@@ -201,6 +201,32 @@ class SessionWebServiceTest {
     }
 
     @Test
+    void renamesSessionWhileAnotherMessageIsBeingProcessed() throws Exception {
+        // 回归：rename 是纯元数据操作，不应被消息处理锁（贯穿整个模型调用）挡住 409 SESSION_BUSY
+        var session = new Session("web", "user-1", "daily-tech");
+        when(sessions.find(session.id())).thenReturn(Optional.of(session));
+        when(sessions.details(session.id())).thenReturn(Optional.of(details(session)));
+        when(sessions.rename(session.id(), "新会话名")).thenReturn(true);
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        when(agents.process(session, "hold")).thenAnswer(invocation -> {
+            entered.countDown();
+            release.await(1, TimeUnit.SECONDS);
+            return "reply";
+        });
+
+        var call = CompletableFuture.supplyAsync(() -> service.send(session.id(), "hold"));
+        assertThat(entered.await(1, TimeUnit.SECONDS)).isTrue();
+
+        var view = service.rename(session.id(), "新会话名");
+        assertThat(view.title()).isEqualTo("新会话名");
+        verify(sessions).rename(session.id(), "新会话名");
+
+        release.countDown();
+        assertThat(call.get(1, TimeUnit.SECONDS).reply()).isEqualTo("reply");
+    }
+
+    @Test
     void renamesSessionAcrossChannelsAndRejectsBlankOrMissing() {
         var archived = new Session("cli", "user-1", "daily-tech");
         when(sessions.details(archived.id())).thenReturn(Optional.of(details(archived)));

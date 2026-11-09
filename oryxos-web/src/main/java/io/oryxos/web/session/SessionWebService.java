@@ -146,28 +146,24 @@ public final class SessionWebService {
         }
     }
 
-    /** 重命名会话；纯元数据操作，不限渠道、不限状态。 */
+    /**
+     * 重命名会话；纯元数据操作，不限渠道、不限状态。
+     * 不参与消息处理锁：发送消息会持锁贯穿整个模型调用（可达数十秒），
+     * 若此处 tryLock 会在等待回复期间改名直接 409 SESSION_BUSY（已复现的改名失败根因）。
+     * 写安全由 JpaSessionManager 的 synchronized 方法保证（rename 与 save 在 JVM 内串行）。
+     */
     public SessionRenameView rename(String sessionId, String title) {
         String normalized = required(title, "会话名不能为空");
         if (normalized.length() > 200) {
             throw new IllegalArgumentException("会话名不能超过 200 字符");
         }
-        ReentrantLock lock = lock(sessionId);
-        if (!lock.tryLock()) {
-            throw conflict("SESSION_BUSY", "会话正在处理其他操作");
+        if (storage(() -> sessions.details(sessionId)).isEmpty()) {
+            throw notFound("SESSION_NOT_FOUND", "会话不存在");
         }
-        try {
-            if (storage(() -> sessions.details(sessionId)).isEmpty()) {
-                throw notFound("SESSION_NOT_FOUND", "会话不存在");
-            }
-            if (!storage(() -> sessions.rename(sessionId, normalized))) {
-                throw notFound("SESSION_NOT_FOUND", "会话不存在");
-            }
-            return new SessionRenameView(sessionId, normalized);
+        if (!storage(() -> sessions.rename(sessionId, normalized))) {
+            throw notFound("SESSION_NOT_FOUND", "会话不存在");
         }
-        finally {
-            lock.unlock();
-        }
+        return new SessionRenameView(sessionId, normalized);
     }
 
     private ReentrantLock lock(String sessionId) {
