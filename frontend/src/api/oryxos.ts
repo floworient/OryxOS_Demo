@@ -1,7 +1,12 @@
-import { deleteJson, getJson, postJson, putJson } from './http'
+import { deleteJson, deleteNoContent, getJson, postJson, putJson } from './http'
 import type {
+  AgentSingleInvokeResponse,
   HealthView,
   MessageReplyView,
+  NotifyChannelCreateInput,
+  NotifyChannelDeleteView,
+  NotifyChannelSummary,
+  NotifyChannelUpdateInput,
   ProfileSummary,
   SessionArchiveView,
   SessionView,
@@ -75,4 +80,51 @@ export function fetchSession(sessionId: string): Promise<SessionView> {
 
 export function archiveSession(sessionId: string): Promise<SessionArchiveView> {
   return deleteJson<SessionArchiveView>(`${BASE}/sessions/${encodeURIComponent(sessionId)}`)
+}
+
+// ── Execution History (US1) ────────────────────────────────
+
+export function fetchExecutionHistory(scheduleId: string): Promise<ScheduledExecution[]> {
+  return getJson<ScheduledExecution[]>(
+    `${SCHEDULES}/${encodeURIComponent(scheduleId)}/executions`,
+  )
+}
+
+// ── Agent + Key Schedule Run (US4) ─────────────────────────
+
+export function agentRunSchedule(agentName: string, scheduleKey: string): Promise<ScheduledExecution> {
+  return postJson<ScheduledExecution>(
+    `/api/v1/agents/${encodeURIComponent(agentName)}/schedules/${encodeURIComponent(scheduleKey)}/run`,
+    undefined,
+  )
+}
+
+// ── Notification Channels (US2) ────────────────────────────
+
+export function fetchNotifyChannels(): Promise<NotifyChannelSummary[]> {
+  return getJson<NotifyChannelSummary[]>(`${BASE}/notify-channels`)
+}
+
+export function createNotifyChannel(input: NotifyChannelCreateInput): Promise<NotifyChannelSummary> {
+  return postJson<NotifyChannelSummary>(`${BASE}/notify-channels`, input)
+}
+
+export function updateNotifyChannel(
+  name: string,
+  input: NotifyChannelUpdateInput,
+): Promise<NotifyChannelSummary> {
+  return putJson<NotifyChannelSummary>(`${BASE}/notify-channels/${encodeURIComponent(name)}`, input)
+}
+
+export function deleteNotifyChannel(name: string): Promise<void> {
+  return deleteNoContent(`${BASE}/notify-channels/${encodeURIComponent(name)}`)
+}
+
+// ── Agent Single Invoke (US3) ──────────────────────────────
+
+export function invokeAgent(agentName: string, message: string): Promise<AgentSingleInvokeResponse> {
+  return postJson<AgentSingleInvokeResponse>(
+    `/api/v1/agents/${encodeURIComponent(agentName)}/invoke`,
+    { message },
+  )
 }

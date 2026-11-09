@@ -66,3 +66,11 @@ export function deleteJson<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 }
+
+/** DELETE 端点不返回 JSON envelope（如 204 No Content）时使用。 */
+export async function deleteNoContent(path: string): Promise<void> {
+  const res = await fetch(path, { method: 'DELETE' })
+  if (!res.ok) {
+    throw new ApiError(res.statusText || 'DELETE_FAILED', res.status)
+  }
+}

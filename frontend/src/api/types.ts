@@ -123,3 +123,41 @@ export interface ScheduledExecution {
   errorMessage: string | null
   durationMs: number
 }
+
+// ── Notification Channels (US2) ──────────────────────────────
+
+export interface NotifyChannelSummary {
+  name: string
+  type: string
+  url: string | null
+  description: string | null
+  config: Record<string, unknown> | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NotifyChannelCreateInput {
+  name: string
+  type: string
+  url?: string
+  description?: string
+  config?: Record<string, unknown>
+}
+
+export interface NotifyChannelUpdateInput {
+  type?: string
+  url?: string
+  description?: string
+  config?: Record<string, unknown>
+}
+
+export interface NotifyChannelDeleteView {
+  channelName: string
+  status: 'DELETED'
+}
+
+// ── Agent Invoke (US3) ──────────────────────────────────────
+
+export interface AgentSingleInvokeResponse {
+  reply: string
+}

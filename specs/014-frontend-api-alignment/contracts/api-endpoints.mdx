@@ -1,0 +1,60 @@
+# API Endpoints: Frontend Contract Mappings
+
+## New Endpoints to Consume
+
+### Execution History
+
+| 项目 | 值 |
+|------|-----|
+| Method | `GET` |
+| Path | `/api/v2/schedules/{scheduleId}/executions` |
+| Response | `{ "code": "SUCCESS", "data": ScheduledExecution[], ... }` |
+| Frontend Function | `fetchExecutionHistory(scheduleId)` |
+| Existing Type | ✅ `ScheduledExecution` (types.ts:118) |
+| UI Component | ScheduleManagement.vue — expandable panel |
+
+### Agent + Key Schedule Run
+
+| 项目 | 值 |
+|------|-----|
+| Method | `POST` |
+| Path | `/api/v1/agents/{name}/schedules/{key}/run` |
+| Body | `{}` |
+| Response | `{ "code": "SUCCESS", "data": ScheduledExecution, ... }` |
+| Frontend Function | `agentRunSchedule(agentName, scheduleKey)` |
+| Existing Type | ✅ `ScheduledExecution` |
+| UI Component | ScheduleManagement.vue — dropdown selector |
+
+### Notification Channels CRUD
+
+| 端点 | Method | Response | Frontend Function |
+|------|--------|----------|-------------------|
+| List | `GET /api/v1/notify-channels` | `NotifyChannelSummary[]` | `fetchNotifyChannels()` |
+| Get one | `GET /api/v1/notify-channels/{name}` | `NotifyChannel` | `fetchNotifyChannel(name)` |
+| Create | `POST /api/v1/notify-channels` | `NotifyChannel` | `createNotifyChannel(input)` |
+| Update | `PUT /api/v1/notify-channels/{name}` | `NotifyChannel` | `updateNotifyChannel(name, input)` |
+| Delete | `DELETE /api/v1/notify-channels/{name}` | **204 No Content** | `deleteNotifyChannel(name)` |
+
+> ⚠️ Delete 返回 204 空响应，**不包裹在 ApiEnvelope 中**。`http.ts` 的 `request<T>()` 会因 JSON 解析失败而抛异常，需要特殊处理。
+
+### Agent Single Invoke
+
+| 项目 | 值 |
+|------|-----|
+| Method | `POST` |
+| Path | `/api/v1/agents/{name}/invoke` |
+| Body | `{ message: string }`（推测，需确认） |
+| Response | `{ reply: string }`（可能不含 sessionId） |
+| Frontend Function | `invokeAgent(agentName, message)` |
+| Existing Type | ✅ `MessageReplyView` 可能结构不符 |
+| UI Component | AgentInvokePage.vue — new page |
+
+## Status Codes Reference
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| 200 | Success with data | Parse JSON envelope → `envelope.data` |
+| 201 | Created (POST success) | Parse JSON envelope → `envelope.data` |
+| 204 | No Content (DELETE success) | Treat as success, no body to parse |
+| 4xx | Client error | Map via `utils/errors.ts` |
+| 5xx | Server error | Map via `utils/errors.ts` |

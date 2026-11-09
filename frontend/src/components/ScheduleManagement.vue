@@ -1,23 +1,48 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ApiError } from '@/api/http'
-import { fetchSchedules, runSchedule, setScheduleEnabled } from '@/api/oryxos'
-import type { ScheduledTaskSummary } from '@/api/types'
+import {
+  agentRunSchedule,
+  fetchExecutionHistory,
+  fetchProfiles,
+  fetchSchedules,
+  runSchedule,
+  setScheduleEnabled,
+} from '@/api/oryxos'
+import type { ScheduledExecution, ScheduledTaskSummary } from '@/api/types'
 import { mapError } from '@/utils/errors'
 
 const tasks = ref<ScheduledTaskSummary[]>([])
+const profiles = ref<{ name: string; description: string }[]>([])
 const loading = ref(true)
 const loadError = ref('')
 const pending = reactive(new Set<string>())
 const errors = reactive(new Map<string, string>())
 let loadSequence = 0
 
+const selectedAgent = ref('')
+const agentSchedules = computed(() => {
+  if (!selectedAgent.value) return []
+  return tasks.value.filter(t => t.profileName === selectedAgent.value)
+})
+const scheduleKeys = computed(() => Array.from(new Set(tasks.value.map(t => t.scheduleKey))))
+
 async function refresh() {
   const sequence = ++loadSequence
   loadError.value = ''
   try {
-    const result = await fetchSchedules()
-    if (sequence === loadSequence) tasks.value = result
+    const [taskResult, profileResult] = await Promise.all([
+      fetchSchedules(),
+      fetchProfiles(),
+    ])
+    if (sequence === loadSequence) {
+      tasks.value = taskResult
+      profiles.value = profileResult
+      // Reset selection if current agent no longer available
+      if (!profileResult.some((p: typeof profiles.value[number]) => p.name === selectedAgent.value)) {
+        selectedAgent.value = ''
+      }
+    }
   } catch (error) {
     if (sequence === loadSequence) loadError.value = mapError(error).message
   } finally {
@@ -53,6 +78,52 @@ async function operate(task: ScheduledTaskSummary, action: 'run' | 'toggle') {
   }
 }
 
+// ── Execution History (US1) ───────────────────────────────
+
+const expandingTasks = reactive(new Set<string>())
+const execHistories = reactive(new Map<string, ScheduledExecution[]>())
+const execLoading = reactive(new Map<string, boolean>())
+
+async function toggleHistory(task: ScheduledTaskSummary) {
+  const id = task.scheduleId
+  if (expandingTasks.has(id)) {
+    expandingTasks.delete(id)
+    return
+  }
+  expandingTasks.add(id)
+  execLoading.set(id, true)
+  try {
+    const history = await fetchExecutionHistory(id)
+    execHistories.set(id, history)
+  } catch (error) {
+    errors.set(id, mapError(error).message)
+  } finally {
+    execLoading.delete(id)
+  }
+}
+
+// ── Agent + Key Run (US4) ────────────────────────────────
+
+async function runByAgentAndKey() {
+  if (!selectedAgent.value) return
+  if (!agentSchedules.value.length) {
+    errors.set('__agent_run__', '该 Agent 暂无定时任务可补跑。')
+    return
+  }
+  const target = agentSchedules.value[0] // default to first scheduled key
+  pending.add(`agent_${target.profileName}_${target.scheduleKey}`)
+  errors.delete(`agent_${target.profileName}_${target.scheduleKey}`)
+  try {
+    const result = await agentRunSchedule(target.profileName, target.scheduleKey)
+    if (!result.success) errors.set(`agent_${target.profileName}_${target.scheduleKey}`, result.errorMessage ?? '补跑失败。')
+  } catch (error) {
+    errors.set(`agent_${target.profileName}_${target.scheduleKey}`, actionError(error))
+  } finally {
+    pending.delete(`agent_${target.profileName}_${target.scheduleKey}`)
+    await refresh()
+  }
+}
+
 function displayTime(value: string | null, zone: string) {
   if (!value) return '—'
   try {
@@ -64,54 +135,125 @@ function displayTime(value: string | null, zone: string) {
   }
 }
 
+function executionTime(value: string) {
+  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+}
+
 onMounted(refresh)
 </script>
 
 <template>
-  <p v-if="loading" role="status">正在加载定时任务…</p>
-  <div v-else-if="loadError" role="alert">
-    <p>定时任务加载失败。{{ loadError }}</p>
-    <button type="button" class="ghost-button" @click="refresh">重试</button>
-  </div>
-  <p v-else-if="!tasks.length">暂无定时任务。</p>
-  <div v-else class="schedule-table">
-    <table aria-label="定时任务">
-      <thead>
-        <tr>
-          <th scope="col">任务</th><th scope="col">Agent</th><th scope="col">Cron</th>
-          <th scope="col">下次触发</th><th scope="col">上次结果</th><th scope="col">次数</th>
-          <th scope="col">状态</th><th scope="col">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="task in tasks" :key="task.scheduleId">
-          <th scope="row">{{ task.displayName }}</th>
-          <td>{{ task.profileName }}</td>
-          <td><code>{{ task.cron }}</code><br>{{ task.zone }}</td>
-          <td>{{ displayTime(task.nextRunAt, task.zone) }}</td>
-          <td>{{ task.lastStatus === 'success' ? '成功' : task.lastStatus === 'failed' ? '失败' : '尚未执行' }}</td>
-          <td>{{ task.runCount }}</td>
-          <td>{{ task.enabled ? '已启用' : '已停用' }}</td>
-          <td>
-            <div class="schedule-actions">
-              <button type="button" class="ghost-button" :disabled="pending.has(task.scheduleId)"
-                @click="operate(task, 'run')">立即执行</button>
-              <button type="button" class="ghost-button" :disabled="pending.has(task.scheduleId)"
-                @click="operate(task, 'toggle')">{{ task.enabled ? '停用' : '启用' }}</button>
-            </div>
-            <p v-if="pending.has(task.scheduleId)" role="status">正在处理…</p>
-            <p v-if="errors.has(task.scheduleId)" role="alert">{{ errors.get(task.scheduleId) }}</p>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="schedule-container">
+    <div v-if="loading" role="status">正在加载定时任务…</div>
+    <div v-else-if="loadError" role="alert">
+      <p>定时任务加载失败。{{ loadError }}</p>
+      <button type="button" class="ghost-button" @click="refresh">重试</button>
+    </div>
+    <p v-else-if="!tasks.length">暂无定时任务。</p>
+    <template v-else>
+      <!-- Agent selector for US4 -->
+      <div class="agent-selector">
+        <label class="agent-select-label">
+          <span>按 Agent 补跑：</span>
+          <select v-model="selectedAgent">
+            <option value="">全部 Agent</option>
+            <option v-for="agent in profiles" :key="agent.name" :value="agent.name">{{ agent.name }}</option>
+          </select>
+        </label>
+        <button type="button" class="ghost-button" :disabled="!selectedAgent || pending.size > 0"
+          @click="runByAgentAndKey">补选中的任务</button>
+      </div>
+
+      <table aria-label="定时任务">
+        <thead>
+          <tr>
+            <th scope="col">任务</th><th scope="col">Agent</th><th scope="col">Cron</th>
+            <th scope="col">下次触发</th><th scope="col">上次结果</th><th scope="col">次数</th>
+            <th scope="col">状态</th><th scope="col">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="task in tasks" :key="task.scheduleId">
+            <th scope="row">{{ task.displayName }}</th>
+            <td>{{ task.profileName }}</td>
+            <td><code>{{ task.cron }}</code><br>{{ task.zone }}</td>
+            <td>{{ displayTime(task.nextRunAt, task.zone) }}</td>
+            <td>{{ task.lastStatus === 'success' ? '成功' : task.lastStatus === 'failed' ? '失败' : '尚未执行' }}</td>
+            <td>{{ task.runCount }}</td>
+            <td>{{ task.enabled ? '已启用' : '已停用' }}</td>
+            <td>
+              <div class="schedule-actions">
+                <button type="button" class="ghost-button" :disabled="pending.has(task.scheduleId)"
+                  @click="operate(task, 'run')">立即执行</button>
+                <button type="button" class="ghost-button" :disabled="pending.has(task.scheduleId)"
+                  @click="operate(task, 'toggle')">{{ task.enabled ? '停用' : '启用' }}</button>
+                <button type="button" class="ghost-button"
+                  @click="toggleHistory(task)">📋 历史</button>
+              </div>
+              <p v-if="pending.has(task.scheduleId)" role="status">正在处理…</p>
+              <p v-if="errors.has(task.scheduleId)" role="alert">{{ errors.get(task.scheduleId) }}</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Execution History Panel (US1) -->
+      <div v-for="task in tasks" :key="`hist-${task.scheduleId}`"
+        v-show="expandingTasks.has(task.scheduleId)"
+        class="history-panel">
+        <details open>
+          <summary>
+            {{ task.displayName }} — 执行历史（共 {{ execHistories.get(task.scheduleId)?.length ?? 0 }} 条）
+          </summary>
+          <p v-if="execLoading.get(task.scheduleId)" role="status">加载历史中…</p>
+          <p v-else-if="!execHistories.has(task.scheduleId) || !execHistories.get(task.scheduleId)?.length"
+            class="empty-hint">暂无执行历史。</p>
+          <table v-else class="history-table" aria-label="执行历史">
+            <thead>
+              <tr>
+                <th scope="col">开始时间</th>
+                <th scope="col">是否成功</th>
+                <th scope="col">错误信息</th>
+                <th scope="col">耗时 (ms)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="exec in (execHistories.get(task.scheduleId) ?? [])" :key="exec.startedAt">
+                <td>{{ executionTime(exec.startedAt) }}</td>
+                <td>{{ exec.success ? '✅ 成功' : '❌ 失败' }}</td>
+                <td>{{ exec.errorMessage ?? '—' }}</td>
+                <td>{{ exec.durationMs }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </details>
+      </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
+.agent-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: var(--surface-secondary, #f5f5f5);
+  border-radius: 4px;
+}
+.agent-select-label select {
+  margin-left: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: inherit;
+}
 .schedule-table { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 0.65rem; text-align: left; vertical-align: top; }
 thead { border-bottom: 1px solid currentColor; }
-.schedule-actions { display: flex; gap: 0.4rem; }
+.schedule-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.history-panel { margin-top: 0.5rem; padding: 0.5rem; }
+.history-panel details summary { cursor: pointer; user-select: none; }
+.history-table th, .history-table td { padding: 0.4rem 0.5rem; font-size: 0.9em; }
+.empty-hint { color: var(--muted-text, #888); font-style: italic; font-size: 0.9em; margin: 0; }
 </style>
