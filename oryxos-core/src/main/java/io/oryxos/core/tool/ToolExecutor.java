@@ -11,12 +11,16 @@ import io.oryxos.core.provider.ToolCallIntent;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongConsumer;
 import org.springframework.ai.util.json.JsonParser;
 
@@ -51,6 +55,11 @@ public final class ToolExecutor implements AutoCloseable {
     }
 
     public ToolResult execute(String sessionId, ToolCallIntent call) {
+        return execute(sessionId, call, null);
+    }
+
+    /** 受控运行取消后，调用线程保留所有权直至已开始的工具退出。 */
+    public ToolResult execute(String sessionId, ToolCallIntent call, BooleanSupplier cancelled) {
         Profile profile = ProfileContext.current();
         String toolName = call.name();
         boolean named = toolName != null && !toolName.isBlank();
@@ -69,7 +78,7 @@ public final class ToolExecutor implements AutoCloseable {
                     result = failed("工具调用标识或参数非法");
                 }
                 else {
-                    result = checkedExecute(profile, call, tool);
+                    result = checkedExecute(profile, call, tool, cancelled);
                 }
             }
             catch (RuntimeException exception) {
@@ -111,7 +120,7 @@ public final class ToolExecutor implements AutoCloseable {
                 .orElse(null);
     }
 
-    private ToolResult checkedExecute(Profile profile, ToolCallIntent call, OryxTool tool) {
+    private ToolResult checkedExecute(Profile profile, ToolCallIntent call, OryxTool tool, BooleanSupplier cancelled) {
         try {
             policy.accept(profile, call);
         }
@@ -119,33 +128,50 @@ public final class ToolExecutor implements AutoCloseable {
             return failed("工具安全检查拒绝");
         }
         UserInteraction interaction = UserInteractionContext.current();
+        var claimed = new AtomicBoolean();
+        var exited = new CompletableFuture<Void>();
         var future = worker.submit(() -> {
-            ProfileContext.set(profile);
-            if (interaction != null) {
-                UserInteractionContext.set(interaction);
+            if (!claimed.compareAndSet(false, true)) {
+                return failed("工具执行已取消");
             }
             try {
+                if (cancelled != null && cancelled.getAsBoolean()) {
+                    return failed("工具执行已取消");
+                }
+                ProfileContext.set(profile);
+                if (interaction != null) {
+                    UserInteractionContext.set(interaction);
+                }
                 return tool.execute(call.argumentsJson());
             }
             finally {
                 UserInteractionContext.clear();
                 ProfileContext.clear();
+                exited.complete(null);
             }
         });
         try {
             return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         }
         catch (TimeoutException exception) {
-            future.cancel(true);
+            cancelTool(future, cancelled, claimed, exited);
             return failed("工具执行超时");
         }
         catch (InterruptedException exception) {
-            future.cancel(true);
+            cancelTool(future, cancelled, claimed, exited);
             Thread.currentThread().interrupt();
             return failed("工具执行已中断");
         }
         catch (ExecutionException exception) {
             return failed("工具执行异常");
+        }
+    }
+
+    private static void cancelTool(Future<?> future, BooleanSupplier cancelled, AtomicBoolean claimed,
+            CompletableFuture<Void> exited) {
+        future.cancel(true);
+        if (cancelled != null && !claimed.compareAndSet(false, true)) {
+            exited.join();
         }
     }
 

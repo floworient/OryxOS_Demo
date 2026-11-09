@@ -17,5 +17,4 @@ website/.vitepress/dist/
 website/.vitepress/cache/
 .worktrees/
 frontend/node_modules/
-oryxos-web/src/main/resources/static/console/
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RuntimeHealth } from '@/state/useConsole'
+import logoSvg from '@/assets/oryxos-logo.svg'
 
 defineProps<{
   health: RuntimeHealth
@@ -12,7 +13,7 @@ defineProps<{
 <template>
   <header class="status-bar">
     <div class="status-brand">
-      <span class="brand-mark" aria-hidden="true">O</span>
+      <img :src="logoSvg" alt="OryxOS" class="brand-logo" />
       <span>OryxOS 工作台</span>
     </div>
     <div class="status-meta">

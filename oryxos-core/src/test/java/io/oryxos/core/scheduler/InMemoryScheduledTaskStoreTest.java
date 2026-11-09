@@ -102,6 +102,40 @@ class InMemoryScheduledTaskStoreTest {
     }
 
     @Test
+    void reconciliationPreservesDisabledStatusAndRetiredHistory() {
+        var store = new InMemoryScheduledTaskStore();
+        var id = ScheduleId.from("weather", "daily");
+        var start = Instant.parse("2026-11-09T00:00:00Z");
+        store.reconcile(definition(id, "0 0 8 * * *", "first"));
+        assertThat(store.isEnabled(id)).isTrue();
+        assertThat(store.list().getFirst().runCount()).isZero();
+
+        store.setEnabled(id, false);
+        store.recordExecution(TaskExecution.failed(
+                id, "session-1", start, start.plusMillis(15),
+                new IllegalStateException("secret=must-not-appear")));
+        store.retire(id);
+        assertThat(store.list()).isEmpty();
+        assertThat(store.exists(id)).isTrue();
+        assertThat(store.executionViews(id)).singleElement().satisfies(history -> {
+            assertThat(history.success()).isFalse();
+            assertThat(history.errorMessage()).isNotBlank().doesNotContain("must-not-appear");
+            assertThat(history.durationMs()).isEqualTo(15);
+        });
+
+        store.reconcile(definition(id, "0 30 8 * * *", "second"));
+        store.updateNextRun(id, start.plusSeconds(30));
+        assertThat(store.list()).singleElement().satisfies(view -> {
+            assertThat(view.scheduleId()).isEqualTo(id);
+            assertThat(view.enabled()).isFalse();
+            assertThat(view.lastStatus()).isEqualTo("failed");
+            assertThat(view.lastRunAt()).isEqualTo(start);
+            assertThat(view.runCount()).isEqualTo(1);
+            assertThat(view.nextRunAt()).isEqualTo(start.plusSeconds(30));
+        });
+    }
+
+    @Test
     void concurrentExecutionAppendDoesNotLoseRecords() throws Exception {
         InMemoryScheduledTaskStore store = new InMemoryScheduledTaskStore();
         ScheduleId id = ScheduleId.from("weather", "daily");

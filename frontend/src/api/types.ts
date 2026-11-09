@@ -101,3 +101,25 @@ export interface MemorySummary {
   core: MemoryEntry[]
   archival: MemoryEntry[]
 }
+export interface ScheduledTaskSummary {
+  scheduleId: string
+  profileName: string
+  scheduleKey: string
+  displayName: string
+  cron: string
+  zone: string
+  enabled: boolean
+  nextRunAt: string | null
+  lastRunAt: string | null
+  lastStatus: 'success' | 'failed' | null
+  runCount: number
+}
+
+export interface ScheduledExecution {
+  scheduleId: string
+  sessionId: string | null
+  startedAt: string
+  success: boolean
+  errorMessage: string | null
+  durationMs: number
+}

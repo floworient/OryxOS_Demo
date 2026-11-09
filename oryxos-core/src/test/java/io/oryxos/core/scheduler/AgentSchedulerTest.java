@@ -13,29 +13,47 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.oryxos.core.agent.AgentService;
+import io.oryxos.core.agent.ReActLoop;
+import io.oryxos.core.context.PromptBuilder;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.core.profile.ProfileRegistry;
+import io.oryxos.core.provider.ProviderResponse;
+import io.oryxos.core.provider.ProviderService;
+import io.oryxos.core.provider.TokenUsage;
+import io.oryxos.core.provider.ToolCallIntent;
 import io.oryxos.core.session.Session;
 import io.oryxos.core.session.SessionManager;
+import io.oryxos.core.tool.OryxTool;
+import io.oryxos.core.tool.ToolExecutor;
+import io.oryxos.core.tool.ToolRegistration;
+import io.oryxos.core.tool.ToolRegistry;
+import io.oryxos.core.tool.ToolResult;
+import io.oryxos.core.tool.ToolSource;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.support.CronTrigger;
@@ -204,7 +222,7 @@ class AgentSchedulerTest {
     void anonymousFailureAndBackwardClockAreSafelyRecorded() {
         Clock clock = mock(Clock.class);
         Instant startedAt = Instant.parse("2026-11-04T00:00:01Z");
-        when(clock.instant()).thenReturn(startedAt, startedAt.minusSeconds(1));
+        when(clock.instant()).thenReturn(startedAt, startedAt, startedAt.minusSeconds(1));
         Fixture fixture = fixtureWithOneSchedule(new InMemoryScheduledTaskStore(), clock);
         Session session = session("weather");
         when(fixture.sessions().getOrCreate("scheduler", "scheduler", "weather")).thenReturn(session);
@@ -227,7 +245,7 @@ class AgentSchedulerTest {
     void successfulRunClampsBackwardClock() {
         Clock clock = mock(Clock.class);
         Instant startedAt = Instant.parse("2026-11-04T00:00:01Z");
-        when(clock.instant()).thenReturn(startedAt, startedAt.minusSeconds(1));
+        when(clock.instant()).thenReturn(startedAt, startedAt, startedAt.minusSeconds(1));
         Fixture fixture = fixtureWithOneSchedule(new InMemoryScheduledTaskStore(), clock);
         Session session = session("weather");
         when(fixture.sessions().getOrCreate("scheduler", "scheduler", "weather")).thenReturn(session);
@@ -244,9 +262,34 @@ class AgentSchedulerTest {
     }
 
     @Test
+    void disabledCronSkipsButManualRunRecordsOneExecutionWithoutMovingCron() throws Exception {
+        var store = new InMemoryScheduledTaskStore();
+        var clock = Clock.fixed(Instant.parse("2026-11-09T00:00:00Z"), ZoneOffset.UTC);
+        var fixture = fixtureWithOneSchedule(store, clock);
+        var id = ScheduleId.from("weather", "daily");
+        var session = session("weather");
+        when(fixture.sessions().getOrCreate("scheduler", "scheduler", "weather")).thenReturn(session);
+        assertThat(store.list().getFirst().nextRunAt()).isEqualTo(Instant.parse("2026-11-09T08:00:00Z"));
+
+        store.setEnabled(id, false);
+        fixture.callback().run();
+        assertThat(store.executions(id)).isEmpty();
+
+        assertThat(fixture.scheduler().runNow(id)).hasValueSatisfying(execution -> {
+            assertThat(execution.success()).isTrue();
+            assertThat(execution.sessionId()).isEqualTo(session.id());
+        });
+        assertThat(store.list().getFirst().nextRunAt()).isEqualTo(Instant.parse("2026-11-09T08:00:00Z"));
+        assertThat(store.list().getFirst().runCount()).isEqualTo(1);
+        assertThatThrownBy(() -> fixture.scheduler().runNow(ScheduleId.from("weather", "missing")))
+                .isInstanceOf(java.util.NoSuchElementException.class);
+    }
+
+    @Test
     void storeFailureDoesNotEscapeOrKeepProfileLocked() {
         ScheduledTaskStore store = mock(ScheduledTaskStore.class);
         when(store.reconcile(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(store.isEnabled(any())).thenReturn(true);
         doThrow(new IllegalStateException("store-private"))
                 .doNothing()
                 .when(store).recordExecution(any());
@@ -259,6 +302,199 @@ class AgentSchedulerTest {
 
         verify(fixture.agents(), times(2)).process(session, "message");
         verify(store, times(2)).recordExecution(any());
+    }
+
+    @Test
+    void actualFirstCronTimeWinsWhenRegistrationCrossesCronBoundary() {
+        var taskScheduler = mock(TaskScheduler.class);
+        var future = mock(ScheduledFuture.class);
+        var before = Instant.parse("2026-11-09T07:59:59Z");
+        when(taskScheduler.schedule(any(Runnable.class), any(Trigger.class))).thenAnswer(invocation -> {
+            Trigger trigger = invocation.getArgument(1);
+            trigger.nextExecution(new SimpleTriggerContext(Clock.fixed(before.plusSeconds(1), ZoneOffset.UTC)));
+            return future;
+        });
+        var profiles = new ProfileRegistry();
+        profiles.register(profile("weather", List.of(new Profile.ScheduleRef("daily", "0 0 8 * * *", "UTC", "work"))));
+        var store = new InMemoryScheduledTaskStore();
+        try (var scheduler = new AgentScheduler(taskScheduler, profiles, mock(AgentService.class),
+                mock(SessionManager.class), store, Clock.fixed(before, ZoneOffset.UTC))) {
+            scheduler.registerAll();
+            assertThat(store.list().getFirst().nextRunAt()).isEqualTo(Instant.parse("2026-11-10T08:00:00Z"));
+        }
+    }
+
+    @Test
+    void timeoutKeepsLockUntilActualToolWorkerExits() throws Exception {
+        var release = new CompletableFuture<ToolResult>();
+        var tool = mock(OryxTool.class);
+        when(tool.getName()).thenReturn("notify");
+        when(tool.execute("{}")).thenAnswer(ignored -> release.join());
+        var registry = mock(ToolRegistry.class);
+        var registration = new ToolRegistration(tool, ToolSource.BUILTIN, "builtin");
+        when(registry.visibleTo(any())).thenReturn(List.of(registration));
+        var provider = mock(ProviderService.class);
+        when(provider.chat(any(), any(), any())).thenReturn(toolResponse());
+        try (var tools = new ToolExecutor(registry, (profile, call) -> { }, ignored -> { });
+                var scheduler = actualScheduler(provider, tools)) {
+            var id = ScheduleId.from("weather", "daily");
+            try {
+                assertThatThrownBy(() -> scheduler.runNow(id)).isInstanceOf(TimeoutException.class);
+                verify(tool).execute("{}");
+                Instant deadline = Instant.now().plusMillis(250);
+                while (Instant.now().isBefore(deadline)) {
+                    assertThat(scheduler.runNow(id)).isEmpty();
+                    Thread.sleep(25);
+                }
+            } finally {
+                release.complete(new ToolResult(true, "ok", null, false));
+            }
+        }
+    }
+
+    @Test
+    void cancelledProviderCannotRequestLateToolEvenIfItClearsInterrupt() throws Exception {
+        var started = new CountDownLatch(1);
+        var stopped = new CountDownLatch(1);
+        var provider = mock(ProviderService.class);
+        var first = new AtomicBoolean(true);
+        when(provider.chat(any(), any(), any())).thenAnswer(ignored -> {
+            if (first.getAndSet(false)) {
+                started.countDown();
+                try {
+                    stopped.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException cancelled) {
+                    // 模拟忽略中断并返回迟到工具请求的 Provider。
+                }
+                return toolResponse();
+            }
+            return new ProviderResponse("provider", "model", "完成", TokenUsage.UNKNOWN, List.of(), 0);
+        });
+        var tools = mock(ToolExecutor.class);
+        try (var scheduler = actualScheduler(provider, tools)) {
+            var id = ScheduleId.from("weather", "daily");
+            try {
+                assertThatThrownBy(() -> scheduler.runNow(id)).isInstanceOf(TimeoutException.class);
+                assertThat(started.getCount()).isZero();
+                var next = scheduler.runNow(id);
+                Instant deadline = Instant.now().plusSeconds(5);
+                while (next.isEmpty() && Instant.now().isBefore(deadline)) {
+                    Thread.sleep(10);
+                    next = scheduler.runNow(id);
+                }
+                assertThat(next).hasValueSatisfying(run -> assertThat(run.success()).isTrue());
+                verifyNoInteractions(tools);
+            } finally {
+                stopped.countDown();
+            }
+        }
+    }
+
+    private static AgentScheduler actualScheduler(ProviderService provider, ToolExecutor tools) {
+        var taskScheduler = mock(TaskScheduler.class);
+        doReturn(mock(ScheduledFuture.class)).when(taskScheduler).schedule(any(Runnable.class), any(Trigger.class));
+        var profiles = new ProfileRegistry();
+        profiles.register(profile("weather", List.of(new Profile.ScheduleRef("daily", "0 0 8 * * *", "UTC", "work"))));
+        var sessions = mock(SessionManager.class);
+        when(sessions.getOrCreate("scheduler", "scheduler", "weather")).thenAnswer(ignored -> session("weather"));
+        var prompts = mock(PromptBuilder.class);
+        when(prompts.build(any(), any())).thenAnswer(invocation -> new Prompt("work"));
+        var agents = new AgentService(profiles, new ReActLoop(prompts, provider, tools), sessions);
+        var scheduler = new AgentScheduler(taskScheduler, profiles, agents, sessions,
+                new InMemoryScheduledTaskStore(), Clock.systemUTC(), Duration.ofSeconds(2));
+        scheduler.registerAll();
+        return scheduler;
+    }
+
+    private static ProviderResponse toolResponse() {
+        return new ProviderResponse("provider", "model", "", TokenUsage.UNKNOWN,
+                List.of(new ToolCallIntent("notify-1", "notify", "{}")), 0);
+    }
+
+    @Test
+    void timeoutRecordsOneFailureAndWorkerRetainsItsProfileLockUntilExit(CapturedOutput output) throws Exception {
+        var tasks = mock(TaskScheduler.class);
+        doReturn(mock(ScheduledFuture.class)).when(tasks).schedule(any(Runnable.class), any(Trigger.class));
+        var profiles = new ProfileRegistry();
+        var rule = new Profile.ScheduleRef("daily", "0 0 8 * * *", "UTC", "message");
+        profiles.register(profile("weather", List.of(rule)));
+        profiles.register(profile("news", List.of(rule)));
+        var store = new InMemoryScheduledTaskStore();
+        var sessions = mock(SessionManager.class);
+        var agents = mock(AgentService.class);
+        var weather = session("weather");
+        var news = session("news");
+        when(sessions.getOrCreate("scheduler", "scheduler", "weather")).thenReturn(weather);
+        when(sessions.getOrCreate("scheduler", "scheduler", "news")).thenReturn(news);
+        var release = new CompletableFuture<String>();
+        when(agents.process(weather, "message")).thenAnswer(ignored -> release.join());
+        var weatherId = ScheduleId.from("weather", "daily");
+        var newsId = ScheduleId.from("news", "daily");
+        try (var scheduler = new AgentScheduler(
+                tasks, profiles, agents, sessions, store, Clock.systemUTC(), Duration.ofMillis(500))) {
+            scheduler.registerAll();
+            try {
+                assertThatThrownBy(() -> scheduler.runNow(weatherId)).isInstanceOf(TimeoutException.class);
+                assertThat(store.executionViews(weatherId)).singleElement().satisfies(run -> {
+                    assertThat(run.success()).isFalse();
+                    assertThat(run.sessionId()).isEqualTo(weather.id());
+                    assertThat(run.errorMessage()).contains("超时");
+                });
+                assertThat(scheduler.runNow(weatherId)).isEmpty();
+                assertThat(scheduler.runNow(newsId)).hasValueSatisfying(run -> assertThat(run.success()).isTrue());
+                assertThat(output.getOut()).contains(weather.id(), news.id());
+            } finally {
+                release.complete("迟到的回复");
+            }
+        }
+        assertThat(store.executionViews(weatherId)).hasSize(1);
+    }
+
+    @Test
+    void closeLetsAnAdmittedRunPersistBeforeReturning() throws Exception {
+        var store = new InMemoryScheduledTaskStore();
+        var fixture = fixtureWithOneSchedule(store);
+        var session = session("weather");
+        when(fixture.sessions().getOrCreate("scheduler", "scheduler", "weather")).thenReturn(session);
+        var started = new CountDownLatch(1);
+        var release = new CompletableFuture<String>();
+        when(fixture.agents().process(session, "message")).thenAnswer(ignored -> {
+            started.countDown();
+            return release.join();
+        });
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var run = executor.submit(fixture.callback());
+            try {
+                assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                var shutdown = executor.submit(fixture.scheduler()::close);
+                assertThatThrownBy(() -> shutdown.get(100, TimeUnit.MILLISECONDS))
+                        .isInstanceOf(TimeoutException.class);
+                release.complete("完成");
+                shutdown.get(5, TimeUnit.SECONDS);
+                run.get(5, TimeUnit.SECONDS);
+            } finally {
+                release.complete("完成");
+            }
+        }
+        assertThat(store.executionViews(ScheduleId.from("weather", "daily"))).singleElement()
+                .satisfies(execution -> assertThat(execution.success()).isTrue());
+    }
+
+    @Test
+    void startupRetiresRemovedDefinitionsButShutdownPreservesActiveState() {
+        var store = new InMemoryScheduledTaskStore();
+        var oldProfile = profile("old", List.of(
+                new Profile.ScheduleRef("removed", "0 0 8 * * *", "UTC", "old")));
+        var removed = ScheduledTaskDefinition.from(oldProfile, oldProfile.schedules().getFirst());
+        store.reconcile(removed);
+        store.recordExecution(TaskExecution.succeeded(
+                removed.scheduleId(), null, Instant.EPOCH, Instant.EPOCH));
+
+        var fixture = fixtureWithOneSchedule(store);
+        assertThat(store.list()).extracting(ScheduledTaskView::profileName).containsExactly("weather");
+        assertThat(store.executionViews(removed.scheduleId())).hasSize(1);
+        fixture.scheduler().close();
+        assertThat(store.list()).extracting(ScheduledTaskView::profileName).containsExactly("weather");
     }
 
     @Test
@@ -381,7 +617,7 @@ class AgentSchedulerTest {
         scheduler.close();
 
         verify(third).cancel(false);
-        assertThat(store.find(ScheduleId.from("news", "daily"))).isEmpty();
+        assertThat(store.find(ScheduleId.from("news", "daily"))).isPresent();
     }
 
     @Test
@@ -539,7 +775,7 @@ class AgentSchedulerTest {
         scheduler.registerAll();
         ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
         verify(taskScheduler).schedule(captor.capture(), any(Trigger.class));
-        return new Fixture(captor.getValue(), agents, sessions,
+        return new Fixture(scheduler, captor.getValue(), agents, sessions,
                 store instanceof InMemoryScheduledTaskStore memory ? memory : null);
     }
 
@@ -548,6 +784,7 @@ class AgentSchedulerTest {
     }
 
     private record Fixture(
+            AgentScheduler scheduler,
             Runnable callback,
             AgentService agents,
             SessionManager sessions,

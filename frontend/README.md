@@ -1,6 +1,6 @@
 # OryxOS 工作台（第一版）
 
-Vue 3 + TypeScript + Vite 实现的对话工作台，只消费后端已冻结的 `/api/v1` 接口。
+Vue 3 + TypeScript + Vite 实现的对话工作台。定时任务页使用 `/api/v2/schedules`，现有会话和管理查询继续使用 `/api/v1`。
 
 ## 开发
 
@@ -30,8 +30,8 @@ npm run typecheck
 npm run build
 ```
 
-产物输出到 `oryxos-web/src/main/resources/static/console/`（已加入 `.gitignore`），随后重新打包后端即可通过 `/console/index.html` 访问。
+产物输出到 `oryxos-web/src/main/resources/static/console/`，后端会将页面与哈希资源打入 JAR。修改页面后重新构建前端和后端，并一并更新静态资源，通过 `/console/index.html` 访问。
 
 ## 范围
 
-本版只做对话工作台：Agent 列表、真实对话、工具调用名称、刷新恢复、按 Agent 隔离、新对话、归档与错误提示。不包含管理台、认证、流式输出、Provider/Agent 在线配置、调度或审计查询。
+工作台提供 Agent、Provider、工具、白名单、记忆、运行状态及会话视图。定时任务支持查看状态、立即执行和启停。调度定义由 Agent 文件维护，修改后在服务启动时重新注册。

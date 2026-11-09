@@ -17,6 +17,7 @@ import io.oryxos.core.tool.ToolSource;
 import io.oryxos.provider.ToolSchemaAdapter;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,8 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 public class ReActConfiguration {
+
+    private static final Set<String> DEFAULT_HTTP_TOOLS = Set.of("http_get", "notify");
 
     @Bean
     ContextLoader contextLoader(@Value("${oryxos.workspace:./.oryxos}") String workspace) {
@@ -43,9 +46,11 @@ public class ReActConfiguration {
         BiConsumer<Profile, ToolCallIntent> policy = policies.getIfUnique(() -> {
             boolean noCustomPolicy = policies.stream().findAny().isEmpty();
             return (profile, call) -> {
-                // 内置 GET 在发出请求前仍会校验 HTTP 域名白名单。
-                if (noCustomPolicy && "http_get".equals(call.name())
-                        && tools.find("http_get").filter(tool -> tool.source() == ToolSource.BUILTIN).isPresent()) {
+                // 可见性由 ToolExecutor 先校验，HTTP 和通知仍执行目标白名单检查。
+                if (noCustomPolicy && tools.find(call.name()).filter(tool ->
+                        (tool.source() == ToolSource.BUILTIN && DEFAULT_HTTP_TOOLS.contains(call.name()))
+                        || (tool.source() == ToolSource.JAVA && "memoryTools".equals(tool.sourceName())
+                                && "save_memory".equals(call.name()))).isPresent()) {
                     return;
                 }
                 throw new SecurityException("尚未配置唯一的工具安全策略");

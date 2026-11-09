@@ -107,7 +107,26 @@ schedules:
 
 同一 Profile 的所有规则在单个 JVM 内共享互斥锁：已有任务运行时，后续触发立即跳过且不排队；不同 Profile 可由 4 线程调度池并行执行。执行异常会被当前回调隔离，后续触发仍可继续。
 
-当前阶段的调度定义与执行历史只保存在进程内存中，重启后由 `AGENT.md` 重新注册且历史不会恢复。尚未提供调度管理 REST/CLI、运行时修改、自动重试、持久化恢复或多实例去重；多实例部署时同一规则可能在每个实例各执行一次。
+调度定义来自 `AGENT.md`。SQLite 持久化启停、计数、上次结果和执行历史。重启时按文件重新注册并计算下次触发时间，移除定义后旧历史仍可按稳定 ID 查询。停用会跳过自动触发，手动补跑仍可执行。两种触发共享 60 秒执行上限，同一 Profile 正在执行时跳过重叠请求。
+
+管理台 `/console/` 的「定时任务」页提供列表、立即执行和启停。新版接口使用列表返回的 `scheduleId`，响应沿用 `ApiResponse`。
+
+| 方法 | v2 路径 | 用途 |
+| --- | --- | --- |
+| GET | `/api/v2/schedules` | 查询活动任务及状态 |
+| GET | `/api/v2/schedules/{scheduleId}/executions` | 查询执行历史，含退役任务 |
+| POST | `/api/v2/schedules/{scheduleId}/run` | 立即执行一次 |
+| PUT | `/api/v2/schedules/{scheduleId}` | 传入 `{"enabled": false}` 或 `{"enabled": true}` |
+| POST | `/api/v2/agents/{profileName}/schedules/{key}/run` | 按 Agent 和配置键补跑 |
+
+v1 兼容 `GET /api/v1/schedules`、`GET /api/v1/schedules/{id}/executions`、`POST /api/v1/schedules/{id}/run` 和 `PUT /api/v1/schedules/{id}`。v1 的 `{id}` 使用任务配置键。跨 Agent 同键时，单任务操作返回 HTTP 409。配置键含斜杠等路径分隔符时，使用 v2 的稳定 ID 路由。
+
+#### Demo 前置配置
+
+1. 在独立测试工作区的 `application.yaml` 设置 `oryxos.http.allowed-domains`。添加天气源 `api.open-meteo.com`、实际 webhook 的域名，以及通过 `http_get` 取新闻时使用的新闻源域名。默认文件与命令白名单无需扩大。
+2. 用现有通知渠道注册接口配置测试渠道，Agent 正文只写渠道名称。Agent 的 `tools` 显式声明所需的 `http_get`、`notify` 或 `save_memory`。默认策略允许这些内置工具，HTTP 与通知仍需通过域名白名单。凭证通过环境变量或独立本地配置加载。
+3. 按上文示例在测试 `AGENT.md` 的 `schedules` 设置 cron、`Asia/Shanghai` 和消息。使用新闻 MCP 时，在 `mcp_servers.yaml` 声明服务并用 `oryxos tool list` 核对工具注册。
+4. 记录 Demo 偏好并查询记忆。补跑验证接收端送达，再重启服务并核对会话、任务状态和历史。无密钥测试及真链路运行命令见[第 28 节验收指南](specs/013-scheduled-task-operations/quickstart.md)。
 
 <a id="architecture"></a>
 

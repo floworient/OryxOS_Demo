@@ -6,6 +6,7 @@ import type { BootStatus } from '@/state/useConsole'
 import AgentManagement from './AgentManagement.vue'
 import ManagementQuery from './ManagementQuery.vue'
 import ProviderManagement from './ProviderManagement.vue'
+import ScheduleManagement from './ScheduleManagement.vue'
 import { consoleSections, type ConsoleSection } from './consoleSections'
 
 const props = defineProps<{
@@ -43,30 +44,88 @@ async function loadRuntime() {
     </template>
     <AgentManagement v-if="section === 'agents'" @chat="$emit('chat', $event)" />
     <ProviderManagement v-else-if="section === 'providers'" />
+    <ScheduleManagement v-else-if="section === 'schedules'" />
 
     <template v-else-if="section === 'tools'">
-      <label>Agent
-        <select v-model="toolAgent">
-          <option value="">全局工具</option>
-          <option v-for="profile in profiles" :key="profile.name" :value="profile.name">{{ profile.name }}</option>
-        </select>
-      </label>
-      <ManagementQuery :load="loadTools" v-slot="{ data }">
-        <p v-if="!data.length">没有可显示的工具。</p>
-        <article v-for="tool in data" :key="tool.name" class="management-card">
-          <h2>{{ tool.name }}</h2>
-          <p>{{ tool.description }}</p>
-          <p>{{ tool.source }} · {{ tool.sourceName }}</p>
-        </article>
-      </ManagementQuery>
+      <section class="tools-overview">
+        <header class="tools-head">
+          <h2>工具管理</h2>
+          <label class="tools-filter">
+            <span>筛选 Agent</span>
+            <select v-model="toolAgent">
+              <option value="">全局工具</option>
+              <option v-for="profile in profiles" :key="profile.name" :value="profile.name">{{ profile.name }}</option>
+            </select>
+          </label>
+        </header>
+
+        <ManagementQuery :load="loadTools" v-slot="{ data }">
+          <p v-if="!data.length" class="tools-empty">没有可显示的工具。</p>
+          <ul v-else class="tools-grid">
+            <li v-for="tool in data" :key="tool.name" class="tool-card">
+              <header class="tool-head">
+                <span class="tool-icon">🔧</span>
+                <h3>{{ tool.name }}</h3>
+              </header>
+              <p class="tool-desc">{{ tool.description }}</p>
+              <footer class="tool-meta">
+                <span class="tool-source">{{ tool.source }}</span>
+                <span class="tool-sep">·</span>
+                <span class="tool-source-name">{{ tool.sourceName }}</span>
+              </footer>
+            </li>
+          </ul>
+        </ManagementQuery>
+      </section>
     </template>
 
     <ManagementQuery v-else-if="section === 'sandbox'" :load="fetchSandboxAllowlist" v-slot="{ data }">
-      <dl>
-        <dt>HTTP 域名</dt><dd>{{ data.httpDomains.join('、') || '无' }}</dd>
-        <dt>全局文件根数量</dt><dd>{{ data.fileRootCount }}</dd>
-        <dt>命令别名</dt><dd>{{ data.commandAliases.join('、') || '无' }}</dd>
-      </dl>
+      <section class="sandbox-overview">
+        <header class="sandbox-head">
+          <h2>安全沙箱白名单</h2>
+          <p class="sandbox-hint">以下配置定义了 Agent 可访问的外部资源边界</p>
+        </header>
+
+        <ul class="sandbox-categories">
+          <li class="sandbox-card">
+            <header class="card-head">
+              <span class="card-icon">🌐</span>
+              <h3>HTTP 域名</h3>
+              <span class="card-count">{{ data.httpDomains.length }}</span>
+            </header>
+            <ul v-if="data.httpDomains.length" class="card-list">
+              <li v-for="domain in data.httpDomains" :key="domain" class="card-item">{{ domain }}</li>
+            </ul>
+            <p v-else class="card-empty">暂无配置</p>
+            <button type="button" class="text-button card-action">+ 添加域名</button>
+          </li>
+
+          <li class="sandbox-card">
+            <header class="card-head">
+              <span class="card-icon">📁</span>
+              <h3>文件根目录</h3>
+              <span class="card-count">{{ data.fileRootCount }}</span>
+            </header>
+            <p class="card-summary">已配置 <strong>{{ data.fileRootCount }}</strong> 个可访问的文件根目录</p>
+            <button type="button" class="text-button card-action">+ 添加目录</button>
+          </li>
+
+          <li class="sandbox-card">
+            <header class="card-head">
+              <span class="card-icon">⚡</span>
+              <h3>命令别名</h3>
+              <span class="card-count">{{ data.commandAliases.length }}</span>
+            </header>
+            <ul v-if="data.commandAliases.length" class="card-list">
+              <li v-for="alias in data.commandAliases" :key="alias" class="card-item">
+                <code>{{ alias }}</code>
+              </li>
+            </ul>
+            <p v-else class="card-empty">暂无配置</p>
+            <button type="button" class="text-button card-action">+ 添加命令</button>
+          </li>
+        </ul>
+      </section>
     </ManagementQuery>
 
     <template v-else-if="section === 'memory'">
@@ -91,13 +150,44 @@ async function loadRuntime() {
     </template>
 
     <ManagementQuery v-else :load="loadRuntime" v-slot="{ data }">
-      <dl>
-        <dt>服务健康</dt><dd>{{ data.health.status }}</dd>
-        <dt>应用版本</dt><dd>{{ data.info.implementationVersion }}</dd>
-        <dt>Java 版本</dt><dd>{{ data.info.javaVersion }}</dd>
-        <dt>Agent 数量</dt><dd>{{ data.info.profileCount }}</dd>
-        <dt>Tool 数量</dt><dd>{{ data.info.toolCount }}</dd>
-      </dl>
+      <section class="runtime-overview">
+        <header class="runtime-head">
+          <span class="runtime-badge" :class="`status-${data.health.status.toLowerCase()}`">
+            <span class="status-dot" aria-hidden="true"></span>
+            {{ data.health.status === 'UP' ? '服务健康' : '状态异常' }}
+          </span>
+          <span class="runtime-version">{{ data.info.applicationName }} v{{ data.info.implementationVersion }}</span>
+        </header>
+
+        <ul class="runtime-stats">
+          <li class="stat-card">
+            <span class="stat-value">{{ data.info.profileCount }}</span>
+            <span class="stat-label">Agents</span>
+          </li>
+          <li class="stat-card">
+            <span class="stat-value">{{ data.info.toolCount }}</span>
+            <span class="stat-label">Tools</span>
+          </li>
+          <li class="stat-card">
+            <span class="stat-value">{{ data.info.providers.length }}</span>
+            <span class="stat-label">Providers</span>
+          </li>
+          <li class="stat-card">
+            <span class="stat-value stat-text">{{ data.info.javaVersion?.split(' ').at(-1) || '未知' }}</span>
+            <span class="stat-label">Java</span>
+          </li>
+        </ul>
+
+        <section class="runtime-detail">
+          <h2>环境信息</h2>
+          <dl>
+            <dt>Java 版本</dt>
+            <dd>{{ data.info.javaVersion || '未知' }}</dd>
+            <dt>Provider 列表</dt>
+            <dd>{{ data.info.providers.join(', ') || '未配置' }}</dd>
+          </dl>
+        </section>
+      </section>
     </ManagementQuery>
   </main>
 </template>

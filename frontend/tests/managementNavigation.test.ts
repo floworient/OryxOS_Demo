@@ -3,9 +3,9 @@ import { expect, it, vi } from 'vitest'
 import App from '@/App.vue'
 import { weatherProfile } from './helpers'
 
-it('opens seven sections and preserves the conversation draft', async () => {
+it('shows the schedule section and preserves the conversation draft', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    const data = url.endsWith('/profiles') ? [weatherProfile]
+    const data = url.endsWith('/profiles') ? [weatherProfile] : url.includes('/sessions?') ? []
       : url.endsWith('/health') ? { status: 'UP' } : { providers: ['deepseek'] }
     return new Response(JSON.stringify({ code: 'SUCCESS', data }))
   }))
@@ -14,7 +14,7 @@ it('opens seven sections and preserves the conversation draft', async () => {
     await flushPromises()
     const nav = app.get('nav[aria-label="控制台导航"]')
     expect(nav.findAll('button').map(button => button.text())).toEqual(
-      ['Agent', 'Provider', 'Tool', 'Sandbox 白名单', '长期记忆', '运行状态', '会话'],
+      ['Agent', 'Provider', 'Tool', 'Sandbox 白名单', '长期记忆', '定时任务', '运行状态', '会话'],
     )
     const draft = app.get('textarea')
     await draft.setValue('未发送的草稿')

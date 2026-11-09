@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,6 +21,7 @@ import io.oryxos.core.session.Session;
 import io.oryxos.core.tool.ToolExecutor;
 import io.oryxos.core.tool.ToolResult;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -89,6 +91,23 @@ class ReActLoopTest {
         verify(tools, times(10)).execute(session.id(), call);
         assertThat(session.messages()).hasSize(22);
         assertThat(session.messages().getLast().getText()).contains("达到最大轮数");
+    }
+
+    @Test
+    void interruptFromProviderPreventsLateToolExecution() {
+        var profile = profile(2);
+        var call = new ToolCallIntent("a", "notify", "{}");
+        when(provider.chat(any(), any(), any())).thenAnswer(ignored -> {
+            Thread.currentThread().interrupt();
+            return response("", call);
+        });
+        try {
+            assertThatThrownBy(() -> loop.run(session, "work", profile)).isInstanceOf(CancellationException.class);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
+        verify(tools, never()).execute(any(), any());
     }
 
     @Test

@@ -3,6 +3,7 @@ package io.oryxos.boot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -48,7 +49,7 @@ class SchedulerConfigurationTest {
     }
 
     @Test
-    void customStoreReplacesDefaultAndLifecycleRegistersThenRetires() {
+    void customStoreReplacesDefaultAndShutdownDoesNotRetirePersistedDefinition() {
         ScheduledTaskStore customStore = mock(ScheduledTaskStore.class);
         when(customStore.reconcile(any())).thenAnswer(invocation -> invocation.getArgument(0));
         ProfileRegistry profiles = mock(ProfileRegistry.class);
@@ -63,7 +64,7 @@ class SchedulerConfigurationTest {
                     verify(customStore).reconcile(any());
                 });
 
-        verify(customStore).retire(ScheduleId.from("weather", "daily"));
+        verify(customStore, never()).retire(ScheduleId.from("weather", "daily"));
     }
 
     @Test

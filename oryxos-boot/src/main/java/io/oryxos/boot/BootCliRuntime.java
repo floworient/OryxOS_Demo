@@ -141,6 +141,9 @@ public final class BootCliRuntime implements CliRuntime, AutoCloseable {
     private SpringApplication application(WebApplicationType webType, Path workspace) {
         SpringApplication application = new SpringApplication(source);
         application.setWebApplicationType(webType);
+        if (webType == WebApplicationType.NONE) {
+            application.addInitializers(SchedulerConfiguration::disableRegistration);
+        }
         application.setRegisterShutdownHook(false);
         application.setDefaultProperties(baseProperties(workspace));
         return application;
@@ -162,6 +165,7 @@ public final class BootCliRuntime implements CliRuntime, AutoCloseable {
     private SpringApplication queryApplication(Path workspace) {
         SpringApplication application = new SpringApplication(source);
         application.setWebApplicationType(WebApplicationType.NONE);
+        application.addInitializers(SchedulerConfiguration::disableRegistration);
         configureQuery(application, workspace);
         return application;
     }

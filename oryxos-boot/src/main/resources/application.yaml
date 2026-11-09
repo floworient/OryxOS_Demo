@@ -15,6 +15,9 @@ spring:
   datasource:
     url: jdbc:sqlite:${oryxos.workspace:./.oryxos}/oryxos.db
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      data-source-properties:
+        foreign_keys: true
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     open-in-view: false

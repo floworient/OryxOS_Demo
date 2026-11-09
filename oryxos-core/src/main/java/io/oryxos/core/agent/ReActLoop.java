@@ -5,6 +5,7 @@ import io.oryxos.core.profile.Profile;
 import io.oryxos.core.provider.ProviderService;
 import io.oryxos.core.session.Session;
 import io.oryxos.core.tool.ToolExecutor;
+import java.util.concurrent.CancellationException;
 
 public class ReActLoop {
 
@@ -21,19 +22,34 @@ public class ReActLoop {
     }
 
     public String run(Session session, String userMessage, Profile profile) {
+        checkInterrupted();
         session.append(userMessage);
         for (int iteration = 0; iteration < profile.settings().maxIterations(); iteration++) {
+            checkInterrupted();
             var response = provider.chat(session.id(), profile, prompts.build(session, profile));
+            checkInterrupted();
             session.append(response);
             if (response.toolCalls().isEmpty()) {
                 return response.content();
             }
             for (var call : response.toolCalls()) {
-                session.appendToolResult(call, tools.execute(session.id(), call));
+                checkInterrupted();
+                var cancellation = AgentService.cancellation();
+                var result = cancellation == null ? tools.execute(session.id(), call)
+                        : tools.execute(session.id(), call, cancellation);
+                session.appendToolResult(call, result);
             }
         }
+        checkInterrupted();
         String reply = "达到最大轮数，已停止";
         session.appendAssistant(reply);
         return reply;
+    }
+
+    static void checkInterrupted() {
+        var cancellation = AgentService.cancellation();
+        if (Thread.currentThread().isInterrupted() || cancellation != null && cancellation.getAsBoolean()) {
+            throw new CancellationException("Agent 调用已中断");
+        }
     }
 }

@@ -1,4 +1,4 @@
-import { deleteJson, getJson, postJson } from './http'
+import { deleteJson, getJson, postJson, putJson } from './http'
 import type {
   HealthView,
   MessageReplyView,
@@ -10,9 +10,24 @@ import type {
   ToolSummary,
   SandboxAllowlist,
   MemorySummary,
+  ScheduledExecution,
+  ScheduledTaskSummary,
 } from './types'
 
 const BASE = '/api/v1'
+const SCHEDULES = '/api/v2/schedules'
+
+export function fetchSchedules(): Promise<ScheduledTaskSummary[]> {
+  return getJson(SCHEDULES)
+}
+
+export function runSchedule(scheduleId: string): Promise<ScheduledExecution> {
+  return postJson(`${SCHEDULES}/${encodeURIComponent(scheduleId)}/run`, undefined)
+}
+
+export function setScheduleEnabled(scheduleId: string, enabled: boolean): Promise<ScheduledTaskSummary> {
+  return putJson(`${SCHEDULES}/${encodeURIComponent(scheduleId)}`, { enabled })
+}
 
 export function fetchProfiles(): Promise<ProfileSummary[]> {
   return getJson<ProfileSummary[]>(`${BASE}/profiles`)

@@ -1,0 +1,6 @@
+oryxos:
+  providers:
+    - name: mock
+      type: MOCK
+      model: mock-memory
+

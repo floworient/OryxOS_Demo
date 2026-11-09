@@ -10,6 +10,7 @@ import io.oryxos.tool.notify.WebhookNotifyAdapter;
 import io.oryxos.tool.sandbox.Sandbox;
 import java.net.http.HttpClient;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,9 +28,12 @@ public class NotifyConfiguration {
     @Bean
     RestClient notifyRestClient() {
         HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3))
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
-        return RestClient.builder().requestFactory(new JdkClientHttpRequestFactory(client)).build();
+        var factory = new JdkClientHttpRequestFactory(client);
+        factory.setReadTimeout(Duration.ofSeconds(10));
+        return RestClient.builder().requestFactory(factory).build();
     }
 
     @Bean

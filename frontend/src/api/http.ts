@@ -51,6 +51,14 @@ export function postJson<T>(path: string, body: unknown): Promise<T> {
   })
 }
 
+export function putJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PUT',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  })
+}
+
 export function deleteJson<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, {
     method: 'DELETE',
