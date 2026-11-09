@@ -12,6 +12,7 @@ const MESSAGES: Record<string, Omit<UiError, 'code'>> = {
   SESSION_NOT_FOUND: { message: '会话已失效，已为你开始新对话', retryable: true },
   SESSION_BUSY: { message: '上一轮还在处理中，请稍候', retryable: true },
   SESSION_CHANNEL_NOT_WRITABLE: { message: '当前会话不允许写入，请开始新对话', retryable: true },
+  SESSION_NOT_ARCHIVED: { message: '会话不是归档状态，无需恢复', retryable: true },
   PROVIDER_UNAVAILABLE: { message: '模型服务不可用，请检查 Provider 配置', retryable: true },
   MEMORY_UNAVAILABLE: { message: '记忆服务不可用，请稍后重试', retryable: true },
   AGENT_TIMEOUT: { message: '本轮超过 60 秒已取消，请重试', retryable: true },

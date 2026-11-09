@@ -5,6 +5,7 @@ import type {
   MessageReplyView,
   ProfileSummary,
   SessionArchiveView,
+  SessionRenameView,
   SessionView,
   SessionSummary,
   SystemInfo,
@@ -41,6 +42,12 @@ export interface AgentConversation {
   error: UiError | null
 }
 
+export interface Toast {
+  id: number
+  kind: 'success' | 'error'
+  message: string
+}
+
 export interface ConsoleState {
   bootStatus: BootStatus
   profiles: ProfileSummary[]
@@ -52,6 +59,7 @@ export interface ConsoleState {
   sessions: SessionSummary[]
   sessionsStatus: 'loading' | 'ready' | 'empty' | 'error'
   sessionsError: UiError | null
+  toasts: Toast[]
 }
 
 export interface ConsoleDeps {
@@ -62,6 +70,8 @@ export interface ConsoleDeps {
   sendMessage: (sessionId: string, message: string) => Promise<MessageReplyView>
   fetchSession: (sessionId: string) => Promise<SessionView>
   archiveSession: (sessionId: string) => Promise<SessionArchiveView>
+  restoreSession: (sessionId: string) => Promise<SessionView>
+  renameSession: (sessionId: string, title: string) => Promise<SessionRenameView>
   fetchSessions: (status?: 'active') => Promise<SessionSummary[]>
   store: LocalStore
 }
@@ -75,6 +85,8 @@ const defaultDeps: ConsoleDeps = {
   fetchSession: api.fetchSession,
   archiveSession: api.archiveSession,
   fetchSessions: api.fetchSessions,
+  restoreSession: api.restoreSession,
+  renameSession: api.renameSession,
   store: createLocalStore(),
 }
 
@@ -128,8 +140,23 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
     sessions: [],
     sessionsStatus: 'loading',
     sessionsError: null,
+    toasts: [],
   })
   const timers = new Map<string, ReturnType<typeof setInterval>>()
+
+  // ── Toast 通知（瞬时反馈，约 3 秒自动消失；持久错误仍走 banner） ──
+  let toastSeq = 0
+  const TOAST_TTL_MS = 3000
+
+  function pushToast(kind: Toast['kind'], message: string): void {
+    const id = ++toastSeq
+    state.toasts.push({ id, kind, message })
+    setTimeout(() => dismissToast(id), TOAST_TTL_MS)
+  }
+
+  function dismissToast(id: number): void {
+    state.toasts = state.toasts.filter((toast) => toast.id !== id)
+  }
 
   function ensureConversation(agent: string): AgentConversation {
     let conversation = state.agents[agent]
@@ -196,7 +223,7 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
     }
   }
 
-  async function initialize(): Promise<void> {
+  async function initialize(announce = false): Promise<void> {
     state.bootStatus = 'loading'
     state.banner = null
 
@@ -220,6 +247,7 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
       state.runtimeHealth = 'UNKNOWN'
       state.banner = mapError(profilesResult.reason)
       state.bootStatus = state.profiles.length > 0 ? 'ready' : 'offline'
+      if (announce) pushToast('error', state.banner.message)
       return
     }
 
@@ -247,6 +275,7 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
     if (shouldRestore) {
       await loadHistory(state.activeAgent)
     }
+    if (announce) pushToast('success', '刷新成功')
   }
 
   async function selectAgent(agent: string): Promise<void> {
@@ -274,15 +303,18 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
     await loadHistory(profile.name)
   }
 
-  async function refreshSessions(): Promise<void> {
+  async function refreshSessions(announce = false): Promise<void> {
     state.sessionsStatus = 'loading'
     state.sessionsError = null
     try {
       state.sessions = await deps.fetchSessions()
       state.sessionsStatus = state.sessions.length === 0 ? 'empty' : 'ready'
+      if (announce) pushToast('success', '会话已刷新')
     } catch (error) {
+      const mapped = mapError(error)
       state.sessionsStatus = 'error'
-      state.sessionsError = mapError(error)
+      state.sessionsError = mapped
+      if (announce) pushToast('error', `刷新失败：${mapped.message}`)
     }
   }
 
@@ -313,13 +345,25 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
 
     try {
       let sessionId = conversation.sessionId
+      let createdNew = false
       if (!sessionId) {
         const session = await deps.createSession(agent, deps.store.getUserId())
         sessionId = session.id
+        createdNew = true
         conversation.sessionId = sessionId
         deps.store.setSessionId(agent, sessionId)
       }
       await deps.sendMessage(sessionId, text)
+      if (createdNew) {
+        // 新会话首条消息后应用该 Agent 的默认会话名模板（如 {date}）
+        const template = deps.store.getTitleTemplate(agent)
+        if (template) {
+          const title = renderTitleTemplate(template)
+          if (title.length > 0) {
+            await deps.renameSession(sessionId, title).catch(() => undefined)
+          }
+        }
+      }
       const session = await deps.fetchSession(sessionId)
       applySession(conversation, session)
       await refreshSessions()
@@ -375,6 +419,89 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
     resetConversation(agent, conversation)
   }
 
+  /** 归档侧边栏会话列表中的任意会话（不一定是当前会话）。 */
+  async function archiveSessionById(sessionId: string): Promise<void> {
+    try {
+      await deps.archiveSession(sessionId)
+    } catch (error) {
+      const mapped = mapError(error)
+      if (mapped.code === 'SESSION_CHANNEL_NOT_WRITABLE') {
+        // 渠道约束（CLI/调度会话不可从 Web 归档）：明确提示；按钮层已隐藏，此为竞态兜底
+        state.banner = { ...mapped, message: '该会话来自其他渠道，不支持在控制台删除' }
+        pushToast('error', '该会话来自其他渠道，不支持在控制台删除')
+        await refreshSessions()
+        return
+      }
+      if (mapped.code !== 'SESSION_NOT_FOUND') {
+        state.banner = mapped
+        pushToast('error', `归档失败：${mapped.message}`)
+        await refreshSessions()
+        return
+      }
+      // 会话已不存在，视为已归档，继续清理本地状态
+    }
+    for (const [agent, conversation] of Object.entries(state.agents)) {
+      if (conversation.sessionId === sessionId && conversation.status !== 'sending') {
+        deps.store.clearSessionId(agent)
+        resetConversation(agent, conversation)
+      }
+    }
+    pushToast('success', '会话已归档')
+    await refreshSessions()
+  }
+
+  /** 撤销归档：把已归档会话恢复为活动状态。 */
+  async function restoreSessionById(sessionId: string): Promise<void> {
+    try {
+      await deps.restoreSession(sessionId)
+    } catch (error) {
+      const mapped = mapError(error)
+      state.banner = mapped
+      pushToast('error', `恢复失败：${mapped.message}`)
+      await refreshSessions()
+      return
+    }
+    pushToast('success', '会话已恢复')
+    await refreshSessions()
+  }
+
+  /** 重命名会话（纯元数据操作，不限渠道）。 */
+  async function renameSessionById(sessionId: string, title: string): Promise<boolean> {
+    const trimmed = title.trim()
+    if (trimmed.length === 0) {
+      pushToast('error', '会话名不能为空')
+      return false
+    }
+    try {
+      await deps.renameSession(sessionId, trimmed)
+    } catch (error) {
+      const mapped = mapError(error)
+      state.banner = mapped
+      pushToast('error', `重命名失败：${mapped.message}`)
+      await refreshSessions()
+      return false
+    }
+    pushToast('success', '会话名已更新')
+    await refreshSessions()
+    return true
+  }
+
+  /** 读取 / 设置 Agent 的默认会话名模板（支持 {date} 占位符）。 */
+  function getTitleTemplate(agent: string): string | null {
+    return deps.store.getTitleTemplate(agent)
+  }
+
+  function setTitleTemplate(agent: string, template: string | null): void {
+    deps.store.setTitleTemplate(agent, template)
+  }
+
+  /** 把模板渲染为会话名：{date} 替换为当天日期（YYYY-MM-DD）。 */
+  function renderTitleTemplate(template: string): string {
+    const now = new Date()
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    return template.replaceAll('{date}', date).trim()
+  }
+
   async function retry(agent = state.activeAgent ?? undefined): Promise<void> {
     if (!agent) {
       return
@@ -403,6 +530,13 @@ export function createConsole(overrides: Partial<ConsoleDeps> = {}) {
     send,
     newConversation: endConversation,
     archiveConversation: endConversation,
+    archiveSessionById,
+    restoreSessionById,
+    renameSessionById,
+    getTitleTemplate,
+    setTitleTemplate,
+    pushToast,
+    dismissToast,
     retry,
   }
 }

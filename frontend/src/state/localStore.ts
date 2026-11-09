@@ -1,12 +1,17 @@
 const USER_KEY = 'oryxos.console.userId'
 const SESSION_PREFIX = 'oryxos.console.session.'
 const PROBE_KEY = 'oryxos.console.probe'
+const TITLE_TEMPLATE_PREFIX = 'oryxos.console.titleTemplate.'
 
 export interface LocalStore {
   getUserId(): string
   getSessionId(agent: string): string | null
   setSessionId(agent: string, sessionId: string): void
   clearSessionId(agent: string): void
+  /** 读取 Agent 的默认会话名模板（支持 {date} 占位符），未设置返回 null。 */
+  getTitleTemplate(agent: string): string | null
+  /** 设置（或传 null 清除）Agent 的默认会话名模板。 */
+  setTitleTemplate(agent: string, template: string | null): void
 }
 
 function storage(): Storage | null {
@@ -57,6 +62,22 @@ export function createLocalStore(): LocalStore {
 
     clearSessionId(agent: string): void {
       storage()?.removeItem(SESSION_PREFIX + agent)
+    },
+
+    getTitleTemplate(agent: string): string | null {
+      return storage()?.getItem(TITLE_TEMPLATE_PREFIX + agent) ?? null
+    },
+
+    setTitleTemplate(agent: string, template: string | null): void {
+      const store = storage()
+      if (!store) {
+        return
+      }
+      if (template === null || template.trim().length === 0) {
+        store.removeItem(TITLE_TEMPLATE_PREFIX + agent)
+      } else {
+        store.setItem(TITLE_TEMPLATE_PREFIX + agent, template.trim())
+      }
     },
   }
 }

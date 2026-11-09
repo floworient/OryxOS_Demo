@@ -52,6 +52,59 @@ describe('MessageBubble', () => {
     expect(wrapper.find('.message-text').text()).toContain('第二行')
     expect(wrapper.findAll('.tool-chip')).toHaveLength(1)
   })
+
+  it('renders assistant markdown as headings, bold text and code blocks', () => {
+    const wrapper = mount(MessageBubble, {
+      props: {
+        message: {
+          key: 'assistant-md',
+          role: 'assistant',
+          text: '## 天气日报\n\n**晴**，`25°C`\n\n```json\n{"temp": 25}\n```',
+          tools: [],
+        },
+      },
+    })
+
+    expect(wrapper.find('.markdown-body h2').text()).toBe('天气日报')
+    expect(wrapper.find('.markdown-body strong').text()).toBe('晴')
+    expect(wrapper.find('.markdown-body code').text()).toContain('25°C')
+    expect(wrapper.find('.markdown-body pre code').text()).toContain('"temp": 25')
+  })
+
+  it('sanitizes malicious html in assistant markdown', () => {
+    const wrapper = mount(MessageBubble, {
+      props: {
+        message: {
+          key: 'assistant-xss',
+          role: 'assistant',
+          text: '<script>alert(1)</script><img src=x onerror=alert(2)>正常文本',
+          tools: [],
+        },
+      },
+    })
+
+    expect(wrapper.find('.markdown-body script').exists()).toBe(false)
+    // img 标签本身合法可保留，但事件注入属性必须被剥离
+    expect(wrapper.find('.markdown-body img[onerror]').exists()).toBe(false)
+    expect(wrapper.find('.markdown-body').text()).toContain('正常文本')
+  })
+
+  it('keeps user messages as plain text without markdown parsing', () => {
+    const wrapper = mount(MessageBubble, {
+      props: {
+        message: {
+          key: 'user-1',
+          role: 'user',
+          text: '## 不是标题 **不是粗体**',
+          tools: [],
+        },
+      },
+    })
+
+    expect(wrapper.find('.markdown-body').exists()).toBe(false)
+    expect(wrapper.find('.message-text').text()).toContain('## 不是标题 **不是粗体**')
+    expect(wrapper.find('.message-text strong').exists()).toBe(false)
+  })
 })
 
 describe('ChatComposer', () => {

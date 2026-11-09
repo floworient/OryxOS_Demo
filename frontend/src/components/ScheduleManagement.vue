@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ApiError } from '@/api/http'
 import {
   agentRunSchedule,
@@ -139,6 +139,42 @@ function executionTime(value: string) {
   return new Date(value).toLocaleString('zh-CN', { hour12: false })
 }
 
+// ── Pagination ───────────────────────────────────────────
+
+const PAGE_SIZE = 10
+
+const taskPage = ref(1)
+const taskTotalPages = computed(() => Math.max(1, Math.ceil(tasks.value.length / PAGE_SIZE)))
+const pagedTasks = computed(() => {
+  const start = (taskPage.value - 1) * PAGE_SIZE
+  return tasks.value.slice(start, start + PAGE_SIZE)
+})
+// 刷新后任务数减少时收回越界页码
+watch(taskTotalPages, max => {
+  if (taskPage.value > max) taskPage.value = max
+})
+
+const historyPages = reactive(new Map<string, number>())
+
+function historyTotalPages(scheduleId: string): number {
+  return Math.max(1, Math.ceil((execHistories.get(scheduleId)?.length ?? 0) / PAGE_SIZE))
+}
+
+function currentHistoryPage(scheduleId: string): number {
+  return historyPages.get(scheduleId) ?? 1
+}
+
+function turnHistoryPage(scheduleId: string, delta: number) {
+  const next = Math.min(Math.max(1, currentHistoryPage(scheduleId) + delta), historyTotalPages(scheduleId))
+  historyPages.set(scheduleId, next)
+}
+
+function pagedHistory(scheduleId: string): ScheduledExecution[] {
+  const history = execHistories.get(scheduleId) ?? []
+  const start = (currentHistoryPage(scheduleId) - 1) * PAGE_SIZE
+  return history.slice(start, start + PAGE_SIZE)
+}
+
 onMounted(refresh)
 </script>
 
@@ -179,7 +215,7 @@ onMounted(refresh)
           </tr>
         </thead>
         <tbody>
-          <tr v-for="task in tasks" :key="task.scheduleId">
+          <tr v-for="task in pagedTasks" :key="task.scheduleId">
             <th scope="row">{{ task.displayName }}</th>
             <td>{{ task.profileName }}</td>
             <td><code>{{ task.cron }}</code><br>{{ task.zone }}</td>
@@ -203,8 +239,16 @@ onMounted(refresh)
         </tbody>
       </table>
 
+      <nav v-if="tasks.length > PAGE_SIZE" class="pagination" aria-label="任务列表分页">
+        <button type="button" class="ghost-button" :disabled="taskPage <= 1"
+          @click="taskPage -= 1">上一页</button>
+        <span class="page-indicator">第 {{ taskPage }} / {{ taskTotalPages }} 页 · 共 {{ tasks.length }} 条</span>
+        <button type="button" class="ghost-button" :disabled="taskPage >= taskTotalPages"
+          @click="taskPage += 1">下一页</button>
+      </nav>
+
       <!-- Execution History Panel (US1) -->
-      <div v-for="task in tasks" :key="`hist-${task.scheduleId}`"
+      <div v-for="task in pagedTasks" :key="`hist-${task.scheduleId}`"
         v-show="expandingTasks.has(task.scheduleId)"
         class="history-panel">
         <details open>
@@ -224,7 +268,7 @@ onMounted(refresh)
               </tr>
             </thead>
             <tbody>
-              <tr v-for="exec in (execHistories.get(task.scheduleId) ?? [])" :key="exec.startedAt">
+              <tr v-for="exec in pagedHistory(task.scheduleId)" :key="exec.startedAt">
                 <td>{{ executionTime(exec.startedAt) }}</td>
                 <td>{{ exec.success ? '✅ 成功' : '❌ 失败' }}</td>
                 <td>{{ exec.errorMessage ?? '—' }}</td>
@@ -232,6 +276,15 @@ onMounted(refresh)
               </tr>
             </tbody>
           </table>
+          <nav v-if="(execHistories.get(task.scheduleId)?.length ?? 0) > PAGE_SIZE"
+            class="pagination history-pagination" :aria-label="`${task.displayName} 执行历史分页`">
+            <button type="button" class="ghost-button" :disabled="currentHistoryPage(task.scheduleId) <= 1"
+              @click="turnHistoryPage(task.scheduleId, -1)">上一页</button>
+            <span class="page-indicator">第 {{ currentHistoryPage(task.scheduleId) }} / {{ historyTotalPages(task.scheduleId) }} 页</span>
+            <button type="button" class="ghost-button"
+              :disabled="currentHistoryPage(task.scheduleId) >= historyTotalPages(task.scheduleId)"
+              @click="turnHistoryPage(task.scheduleId, 1)">下一页</button>
+          </nav>
         </details>
       </div>
     </template>
@@ -287,4 +340,17 @@ thead { border-bottom: 1px solid currentColor; }
 .history-panel details summary { cursor: pointer; user-select: none; }
 .history-table th, .history-table td { padding: 0.4rem 0.5rem; font-size: 0.9em; }
 .empty-hint { color: var(--muted-text, #888); font-style: italic; font-size: 0.9em; margin: 0; }
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.history-pagination { margin-top: 0.25rem; }
+.page-indicator {
+  font-size: 0.9em;
+  color: var(--muted-text, #666);
+  min-width: 8em;
+  text-align: center;
+}
 </style>

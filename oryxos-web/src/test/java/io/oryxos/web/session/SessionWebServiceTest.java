@@ -133,7 +133,7 @@ class SessionWebServiceTest {
         var summary = new SessionSummary(java.util.UUID.randomUUID().toString(), "daily-tech",
                 "web", "user-1", SessionStatus.ACTIVE,
                 Instant.parse("2026-11-04T00:00:00Z"),
-                Instant.parse("2026-11-04T00:01:00Z"), 4);
+                Instant.parse("2026-11-04T00:01:00Z"), 4, "今日科技速递");
         when(sessions.listRecent(100, Optional.of(SessionStatus.ACTIVE))).thenReturn(List.of(summary));
 
         assertThat(service.list("active")).containsExactly(SessionSummaryView.from(summary));
@@ -167,6 +167,62 @@ class SessionWebServiceTest {
         release.countDown();
         assertThat(firstCall.get(1, TimeUnit.SECONDS).reply()).isEqualTo("first");
         verify(agents, never()).process(first, "again");
+    }
+
+    @Test
+    void restoresArchivedSessionAndRejectsNonArchived() {
+        var archived = new Session("web", "user-1", "daily-tech");
+        var archivedDetails = new SessionDetails(archived.id(), "web", "user-1", "daily-tech",
+                SessionStatus.ARCHIVED, archived.createdAt(), archived.lastActiveAt(),
+                archived.lastActiveAt().plusSeconds(60), archived.messages());
+        var activeDetails = details(archived);
+        // 第一次 details 返回归档态（校验），restore 内部 get() 再读时返回恢复后的活动态
+        when(sessions.details(archived.id()))
+                .thenReturn(Optional.of(archivedDetails), Optional.of(activeDetails));
+        when(sessions.restore(archived.id())).thenReturn(true);
+
+        var view = service.restore(archived.id());
+
+        assertThat(view.id()).isEqualTo(archived.id());
+        assertThat(view.status()).isEqualTo(SessionStatus.ACTIVE);
+        verify(sessions).restore(archived.id());
+
+        var active = new Session("cli", "user-2", "daily-tech");
+        when(sessions.details(active.id())).thenReturn(Optional.of(details(active)));
+        assertThatThrownBy(() -> service.restore(active.id()))
+                .isInstanceOfSatisfying(ApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("SESSION_NOT_ARCHIVED"));
+        verify(sessions, never()).restore(active.id());
+
+        when(sessions.details("missing")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.restore("missing"))
+                .isInstanceOfSatisfying(ApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("SESSION_NOT_FOUND"));
+    }
+
+    @Test
+    void renamesSessionAcrossChannelsAndRejectsBlankOrMissing() {
+        var archived = new Session("cli", "user-1", "daily-tech");
+        when(sessions.details(archived.id())).thenReturn(Optional.of(details(archived)));
+        when(sessions.rename(archived.id(), "每日科技")).thenReturn(true);
+
+        var view = service.rename(archived.id(), "  每日科技  ");
+
+        assertThat(view.sessionId()).isEqualTo(archived.id());
+        assertThat(view.title()).isEqualTo("每日科技");
+        verify(sessions).rename(archived.id(), "每日科技");
+
+        assertThatThrownBy(() -> service.rename(archived.id(), "   "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("会话名不能为空");
+        assertThatThrownBy(() -> service.rename(archived.id(), "a".repeat(201)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("200");
+
+        when(sessions.details("missing")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.rename("missing", "名字"))
+                .isInstanceOfSatisfying(ApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("SESSION_NOT_FOUND"));
     }
 
     private static void assertBusy(org.assertj.core.api.ThrowableAssert.ThrowingCallable call) {

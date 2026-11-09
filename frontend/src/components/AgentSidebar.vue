@@ -12,12 +12,17 @@ defineProps<{
   sessionsStatus: 'loading' | 'ready' | 'empty' | 'error'
   sessionsError: UiError | null
   activeSessionId: string | null
+  titleTemplates: Record<string, string>
 }>()
 
 defineEmits<{
   select: [name: string]
   refresh: []
   selectSession: [session: SessionSummary]
+  archiveSession: [session: SessionSummary]
+  restoreSession: [session: SessionSummary]
+  renameSession: [session: SessionSummary, title: string]
+  titleTemplate: [agent: string, template: string | null]
   retrySessions: []
 }>()
 </script>
@@ -54,8 +59,13 @@ defineEmits<{
       </li>
     </ul>
 
-    <SessionHistory :sessions="sessions" :status="sessionsStatus" :error="sessionsError"
-      :active-id="activeSessionId" @select="$emit('selectSession', $event)"
+    <SessionHistory :sessions="sessions" :profiles="profiles" :status="sessionsStatus" :error="sessionsError"
+      :active-id="activeSessionId" :active-agent="activeAgent" :title-templates="titleTemplates"
+      @select="$emit('selectSession', $event)"
+      @archive="$emit('archiveSession', $event)"
+      @restore="$emit('restoreSession', $event)"
+      @rename="(session, title) => $emit('renameSession', session, title)"
+      @title-template="(agent, template) => $emit('titleTemplate', agent, template)"
       @retry="$emit('retrySessions')" />
 
     <button type="button" class="ghost-button" @click="$emit('refresh')">刷新列表</button>

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -84,10 +85,40 @@ class SessionApiControllerTest {
     }
 
     @Test
+    void restoresArchivedSessionWithUnifiedEnvelope() throws Exception {
+        var view = view("session-1");
+        when(service.restore("session-1")).thenReturn(view);
+
+        mvc.perform(post("/api/v1/sessions/session-1/restore"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.id").value("session-1"))
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+    }
+
+    @Test
+    void renamesSessionWithUnifiedEnvelopeAndValidatesTitle() throws Exception {
+        when(service.rename("session-1", "每日科技"))
+                .thenReturn(new SessionRenameView("session-1", "每日科技"));
+
+        mvc.perform(patch("/api/v1/sessions/session-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"每日科技\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.sessionId").value("session-1"))
+                .andExpect(jsonPath("$.data.title").value("每日科技"));
+
+        mvc.perform(patch("/api/v1/sessions/session-1")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
     void listsSafeSessionSummariesInUnifiedEnvelope() throws Exception {
         var summary = new SessionSummaryView("session-1", "daily-tech", "web", "user-1",
                 SessionStatus.ACTIVE, Instant.parse("2026-11-04T00:00:00Z"),
-                Instant.parse("2026-11-04T00:01:00Z"), 4);
+                Instant.parse("2026-11-04T00:01:00Z"), 4, "今日科技速递");
         when(service.list("active")).thenReturn(List.of(summary));
 
         mvc.perform(get("/api/v1/sessions").queryParam("status", "active"))
@@ -95,6 +126,7 @@ class SessionApiControllerTest {
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.data[0].id").value("session-1"))
                 .andExpect(jsonPath("$.data[0].messageCount").value(4))
+                .andExpect(jsonPath("$.data[0].title").value("今日科技速递"))
                 .andExpect(content().string(not(containsString("messages"))));
     }
 

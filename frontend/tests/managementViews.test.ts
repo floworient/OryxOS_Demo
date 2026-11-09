@@ -8,6 +8,7 @@ it('lets the memory view retry when the agent list could not load', async () => 
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.endsWith('/profiles') && offline) throw new Error('offline')
     const data = url.endsWith('/profiles') ? [weatherProfile]
+      : url.includes('/sessions') ? []
       : url.includes('/memory?') ? { core: [], archival: [] } : { providers: [] }
     return new Response(JSON.stringify({ code: 'SUCCESS', data }))
   }))
@@ -31,6 +32,7 @@ it('renders runtime queries and retries a failed tool lookup', async () => {
   const fetcher = vi.fn(async (url: string) => {
     if (url.includes('/tools') && failTools) throw new Error('offline')
     const data = url.endsWith('/profiles') ? [weatherProfile]
+      : url.includes('/sessions') ? []
       : url.endsWith('/health') ? { status: 'UP' }
       : url.includes('/tools') ? [{ name: 'http_get', source: 'BUILTIN' }]
       : url.includes('/memory?') ? { core: [{ id: '1', content: '核心偏好' }], archival: [] }
@@ -77,6 +79,7 @@ it('keeps the current tool results when an earlier query finishes late', async (
     if (url.endsWith('/tools')) return oldQuery
     if (url.includes('/tools?')) return json([{ name: 'current-tool' }])
     if (url.endsWith('/profiles')) return json([weatherProfile])
+    if (url.includes('/sessions')) return json([])
     if (url.endsWith('/health')) return json({ status: 'UP' })
     return json({ providers: [] })
   }))

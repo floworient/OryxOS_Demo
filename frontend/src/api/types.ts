@@ -60,6 +60,8 @@ export interface SessionSummary {
   createdAt: string
   lastActiveAt: string
   messageCount: number
+  /** 会话名：默认取首条用户消息，可为空（前端回退显示渠道与消息数）。 */
+  title: string | null
 }
 
 export interface MessageReplyView {
@@ -70,6 +72,11 @@ export interface MessageReplyView {
 export interface SessionArchiveView {
   sessionId: string
   status: 'ARCHIVED'
+}
+
+export interface SessionRenameView {
+  sessionId: string
+  title: string
 }
 
 export interface HealthView {

@@ -1,4 +1,4 @@
-import { deleteJson, deleteNoContent, getJson, postJson, putJson } from './http'
+import { deleteJson, deleteNoContent, getJson, patchJson, postJson, putJson } from './http'
 import type {
   AgentSingleInvokeResponse,
   HealthView,
@@ -9,6 +9,7 @@ import type {
   NotifyChannelUpdateInput,
   ProfileSummary,
   SessionArchiveView,
+  SessionRenameView,
   SessionView,
   SessionSummary,
   SystemInfo,
@@ -85,6 +86,16 @@ export function fetchSession(sessionId: string): Promise<SessionView> {
 
 export function archiveSession(sessionId: string): Promise<SessionArchiveView> {
   return deleteJson<SessionArchiveView>(`${BASE}/sessions/${encodeURIComponent(sessionId)}`)
+}
+
+/** 撤销归档：恢复已归档会话为活动状态。 */
+export function restoreSession(sessionId: string): Promise<SessionView> {
+  return postJson<SessionView>(`${BASE}/sessions/${encodeURIComponent(sessionId)}/restore`, {})
+}
+
+/** 重命名会话（纯元数据操作，不限渠道）。 */
+export function renameSession(sessionId: string, title: string): Promise<SessionRenameView> {
+  return patchJson<SessionRenameView>(`${BASE}/sessions/${encodeURIComponent(sessionId)}`, { title })
 }
 
 // ── Execution History (US1) ────────────────────────────────

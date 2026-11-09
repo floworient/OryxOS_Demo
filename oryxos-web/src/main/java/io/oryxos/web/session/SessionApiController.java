@@ -9,6 +9,7 @@ import java.net.URI;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -71,5 +72,16 @@ public final class SessionApiController {
     @DeleteMapping("/{id}")
     public ApiResponse<SessionArchiveView> archive(@PathVariable String id) {
         return ApiResponse.success(service.archive(id));
+    }
+
+    @PostMapping("/{id}/restore")
+    public ApiResponse<SessionView> restore(@PathVariable String id) {
+        return ApiResponse.success(service.restore(id));
+    }
+
+    @PatchMapping("/{id}")
+    public ApiResponse<SessionRenameView> rename(@PathVariable String id,
+            @Valid @RequestBody RenameSessionRequest request) {
+        return ApiResponse.success(service.rename(id, request.title()));
     }
 }

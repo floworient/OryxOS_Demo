@@ -124,6 +124,52 @@ public final class SessionWebService {
         }
     }
 
+    /** 撤销归档：恢复已归档会话为活动状态。仅元数据操作，不限渠道。 */
+    public SessionView restore(String sessionId) {
+        ReentrantLock lock = lock(sessionId);
+        if (!lock.tryLock()) {
+            throw conflict("SESSION_BUSY", "会话正在处理其他操作");
+        }
+        try {
+            SessionDetails details = storage(() -> sessions.details(sessionId)).orElseThrow(
+                    () -> notFound("SESSION_NOT_FOUND", "会话不存在"));
+            if (details.status() != SessionStatus.ARCHIVED) {
+                throw conflict("SESSION_NOT_ARCHIVED", "会话不是归档状态，无需恢复");
+            }
+            if (!storage(() -> sessions.restore(sessionId))) {
+                throw notFound("SESSION_NOT_FOUND", "会话不存在");
+            }
+            return get(sessionId);
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    /** 重命名会话；纯元数据操作，不限渠道、不限状态。 */
+    public SessionRenameView rename(String sessionId, String title) {
+        String normalized = required(title, "会话名不能为空");
+        if (normalized.length() > 200) {
+            throw new IllegalArgumentException("会话名不能超过 200 字符");
+        }
+        ReentrantLock lock = lock(sessionId);
+        if (!lock.tryLock()) {
+            throw conflict("SESSION_BUSY", "会话正在处理其他操作");
+        }
+        try {
+            if (storage(() -> sessions.details(sessionId)).isEmpty()) {
+                throw notFound("SESSION_NOT_FOUND", "会话不存在");
+            }
+            if (!storage(() -> sessions.rename(sessionId, normalized))) {
+                throw notFound("SESSION_NOT_FOUND", "会话不存在");
+            }
+            return new SessionRenameView(sessionId, normalized);
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
     private ReentrantLock lock(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) {
             throw notFound("SESSION_NOT_FOUND", "会话不存在");

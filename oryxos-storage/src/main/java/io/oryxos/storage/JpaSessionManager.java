@@ -74,11 +74,32 @@ public class JpaSessionManager implements SessionManager {
             if (stored.isPresent() && !"active".equals(stored.orElseThrow().status())) {
                 throw new IllegalStateException("不能保存已归档会话");
             }
-            repository.saveAndFlush(new SessionEntity(session, json));
+            SessionEntity entity = new SessionEntity(session, json);
+            entity.title(resolveTitle(stored.orElse(null), session));
+            repository.saveAndFlush(entity);
         }
         catch (RuntimeException exception) {
             throw new IllegalStateException("会话保存失败 sessionId=" + session.id(), exception);
         }
+    }
+
+    /** 已命名的会话保留原会话名；未命名且已有用户消息时取首条用户消息前 30 字符。 */
+    private static String resolveTitle(SessionEntity stored, Session session) {
+        if (stored != null && stored.title() != null && !stored.title().isBlank()) {
+            return stored.title();
+        }
+        return session.messages().stream()
+                .filter(UserMessage.class::isInstance)
+                .map(Message::getText)
+                .filter(text -> text != null && !text.isBlank())
+                .findFirst()
+                .map(JpaSessionManager::truncateTitle)
+                .orElse(null);
+    }
+
+    static String truncateTitle(String text) {
+        String collapsed = text.strip().replaceAll("\\s+", " ");
+        return collapsed.substring(0, Math.min(collapsed.length(), 30));
     }
 
     @Override
@@ -120,6 +141,42 @@ public class JpaSessionManager implements SessionManager {
         }
         catch (RuntimeException exception) {
             throw new IllegalStateException("会话归档失败 sessionId=" + sessionId, exception);
+        }
+    }
+
+    @Override
+    @Transactional
+    public synchronized boolean restore(String sessionId) {
+        try {
+            Optional<SessionEntity> archived = repository.findByIdAndStatus(sessionId, "archived");
+            if (archived.isEmpty()) {
+                return false;
+            }
+            SessionEntity entity = archived.orElseThrow();
+            entity.unarchive();
+            repository.saveAndFlush(entity);
+            return true;
+        }
+        catch (RuntimeException exception) {
+            throw new IllegalStateException("会话恢复失败 sessionId=" + sessionId, exception);
+        }
+    }
+
+    @Override
+    @Transactional
+    public synchronized boolean rename(String sessionId, String title) {
+        try {
+            Optional<SessionEntity> stored = repository.findById(sessionId);
+            if (stored.isEmpty()) {
+                return false;
+            }
+            SessionEntity entity = stored.orElseThrow();
+            entity.title(title);
+            repository.saveAndFlush(entity);
+            return true;
+        }
+        catch (RuntimeException exception) {
+            throw new IllegalStateException("会话重命名失败 sessionId=" + sessionId, exception);
         }
     }
 

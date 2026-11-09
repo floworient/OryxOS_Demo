@@ -47,6 +47,9 @@ public class SessionEntity {
     @Column(name = "message_count", nullable = false)
     private int messageCount;
 
+    @Column(name = "title", length = 200)
+    private String title;
+
     protected SessionEntity() {
     }
 
@@ -82,9 +85,26 @@ public class SessionEntity {
         this.archivedAt = java.util.Objects.requireNonNull(archivedAt);
     }
 
+    public void unarchive() {
+        if (!"archived".equals(status)) {
+            throw new IllegalStateException("只能恢复已归档会话");
+        }
+        this.status = "active";
+        this.archivedAt = null;
+    }
+
+    /** 设置会话名（持久层入口，允许 null 表示未命名）。 */
+    public void title(String value) {
+        this.title = value;
+    }
+
+    public String title() {
+        return title;
+    }
+
     public SessionSummary summary() {
         return new SessionSummary(id, profileName, channel, userId, sessionStatus(),
-                createdAt, lastActiveAt, messageCount);
+                createdAt, lastActiveAt, messageCount, title);
     }
 
     public Session restore(List<Message> messages) {

@@ -1,17 +1,33 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import type { SessionSummary } from '@/api/types'
 import AgentSidebar from './components/AgentSidebar.vue'
 import ConsoleNavigation from './components/ConsoleNavigation.vue'
 import ManagementPanel from './components/ManagementPanel.vue'
 import { type ConsoleSection } from './components/consoleSections'
 import ConversationPanel from './components/ConversationPanel.vue'
 import StatusBar from './components/StatusBar.vue'
+import ToastStack from './components/ToastStack.vue'
 import { createConsole } from './state/useConsole'
 
-const { state, activeConversation, initialize, selectAgent, selectSession, refreshSessions, send, newConversation, archiveConversation, retry } =
+const { state, activeConversation, initialize, selectAgent, selectSession, refreshSessions, send, newConversation, archiveConversation, archiveSessionById, restoreSessionById, renameSessionById, getTitleTemplate, setTitleTemplate, dismissToast, retry } =
   createConsole()
 
 const section = ref<ConsoleSection>('sessions')
+
+// Agent → 默认会话名模板（localStorage 持久化，本地响应式副本供侧边栏展示）
+const titleTemplates = ref<Record<string, string>>({})
+
+function syncTitleTemplates(): void {
+  const templates: Record<string, string> = {}
+  for (const profile of state.profiles) {
+    const template = getTitleTemplate(profile.name)
+    if (template) {
+      templates[profile.name] = template
+    }
+  }
+  titleTemplates.value = templates
+}
 
 async function openAgentConversation(name: string): Promise<void> {
   section.value = 'sessions'
@@ -46,12 +62,33 @@ function handleArchive(): void {
   void archiveConversation()
 }
 
+function handleArchiveSession(session: SessionSummary): void {
+  void archiveSessionById(session.id)
+}
+
+function handleRestoreSession(session: SessionSummary): void {
+  void restoreSessionById(session.id)
+}
+
+function handleRenameSession(session: SessionSummary, title: string): void {
+  void renameSessionById(session.id, title)
+}
+
+function handleTitleTemplate(agent: string, template: string | null): void {
+  setTitleTemplate(agent, template)
+  syncTitleTemplates()
+}
+
 function handleRefresh(): void {
-  void initialize()
+  void initialize(true)
+}
+
+function handleRetrySessions(): void {
+  void refreshSessions(true)
 }
 
 onMounted(() => {
-  void initialize()
+  void initialize().finally(syncTitleTemplates)
 })
 </script>
 
@@ -75,9 +112,14 @@ onMounted(() => {
           :sessions-status="state.sessionsStatus"
           :sessions-error="state.sessionsError"
           :active-session-id="activeConversation?.sessionId ?? null"
+          :title-templates="titleTemplates"
           @select="selectAgent"
           @select-session="selectSession"
-          @retry-sessions="refreshSessions"
+          @archive-session="handleArchiveSession"
+          @restore-session="handleRestoreSession"
+          @rename-session="handleRenameSession"
+          @title-template="handleTitleTemplate"
+          @retry-sessions="handleRetrySessions"
           @refresh="handleRefresh"
         />
 
@@ -99,5 +141,7 @@ onMounted(() => {
         :profiles="state.profiles" :boot-status="state.bootStatus"
         @chat="openAgentConversation" @refresh-profiles="handleRefresh" />
     </div>
+
+    <ToastStack :toasts="state.toasts" @close="dismissToast" />
   </div>
 </template>

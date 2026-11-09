@@ -61,6 +61,36 @@ class SessionArchiveTest {
     }
 
     @Test
+    void restoreRevivesArchivedSessionWithHistoryAndClearsArchivedAt() {
+        String url = "jdbc:sqlite:" + temporary.resolve("restore.db");
+        try (var context = application(url).run()) {
+            var sessions = context.getBean(SessionManager.class);
+            var acquisition = sessions.acquire("web", "alice", "weather");
+            var original = sessions.find(acquisition.sessionId()).orElseThrow();
+            original.append("历史消息");
+            sessions.save(original);
+            assertThat(sessions.archive(original.id())).isTrue();
+
+            // 恢复后：状态回到活动、归档时间清空、历史消息保留
+            assertThat(sessions.restore(original.id())).isTrue();
+            assertThat(sessions.restore(original.id())).isFalse();
+            assertThat(sessions.find(original.id())).get().satisfies(session -> {
+                assertThat(session.messages()).singleElement()
+                        .satisfies(message -> assertThat(message.getText()).isEqualTo("历史消息"));
+            });
+            assertThat(sessions.details(original.id())).get().satisfies(details -> {
+                assertThat(details.status()).isEqualTo(SessionStatus.ACTIVE);
+                assertThat(details.archivedAt()).isNull();
+            });
+            // 恢复后的会话可继续写入
+            var revived = sessions.find(original.id()).orElseThrow();
+            revived.append("恢复后的新消息");
+            sessions.save(revived);
+            assertThat(sessions.find(original.id()).orElseThrow().messages()).hasSize(2);
+        }
+    }
+
+    @Test
     void concurrentGetOrCreateKeepsOneActiveGeneration() throws Exception {
         String url = "jdbc:sqlite:" + temporary.resolve("concurrent.db");
         try (var context = application(url).run(); var executor = Executors.newFixedThreadPool(8)) {

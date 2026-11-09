@@ -3,9 +3,10 @@ package io.oryxos.core.session;
 import java.time.Instant;
 import java.util.Objects;
 
-/** 不含消息正文的有界会话查询视图。 */
+/** 不含消息正文的有界会话查询视图。title 为会话名，可为 null（表示未命名）。 */
 public record SessionSummary(String id, String profileName, String channel, String userId,
-        SessionStatus status, Instant createdAt, Instant lastActiveAt, int messageCount) {
+        SessionStatus status, Instant createdAt, Instant lastActiveAt, int messageCount,
+        String title) {
     public SessionSummary {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(profileName, "profileName");
@@ -23,6 +24,6 @@ public record SessionSummary(String id, String profileName, String channel, Stri
     public SessionSummary(String id, String profileName, String status, Instant lastActiveAt) {
         this(id, profileName, "unknown", "unknown",
                 SessionStatus.valueOf(status.toUpperCase(java.util.Locale.ROOT)),
-                lastActiveAt, lastActiveAt, 0);
+                lastActiveAt, lastActiveAt, 0, null);
     }
 }

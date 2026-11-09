@@ -123,6 +123,10 @@ class BootCliQueryTest {
 
                 public boolean archive(String id) { return false; }
 
+                public boolean restore(String id) { return false; }
+
+                public boolean rename(String id, String title) { return false; }
+
                 public List<SessionSummary> list() {
                     return List.of(new SessionSummary("session-1", "digest", "archived",
                             Instant.parse("2026-10-28T08:00:00Z")));

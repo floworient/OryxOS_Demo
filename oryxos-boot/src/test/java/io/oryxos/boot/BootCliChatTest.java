@@ -131,6 +131,10 @@ class BootCliChatTest {
 
                 public boolean archive(String id) { return false; }
 
+                public boolean restore(String id) { return false; }
+
+                public boolean rename(String id, String title) { return false; }
+
                 public java.util.List<io.oryxos.core.session.SessionSummary> list() { return java.util.List.of(); }
             };
         }

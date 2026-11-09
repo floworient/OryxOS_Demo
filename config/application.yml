@@ -11,13 +11,13 @@ oryxos:
     # type 必须是 DASHSCOPE 或 OPENAI_COMPATIBLE；model 为调用时使用的模型名。
     - name: deepseek
       type: OPENAI_COMPATIBLE
-      model: deepseek-chat
+      model: deepseek-flash
       base-url: https://api.deepseek.com
       api-key: "sk-7c2695d162ec4960ba97d4bc28cd486a" # ← 填入你的 DeepSeek API Key（留空且被 Agent 引用时，启动会报错）
 
     # 可按同样格式追加其他 OpenAI 兼容供应商，例如 Kimi。
-    # - name: kimi
-    #   type: OPENAI_COMPATIBLE
-    #   model: moonshot-v1-8k
-    #   base-url: https://api.moonshot.cn/v1
-    #   api-key: ""
+    - name: qwen
+      type: DASHSCOPE
+      model: qwen3.8-27b
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      api-key: "sk-ws-H.YERRDDD.QuCw.MEQCIBvIqE0o2-5SSEXZ747TCfMsk0mXGrbT_0f4snh1rK6MAiAQXMIr5A8kY73TE1k7RIgwrI-HaElLyjcF5EDyt9_KQw"

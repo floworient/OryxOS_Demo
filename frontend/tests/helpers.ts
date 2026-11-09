@@ -34,10 +34,13 @@ export const systemInfo: SystemInfo = {
 
 export function createStore(initial: Record<string, string> = {}): LocalStore & {
   sessions: Map<string, string>
+  titleTemplates: Map<string, string>
 } {
   const sessions = new Map<string, string>(Object.entries(initial))
+  const titleTemplates = new Map<string, string>()
   return {
     sessions,
+    titleTemplates,
     getUserId: () => 'test-user',
     getSessionId: (agent) => sessions.get(agent) ?? null,
     setSessionId: (agent, sessionId) => {
@@ -45,6 +48,14 @@ export function createStore(initial: Record<string, string> = {}): LocalStore & 
     },
     clearSessionId: (agent) => {
       sessions.delete(agent)
+    },
+    getTitleTemplate: (agent) => titleTemplates.get(agent) ?? null,
+    setTitleTemplate: (agent, template) => {
+      if (template === null || template.trim().length === 0) {
+        titleTemplates.delete(agent)
+      } else {
+        titleTemplates.set(agent, template.trim())
+      }
     },
   }
 }
@@ -96,6 +107,13 @@ export function makeDeps(overrides: Partial<ConsoleDeps> = {}): ConsoleDeps {
     archiveSession: vi.fn(async (sessionId: string) => ({
       sessionId,
       status: 'ARCHIVED' as const,
+    })),
+    restoreSession: vi.fn(async (sessionId: string) =>
+      makeSession({ id: sessionId, status: 'ACTIVE' as const }),
+    ),
+    renameSession: vi.fn(async (sessionId: string, title: string) => ({
+      sessionId,
+      title,
     })),
     fetchSessions: vi.fn(async () => []),
     store: createStore(),
