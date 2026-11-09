@@ -151,6 +151,12 @@ onMounted(refresh)
     </div>
     <p v-else-if="!tasks.length">暂无定时任务。</p>
     <template v-else>
+      <!-- Info banner: tasks are defined in Agent config -->
+      <div class="info-banner" role="note">
+        <span class="info-icon">ℹ️</span>
+        <p>定时任务由 Agent 配置文件（<code>AGENT.md</code> 的 <code>schedules</code> 字段）定义，服务启动时自动加载。如需新增或修改任务，请编辑对应 Agent 的配置文件。</p>
+      </div>
+
       <!-- Agent selector for US4 -->
       <div class="agent-selector">
         <label class="agent-select-label">
@@ -233,6 +239,31 @@ onMounted(refresh)
 </template>
 
 <style scoped>
+.info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-info, #e8f4fd);
+  border: 1px solid var(--border-info, #b3d9f2);
+  border-radius: 4px;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+.info-banner .info-icon {
+  flex-shrink: 0;
+  margin-top: 0.1em;
+}
+.info-banner p {
+  margin: 0;
+}
+.info-banner code {
+  background: rgba(0,0,0,0.06);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
 .agent-selector {
   display: flex;
   align-items: center;
