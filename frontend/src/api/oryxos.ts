@@ -55,6 +55,11 @@ export function fetchMemory(agentName: string): Promise<MemorySummary> {
   return getJson<MemorySummary>(`${BASE}/memory?agentName=${encodeURIComponent(agentName)}`)
 }
 
+/** GET /api/v1/agents/{name}/memory — 通过路径指定 Agent 的记忆 */
+export function fetchAgentMemory(name: string): Promise<MemorySummary> {
+  return getJson<MemorySummary>(`${BASE}/agents/${encodeURIComponent(name)}/memory`)
+}
+
 export function fetchSandboxAllowlist(): Promise<SandboxAllowlist> {
   return getJson<SandboxAllowlist>(`${BASE}/sandbox/allowlist`)
 }
@@ -90,6 +95,26 @@ export function fetchExecutionHistory(scheduleId: string): Promise<ScheduledExec
   )
 }
 
+// ── V1 Schedules (legacy, uses scheduleKey as ID) ───────────
+
+const V1_SCHEDULES = '/api/v1/schedules'
+
+export function fetchV1Schedules(): Promise<ScheduledTaskSummary[]> {
+  return getJson<ScheduledTaskSummary[]>(V1_SCHEDULES)
+}
+
+export function fetchV1ExecutionHistory(id: string): Promise<ScheduledExecution[]> {
+  return getJson<ScheduledExecution[]>(`${V1_SCHEDULES}/${encodeURIComponent(id)}/executions`)
+}
+
+export function runV1Schedule(id: string): Promise<ScheduledExecution> {
+  return postJson<ScheduledExecution>(`${V1_SCHEDULES}/${encodeURIComponent(id)}/run`, undefined)
+}
+
+export function setV1ScheduleEnabled(id: string, enabled: boolean): Promise<ScheduledTaskSummary> {
+  return putJson<ScheduledTaskSummary>(`${V1_SCHEDULES}/${encodeURIComponent(id)}`, { enabled })
+}
+
 // ── Agent + Key Schedule Run (US4) ─────────────────────────
 
 export function agentRunSchedule(agentName: string, scheduleKey: string): Promise<ScheduledExecution> {
@@ -103,6 +128,10 @@ export function agentRunSchedule(agentName: string, scheduleKey: string): Promis
 
 export function fetchNotifyChannels(): Promise<NotifyChannelSummary[]> {
   return getJson<NotifyChannelSummary[]>(`${BASE}/notify-channels`)
+}
+
+export function getNotifyChannel(name: string): Promise<NotifyChannelSummary> {
+  return getJson<NotifyChannelSummary>(`${BASE}/notify-channels/${encodeURIComponent(name)}`)
 }
 
 export function createNotifyChannel(input: NotifyChannelCreateInput): Promise<NotifyChannelSummary> {

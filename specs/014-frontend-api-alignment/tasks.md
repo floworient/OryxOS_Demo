@@ -6,7 +6,7 @@ description: "Task list for frontend API alignment feature"
 # Tasks: 前端 API 文档对齐与补齐
 
 **Input**: specs/014-frontend-api-alignment/spec.md, plan.md, research.md, data-model.md
-**Branch**: `014-frontend-api-alignment`
+**Branch**: `feat/frontend-speckit-tasks` (从 main 创建)
 
 ## Phase 1: Setup & Foundation (Existing — no changes needed)
 
@@ -24,9 +24,9 @@ description: "Task list for frontend API alignment feature"
 
 **Independent Test**: 启动服务后进入定时任务页，点击某任务的"📋 历史"按钮，能看到按时间倒序执行的记录列表。
 
-- [ ] T001 [P] [US1] Add `fetchExecutionHistory` function in `frontend/src/api/oryxos.ts` calling `GET /api/v2/schedules/{scheduleId}/executions`
-- [ ] T002 [US1] Modify `ScheduleManagement.vue` to add expand/collapse button per row and inline execution history table showing `startedAt`, `success`, `errorMessage`, `durationMs`
-- [ ] T003 [US1] Handle empty history case with "暂无执行历史" display in `ScheduleManagement.vue`
+- [x] T001 [P] [US1] Add `fetchExecutionHistory` function in `frontend/src/api/oryxos.ts` calling `GET /api/v2/schedules/{scheduleId}/executions`
+- [x] T002 [US1] Modify `ScheduleManagement.vue` to add expand/collapse button per row and inline execution history table showing `startedAt`, `success`, `errorMessage`, `durationMs`
+- [x] T003 [US1] Handle empty history case with "暂无执行历史" display in `ScheduleManagement.vue`
 
 **Checkpoint**: US1 complete — users can view execution history inline.
 
@@ -38,11 +38,11 @@ description: "Task list for frontend API alignment feature"
 
 **Independent Test**: 进入通知渠道页 → 看到列表 → 新建一个渠道 → 编辑描述 → 删除确认 → 列表刷新。
 
-- [ ] T004 [P] [US2] Add `NotifyChannelSummary` / `NotifyChannelCreateInput` / `NotifyChannelUpdateInput` types in `frontend/src/api/types.ts`
-- [ ] T005 [US2] Implement notify-channel-specific delete wrapper in `frontend/src/api/http.ts`: `deleteNoContent(path): Promise<void>` that treats HTTP 204 as success without JSON parsing
-- [ ] T006 [P] [US2] Implement CRUD functions in `frontend/src/api/oryxos.ts`: `fetchNotifyChannels()`, `createNotifyChannel(input)`, `updateNotifyChannel(name, input)`, `deleteNotifyChannel(name)`
-- [ ] T007 [US2] Create `frontend/src/components/NotifyChannelManagement.vue` with table view + create/edit form modal
-- [ ] T008 [US2] Display channel name, type, redacted URL, description; handle deletion of 204 responses gracefully in component
+- [x] T004 [P] [US2] Add `NotifyChannelSummary` / `NotifyChannelCreateInput` / `NotifyChannelUpdateInput` types in `frontend/src/api/types.ts`
+- [x] T005 [US2] Implement notify-channel-specific delete wrapper in `frontend/src/api/http.ts`: `deleteNoContent(path): Promise<void>` that treats HTTP 204 as success without JSON parsing
+- [x] T006 [P] [US2] Implement CRUD functions in `frontend/src/api/oryxos.ts`: `fetchNotifyChannels()`, `createNotifyChannel(input)`, `updateNotifyChannel(name, input)`, `deleteNotifyChannel(name)`
+- [x] T007 [US2] Create `frontend/src/components/NotifyChannelManagement.vue` with table view + create/edit form modal
+- [x] T008 [US2] Display channel name, type, redacted URL, description; handle deletion of 204 responses gracefully in component
 
 **Checkpoint**: US2 complete — full CRUD for notify channels.
 
@@ -54,9 +54,9 @@ description: "Task list for frontend API alignment feature"
 
 **Independent Test**: 进入 Agent 调用页 → 选 Agent → 输入文本 → 提交 → 展示 `{ reply }`。
 
-- [ ] T009 [P] [US3] Add `AgentSingleInvokeResponse` type `{ reply: string }` in `frontend/src/api/types.ts`
-- [ ] T010 [US3] Add `invokeAgent(agentName: string, message: string)` function in `frontend/src/api/oryxos.ts` calling `POST /api/v1/agents/{name}/invoke`
-- [ ] T011 [US3] Create `frontend/src/components/AgentInvokePage.vue` with agent selector dropdown + text input + reply display area
+- [x] T009 [P] [US3] Add `AgentSingleInvokeResponse` type `{ reply: string }` in `frontend/src/api/types.ts`
+- [x] T010 [US3] Add `invokeAgent(agentName: string, message: string)` function in `frontend/src/api/oryxos.ts` calling `POST /api/v1/agents/{name}/invoke`
+- [x] T011 [US3] Create `frontend/src/components/AgentInvokePage.vue` with agent selector dropdown + text input + reply display area
 
 **Checkpoint**: US3 complete — single-shot agent invoke.
 
@@ -68,9 +68,9 @@ description: "Task list for frontend API alignment feature"
 
 **Independent Test**: 在定时任务页 → 选 Agent → 选 Schedule Key → 点击补跑 → 显示结果。
 
-- [ ] T012 [P] [US4] Add `agentRunSchedule` function in `frontend/src/api/oryxos.ts` calling `POST /api/v1/agents/{name}/schedules/{key}/run`
-- [ ] T013 [US4] Add Agent dropdown + Schedule key dropdown at top of `ScheduleManagement.vue` table, trigger `agentRunSchedule` on submit
-- [ ] T014 [US4] Show run result feedback in same row or toast-style inline message
+- [x] T012 [P] [US4] Add `agentRunSchedule` function in `frontend/src/api/oryxos.ts` calling `POST /api/v1/agents/{name}/schedules/{key}/run`
+- [x] T013 [US4] Add Agent dropdown + Schedule key dropdown at top of `ScheduleManagement.vue` table, trigger `agentRunSchedule` on submit
+- [x] T014 [US4] Show run result feedback in same row or toast-style inline message
 
 **Checkpoint**: US4 complete — alternate run entry point.
 
@@ -78,10 +78,10 @@ description: "Task list for frontend API alignment feature"
 
 ## Phase 6: Polish & Cross-Cutting (Navigation + Compilation)
 
-- [ ] T015 [P] Add "通知渠道" and "Agent 调用" entries to `frontend/src/components/consoleSections.ts`
-- [ ] T016 [P] Wire new components into `frontend/src/components/ManagementPanel.vue` conditional rendering
-- [ ] T017 Verify TypeScript compilation passes: `cd frontend && npx tsc --noEmit`
-- [ ] T018 Verify build passes: `cd frontend && npm run build`
+- [x] T015 [P] Add "通知渠道" and "Agent 调用" entries to `frontend/src/components/consoleSections.ts`
+- [x] T016 [P] Wire new components into `frontend/src/components/ManagementPanel.vue` conditional rendering
+- [x] T017 Verify TypeScript compilation passes: `cd frontend && npx tsc --noEmit`
+- [x] T018 Verify build passes: `cd frontend && npm run build`
 
 **Checkpoint**: Feature complete — compiles, builds, and navigates correctly.
 
@@ -107,3 +107,10 @@ Phase 6 (Polish) ← Depends on all above completion
 ### Implementation Strategy
 
 MVP first: US1 (execution history) → validate → add remaining stories.
+
+---
+
+## Completion Summary
+
+All 18 tasks completed. Branch: `feat/frontend-speckit-tasks` from `main`.
+Build verified: ✓ TypeScript pass, ✓ Vite build pass.
