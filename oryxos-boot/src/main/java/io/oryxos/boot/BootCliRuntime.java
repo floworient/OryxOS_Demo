@@ -145,7 +145,9 @@ public final class BootCliRuntime implements CliRuntime, AutoCloseable {
             application.addInitializers(SchedulerConfiguration::disableRegistration);
         }
         application.setRegisterShutdownHook(false);
-        application.setDefaultProperties(baseProperties(workspace));
+        Map<String, Object> properties = baseProperties(workspace);
+        addFileLogging(properties, workspace);
+        application.setDefaultProperties(properties);
         return application;
     }
 
@@ -153,6 +155,7 @@ public final class BootCliRuntime implements CliRuntime, AutoCloseable {
         SpringApplication application = application(WebApplicationType.SERVLET, workspace);
         Map<String, Object> properties = baseProperties(workspace);
         properties.put("server.port", port);
+        addFileLogging(properties, workspace);
         application.setDefaultProperties(properties);
         String[] arguments = explicitPort
                 ? new String[] {workspaceArgument(workspace), "--server.port=" + port}
@@ -197,6 +200,22 @@ public final class BootCliRuntime implements CliRuntime, AutoCloseable {
         properties.put("spring.config.additional-location",
                 "optional:" + normalized.resolve("application.yaml").toUri());
         return properties;
+    }
+
+    /**
+     * 长驻入口（serve/gateway/chat）默认写工作区 logs/oryxos.log 并滚动归档；
+     * 查询类入口（providers/tools/sessions）不落盘。全部是默认属性，
+     * 外部配置（config/application.yml 或工作区 application.yaml）可逐键覆盖。
+     */
+    private static void addFileLogging(Map<String, Object> properties, Path workspace) {
+        Path logFile = workspace.toAbsolutePath().normalize().resolve("logs/oryxos.log");
+        properties.put("logging.file.name", logFile.toString());
+        properties.put("logging.logback.rollingpolicy.file-name-pattern",
+                logFile + ".%d{yyyy-MM-dd}.%i.gz");
+        properties.put("logging.logback.rollingpolicy.max-file-size", "20MB");
+        properties.put("logging.logback.rollingpolicy.max-history", "14");
+        properties.put("logging.logback.rollingpolicy.total-size-cap", "200MB");
+        properties.put("logging.logback.rollingpolicy.clean-history-on-start", "true");
     }
 
     private static String workspaceArgument(Path workspace) {

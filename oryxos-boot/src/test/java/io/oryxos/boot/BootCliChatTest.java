@@ -20,6 +20,7 @@ import java.sql.DriverManager;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.SpringBootConfiguration;
@@ -30,6 +31,11 @@ import org.springframework.context.annotation.Import;
 class BootCliChatTest {
     @TempDir
     Path workspace;
+
+    @AfterEach
+    void releaseLogbackAppenders() {
+        LogbackTestCleanup.releaseFileAppenders();
+    }
 
     @Test
     void chatUsesNoneContextSharedWorkspaceAndClosesItAfterOneRound() {

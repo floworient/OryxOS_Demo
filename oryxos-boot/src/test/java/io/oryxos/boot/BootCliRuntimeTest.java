@@ -15,12 +15,18 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class BootCliRuntimeTest {
     @TempDir
     Path workspace;
+
+    @AfterEach
+    void releaseLogbackAppenders() {
+        LogbackTestCleanup.releaseFileAppenders();
+    }
 
     @Test
     void serveStartsExistingWebOnRequestedPortAndCloseReleasesContext() throws Exception {

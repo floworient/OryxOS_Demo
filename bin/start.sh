@@ -12,7 +12,8 @@ CONFIG_DIR="$ROOT/config"
 CONFIG="$CONFIG_DIR/application.yml"
 EXAMPLE="$CONFIG_DIR/application.yml.example"
 PIDFILE="$ROOT/bin/oryxos.pid"
-LOG="$ROOT/logs/oryxos.log"
+CONSOLE_LOG="$ROOT/logs/console.log"
+APP_LOG="$ROOT/.oryxos/logs/oryxos.log"
 
 # 1. 选择 Java：优先 JAVA_HOME，避免 PATH 上的占位符/旧版本
 if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
@@ -58,20 +59,31 @@ mkdir -p "$ROOT/logs"
 # 从外部 yaml 读配置（-D 系统属性，不经 picocli 子命令参数）。
 # 同时保留工作区 .oryxos/application.yaml 的原有加载位置；两者都是 optional。
 # serve 同时提供 REST API 与 /admin 管理台。
+# 业务日志由 Spring Boot 写 $APP_LOG（滚动归档）；这里只把控制台输出（横幅、
+# logback 初始化前的 JVM 级错误）收到 console.log，避免与滚动日志互相覆盖。
 nohup "$JAVA" \
   -Dspring.config.additional-location="optional:file:$CONFIG_DIR/,optional:file:$ROOT/.oryxos/application.yaml" \
   -jar "$JAR" serve --port "$PORT" \
-  >> "$LOG" 2>&1 &
+  >> "$CONSOLE_LOG" 2>&1 &
 PID=$!
 echo "$PID" > "$PIDFILE"
 echo "[..] OryxOS 启动中 (pid $PID)，端口 $PORT，等待就绪…"
+
+# 失败诊断：同时贴控制台输出与应用日志尾
+log_tails() {
+  tail -n 20 "$CONSOLE_LOG" >&2 || true
+  if [ -f "$APP_LOG" ]; then
+    echo "---- $APP_LOG ----" >&2
+    tail -n 20 "$APP_LOG" >&2 || true
+  fi
+}
 
 # 5. 等健康检查通过再报成功；进程中途死掉或超时则报失败并贴日志尾
 READY=0
 for _ in $(seq 1 45); do
   if ! kill -0 "$PID" 2>/dev/null; then
     echo "[ERROR] 进程已退出，启动失败。日志尾：" >&2
-    tail -n 20 "$LOG" >&2 || true
+    log_tails
     rm -f "$PIDFILE"
     exit 1
   fi
@@ -84,7 +96,7 @@ done
 
 if [ "$READY" -ne 1 ]; then
   echo "[ERROR] 等待就绪超时（进程仍在，但 /api/v1/health 未通）。日志尾：" >&2
-  tail -n 20 "$LOG" >&2 || true
+  log_tails
   exit 1
 fi
 
@@ -92,7 +104,7 @@ echo "[OK] OryxOS 已就绪 (pid $PID)"
 echo "     REST:     http://localhost:$PORT/api/v1/health"
 echo "     管理台:   http://localhost:$PORT/admin/"
 echo "     API 文档: http://localhost:$PORT/swagger-ui/index.html"
-echo "     日志:     $LOG"
+echo "     日志:     $APP_LOG（滚动，控制台原始输出在 $CONSOLE_LOG）"
 echo "     停止:     bin/stop.sh"
 
 # 当前仓库若未打包 /admin 前端资源，明确提示，而不是让人打开一个 404
