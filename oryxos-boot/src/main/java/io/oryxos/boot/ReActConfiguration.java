@@ -4,7 +4,9 @@ import io.oryxos.core.agent.AgentService;
 import io.oryxos.core.agent.ReActLoop;
 import io.oryxos.core.audit.ToolInvocationRecorder;
 import io.oryxos.core.context.ContextLoader;
+import io.oryxos.core.context.ContextBudget;
 import io.oryxos.core.context.PromptBuilder;
+import io.oryxos.core.context.SessionSummarizer;
 import io.oryxos.core.memory.MemoryService;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.core.profile.ProfileRegistry;
@@ -21,10 +23,12 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(ContextBudgetProperties.class)
 public class ReActConfiguration {
 
     private static final Set<String> DEFAULT_HTTP_TOOLS = Set.of("http_get", "notify");
@@ -35,9 +39,14 @@ public class ReActConfiguration {
     }
 
     @Bean
-    PromptBuilder promptBuilder(ContextLoader loader, ToolRegistry tools, MemoryService memory) {
+    ContextBudget contextBudget(ContextBudgetProperties properties) {
+        return properties.budget();
+    }
+
+    @Bean
+    PromptBuilder promptBuilder(ContextLoader loader, ToolRegistry tools, MemoryService memory, ContextBudget budget) {
         return new PromptBuilder(loader, tools, new ToolSchemaAdapter()::adapt,
-                memory, Clock.systemDefaultZone());
+                memory, Clock.systemDefaultZone(), budget);
     }
 
     @Bean(destroyMethod = "close")
@@ -60,8 +69,8 @@ public class ReActConfiguration {
     }
 
     @Bean
-    ReActLoop reActLoop(PromptBuilder prompts, ProviderService provider, ToolExecutor tools) {
-        return new ReActLoop(prompts, provider, tools);
+    ReActLoop reActLoop(PromptBuilder prompts, ProviderService provider, ToolExecutor tools, ContextBudget budget) {
+        return new ReActLoop(prompts, provider, tools, new SessionSummarizer(provider, budget));
     }
 
     @Bean

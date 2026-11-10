@@ -165,10 +165,10 @@ ReAct 是 **Reason** 加 **Act** 的简称。算法步骤：
 
 **`PromptBuilder` 模块。** 组装每轮 LLM 调用的 Prompt。按四部分顺序拼接：
 
-1. system prompt（`AGENT.md` 正文（这个 Agent 的指令）加 Bootstrap 文件，由 `ContextLoader` 提供；末尾附当前日期时间——LLM 自己不知道今天几号，定时场景的"今天"全靠这一行）
-2. Memory 注入（会话历史加长期记忆，由 `MemoryService` 提供）
-3. 对话历史（按 `maxHistoryTurns` 截断后的 Session messages）
-4. 当前 Profile 可用的 Tool 列表（按 Function Calling 格式）
+1. 稳定系统消息，由 `ContextLoader` 当次读取 Agent 正文、Bootstrap 和已绑定 Skill 元数据。
+2. 动态记忆区，包含全量核心记忆、有界归档记忆和适用的会话摘要。
+3. 预算内最近轮次和当前轮消息。运行时时间随当前用户输入的发送副本提供，当前工具调用和结果保持对应顺序。
+4. 当前 Profile 可用的 Tool 定义按工具名稳定排序，通过 Function Calling 字段发送。
 
 **`ToolExecutor` 模块。** 执行 LLM 返回的 Tool 调用请求。从 `ToolRegistry` 找到对应 Tool，做 Sandbox 检查，执行 Tool，把结果包装成 `ToolResult` 返回给 ReAct 循环，并写入 `tool_invocations` 表。失败时按可重试策略返回错误信息。
 
@@ -180,7 +180,7 @@ ReAct 是 **Reason** 加 **Act** 的简称。算法步骤：
 
 **消息累积。** 每次迭代都把 LLM 响应和 Tool 结果追加到 Session 的 messages 列表。Session 的对话历史包含完整的 LLM 调用链和 Tool 调用链，对外可查可审计。
 
-**上下文长度管理。** 核心阶段策略简单：保留 system prompt 和最近 N 轮对话，超出部分丢弃，N 由 Profile 配置默认 20 轮。扩展阶段引入总结压缩。
+**上下文长度管理。** 同时按 `max_history_turns`（默认 20，含当前轮）和主输入预算选取最近历史。超大工具结果在发送副本中裁剪。完整系统指令、核心记忆或当前输入等必需内容超限时拒绝发出请求。窗口外的完整历史达到阈值后，用有界增量请求生成会话摘要，摘要和游标随原始 Session 持久化。费用验收将主调用与摘要调用一起计入。配置和估算口径见 [上下文预算契约](../specs/015-context-compaction/contracts/context-budget.md)。
 
 **核心阶段不做：** Tool 调用并行（一次响应里多个 Tool 调用按顺序执行）、Agent 间任务委托、流式响应。这些放扩展阶段。
 

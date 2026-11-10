@@ -6,6 +6,17 @@
 # 在这里覆盖时，要把想保留的 Provider 全部列出来。
 
 oryxos:
+  # 本地输入预算按 UTF-8 字节与消息封装估算。
+  context:
+    main-input-budget: 8192
+    main-max-output-tokens: 2048
+    summary-input-budget: 4096
+    summary-max-output-tokens: 384
+    summary-trigger-turns: 4
+    summary-trigger-units: 2048
+    # 可同时指定已注册的摘要 Provider 和模型。留空时沿用 Agent 模型。
+    # summary-provider: deepseek
+    # summary-model: deepseek-chat
   providers:
     # DeepSeek：走 OpenAI 兼容协议。
     # type 可为 DASHSCOPE、OPENAI_COMPATIBLE 或仅用于本地链路验证的 MOCK。

@@ -4,6 +4,7 @@ import io.oryxos.core.memory.MemoryException;
 import io.oryxos.core.notify.NotifyChannelConflictException;
 import io.oryxos.core.notify.NotifyChannelNotFoundException;
 import io.oryxos.core.provider.ProviderException;
+import io.oryxos.core.context.ContextBudgetExceededException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,12 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException exception) {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error("VALIDATION_ERROR", exception.getMessage()));
+    }
+
+    @ExceptionHandler(ContextBudgetExceededException.class)
+    ResponseEntity<ApiResponse<Void>> handleContextBudget(ContextBudgetExceededException exception) {
+        return ResponseEntity.unprocessableEntity()
+                .body(ApiResponse.error("CONTEXT_BUDGET_EXCEEDED", exception.getMessage()));
     }
 
     @ExceptionHandler(MemoryException.class)

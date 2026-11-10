@@ -6,6 +6,7 @@ import io.oryxos.core.tool.ToolResult;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -28,6 +29,8 @@ public final class Session {
     private final Instant createdAt;
 
     private Instant lastActiveAt;
+
+    private SessionCompaction compaction;
 
     public Session(String channel, String userId, String profileName) {
         this(UUID.randomUUID().toString(), channel, userId, profileName,
@@ -101,6 +104,20 @@ public final class Session {
 
     public List<Message> messages() {
         return messages.stream().map(Session::snapshotMessage).toList();
+    }
+
+    public Optional<SessionCompaction> compaction() {
+        return Optional.ofNullable(compaction);
+    }
+
+    public void updateCompaction(SessionCompaction value) {
+        int boundary = value.processedUntil();
+        if (boundary > messages.size()
+                || boundary < messages.size() && !(messages.get(boundary) instanceof UserMessage)
+                || compaction != null && boundary <= compaction.processedUntil()) {
+            throw new IllegalArgumentException("会话摘要处理位置必须在后续轮次边界");
+        }
+        compaction = value;
     }
 
     public void append(String text) {

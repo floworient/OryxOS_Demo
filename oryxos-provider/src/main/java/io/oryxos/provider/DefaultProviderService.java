@@ -5,9 +5,11 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeoutException;
 
 import io.oryxos.core.audit.LlmCallRecord;
+import io.oryxos.core.audit.LlmCallPurpose;
 import io.oryxos.core.audit.LlmCallRecorder;
 import io.oryxos.core.audit.LlmCallStatus;
 import io.oryxos.core.profile.Profile;
@@ -20,8 +22,10 @@ import io.oryxos.core.provider.ToolCallIntent;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.model.tool.DefaultToolCallingChatOptions;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
@@ -38,10 +42,16 @@ public final class DefaultProviderService implements ProviderService {
 
     @Override
     public ProviderResponse chat(String sessionId, Profile profile, Prompt prompt) {
-        var providerName = profile.provider().name();
-        var modelName = profile.provider().model();
+        return chat(sessionId, profile, prompt, profile.provider(), LlmCallPurpose.CHAT);
+    }
+
+    @Override
+    public ProviderResponse chat(String sessionId, Profile profile, Prompt prompt,
+            Profile.ProviderRef route, LlmCallPurpose purpose) {
+        var providerName = route.name();
+        var modelName = route.model();
         var chatModel = registry.resolve(providerName, modelName);
-        var request = requestPrompt(prompt, modelName, profile.provider().temperature());
+        var request = requestPrompt(prompt, modelName, route.temperature(), registry.definition(providerName));
         var started = System.nanoTime();
         try {
             var response = chatModel.call(request);
@@ -60,8 +70,10 @@ public final class DefaultProviderService implements ProviderService {
                     usage.promptTokens(), usage.completionTokens(), usage.totalTokens(), usage.isKnown(),
                     durationMs, status,
                     status == LlmCallStatus.EMPTY_RESPONSE ? ProviderErrorCode.EMPTY_RESPONSE.name() : null,
-                    null, Instant.now()), providerName, modelName);
-            return new ProviderResponse(providerName, modelName, content, usage, calls, durationMs);
+                    null, Instant.now(), purpose), providerName, modelName);
+            var finishReason = generation == null || generation.getMetadata() == null
+                    ? null : generation.getMetadata().getFinishReason();
+            return new ProviderResponse(providerName, modelName, content, usage, calls, durationMs, finishReason);
         }
         catch (ProviderException exception) {
             if (exception.errorCode() == ProviderErrorCode.AUDIT_PERSISTENCE_FAILED) {
@@ -70,21 +82,38 @@ public final class DefaultProviderService implements ProviderService {
             var durationMs = elapsedMillis(started);
             persist(new LlmCallRecord(null, sessionId, profile.name(), providerName, modelName,
                     null, null, null, false, durationMs, LlmCallStatus.FAILED,
-                    exception.errorCode().name(), exception.getMessage(), Instant.now()),
+                    exception.errorCode().name(), exception.getMessage(), Instant.now(), purpose),
                     providerName, modelName);
             throw exception;
         }
         catch (RuntimeException exception) {
             var durationMs = elapsedMillis(started);
+            Throwable root = rootCause(exception);
+            if (exception instanceof CancellationException || root instanceof CancellationException
+                    || root instanceof InterruptedException) {
+                persist(new LlmCallRecord(null, sessionId, profile.name(), providerName, modelName,
+                        null, null, null, false, durationMs, LlmCallStatus.FAILED,
+                        "CANCELLED", "模型调用已取消", Instant.now(), purpose), providerName, modelName);
+                if (root instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                if (exception instanceof CancellationException cancelled) {
+                    throw cancelled;
+                }
+                var cancelled = new CancellationException("模型调用已取消");
+                cancelled.initCause(exception);
+                throw cancelled;
+            }
             var mapped = mapFailure(providerName, modelName, exception);
             persist(new LlmCallRecord(null, sessionId, profile.name(), providerName, modelName,
                     null, null, null, false, durationMs, LlmCallStatus.FAILED,
-                    mapped.errorCode().name(), mapped.getMessage(), Instant.now()), providerName, modelName);
+                    mapped.errorCode().name(), mapped.getMessage(), Instant.now(), purpose), providerName, modelName);
             throw mapped;
         }
     }
 
-    private static Prompt requestPrompt(Prompt prompt, String model, Double temperature) {
+    private static Prompt requestPrompt(Prompt prompt, String model, Double temperature,
+            ProviderDefinition definition) {
         ChatOptions source = prompt.getOptions();
         ChatOptions copied = source == null ? null : source.copy();
         var builder = DefaultToolCallingChatOptions.builder()
@@ -104,7 +133,24 @@ public final class DefaultProviderService implements ProviderService {
                     .toolNames(tools.getToolNames())
                     .toolContext(tools.getToolContext());
         }
-        return new Prompt(prompt.getInstructions(), builder.build());
+        var options = builder.build();
+        if (options.getMaxTokens() != null && directOpenAi(definition)) {
+            var openAiOptions = ModelOptionsUtils.copyToTarget(
+                    options, ToolCallingChatOptions.class, OpenAiChatOptions.class);
+            openAiOptions.setMaxCompletionTokens(options.getMaxTokens());
+            openAiOptions.setMaxTokens(null);
+            return new Prompt(prompt.getInstructions(), openAiOptions);
+        }
+        return new Prompt(prompt.getInstructions(), options);
+    }
+
+    private static boolean directOpenAi(ProviderDefinition definition) {
+        if (definition == null || definition.type() != ProviderDefinition.Type.OPENAI_COMPATIBLE) {
+            return false;
+        }
+        String base = definition.baseUrl();
+        return base == null || base.isBlank()
+                || base.matches("(?i)https://api\\.openai\\.com(?::443)?(?:/.*)?");
     }
 
     private void persist(LlmCallRecord record, String providerName, String model) {

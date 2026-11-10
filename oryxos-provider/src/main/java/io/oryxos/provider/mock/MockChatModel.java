@@ -40,7 +40,7 @@ public final class MockChatModel implements ChatModel {
         var user = messages.stream().filter(UserMessage.class::isInstance)
                 .map(UserMessage.class::cast).reduce((first, second) -> second)
                 .orElseThrow(() -> new IllegalArgumentException("Mock Provider 缺少用户输入"));
-        var text = user.getText();
+        var text = io.oryxos.core.context.PromptBuilder.userText(user);
         if (text == null || !text.startsWith(PREFIX) || text.substring(PREFIX.length()).isBlank()) {
             throw new IllegalArgumentException("Mock Provider 只接受“记住：<非空事实>”输入");
         }

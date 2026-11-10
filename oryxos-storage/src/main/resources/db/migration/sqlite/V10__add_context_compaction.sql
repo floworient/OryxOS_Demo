@@ -1,0 +1,3 @@
+ALTER TABLE sessions ADD COLUMN context_summary TEXT;
+ALTER TABLE sessions ADD COLUMN context_summary_until INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE llm_calls ADD COLUMN purpose TEXT NOT NULL DEFAULT 'CHAT';

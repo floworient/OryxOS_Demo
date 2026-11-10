@@ -398,7 +398,8 @@ class AgentSchedulerTest {
         var sessions = mock(SessionManager.class);
         when(sessions.getOrCreate("scheduler", "scheduler", "weather")).thenAnswer(ignored -> session("weather"));
         var prompts = mock(PromptBuilder.class);
-        when(prompts.build(any(), any())).thenAnswer(invocation -> new Prompt("work"));
+        when(prompts.prepare(any(), any(), any())).thenReturn(
+                new io.oryxos.core.context.PreparedPrompt(new Prompt("work"), 0));
         var agents = new AgentService(profiles, new ReActLoop(prompts, provider, tools), sessions);
         var scheduler = new AgentScheduler(taskScheduler, profiles, agents, sessions,
                 new InMemoryScheduledTaskStore(), Clock.systemUTC(), Duration.ofSeconds(2));

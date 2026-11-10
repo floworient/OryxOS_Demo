@@ -1,6 +1,7 @@
 package io.oryxos.storage.entity;
 
 import io.oryxos.core.session.Session;
+import io.oryxos.core.session.SessionCompaction;
 import io.oryxos.core.session.SessionDetails;
 import io.oryxos.core.session.SessionSummary;
 import io.oryxos.core.session.SessionStatus;
@@ -50,6 +51,12 @@ public class SessionEntity {
     @Column(name = "title", length = 200)
     private String title;
 
+    @Column(name = "context_summary", columnDefinition = "TEXT")
+    private String contextSummary;
+
+    @Column(name = "context_summary_until", nullable = false)
+    private int contextSummaryUntil;
+
     protected SessionEntity() {
     }
 
@@ -63,6 +70,10 @@ public class SessionEntity {
         this.createdAt = session.createdAt();
         this.lastActiveAt = session.lastActiveAt();
         this.messageCount = session.messages().size();
+        session.compaction().ifPresent(value -> {
+            this.contextSummary = value.text();
+            this.contextSummaryUntil = value.processedUntil();
+        });
     }
 
     public String messagesJson() {
@@ -111,7 +122,11 @@ public class SessionEntity {
         if (!"active".equals(status)) {
             throw new IllegalStateException("本节不支持恢复已归档会话");
         }
-        return new Session(id, channel, userId, profileName, createdAt, lastActiveAt, messages);
+        var session = new Session(id, channel, userId, profileName, createdAt, lastActiveAt, messages);
+        if (contextSummary != null || contextSummaryUntil != 0) {
+            session.updateCompaction(new SessionCompaction(contextSummary, contextSummaryUntil));
+        }
+        return session;
     }
 
     public SessionDetails details(List<Message> messages) {

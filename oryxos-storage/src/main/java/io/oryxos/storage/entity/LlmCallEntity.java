@@ -1,6 +1,7 @@
 package io.oryxos.storage.entity;
 
 import io.oryxos.core.audit.LlmCallRecord;
+import io.oryxos.core.audit.LlmCallPurpose;
 import io.oryxos.core.audit.LlmCallStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -58,6 +59,10 @@ public class LlmCallEntity {
     @Column(nullable = false)
     private LlmCallStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private LlmCallPurpose purpose;
+
     @Column(name = "error_code")
     private String errorCode;
 
@@ -82,6 +87,7 @@ public class LlmCallEntity {
         this.usageKnown = record.usageKnown();
         this.durationMs = record.durationMs();
         this.status = record.status();
+        this.purpose = record.purpose();
         this.errorCode = record.errorCode();
         this.errorMessage = record.errorMessage();
         this.createdAt = record.createdAt();
@@ -89,6 +95,6 @@ public class LlmCallEntity {
 
     public LlmCallRecord toRecord() {
         return new LlmCallRecord(id, sessionId, profileName, provider, model, promptTokens, completionTokens,
-                totalTokens, usageKnown, durationMs, status, errorCode, errorMessage, createdAt);
+                totalTokens, usageKnown, durationMs, status, errorCode, errorMessage, createdAt, purpose);
     }
 }

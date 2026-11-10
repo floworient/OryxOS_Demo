@@ -12,6 +12,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.oryxos.core.context.PromptBuilder;
+import io.oryxos.core.context.PreparedPrompt;
+import io.oryxos.core.context.SessionSummarizer;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.core.provider.ProviderResponse;
 import io.oryxos.core.provider.ProviderService;
@@ -41,7 +43,8 @@ class ReActLoopTest {
     private Profile profile(int max) {
         var profile = mock(Profile.class);
         when(profile.settings()).thenReturn(new Profile.Settings(max, 20));
-        when(prompts.build(any(), any())).thenAnswer(call -> new Prompt(session.messages()));
+        when(prompts.prepare(any(), any(), any()))
+                .thenAnswer(call -> new PreparedPrompt(new Prompt(session.messages()), 0));
         return profile;
     }
 
@@ -117,5 +120,24 @@ class ReActLoopTest {
         assertThatThrownBy(() -> loop.run(session, "work", profile)).hasMessage("provider timeout");
         assertThat(session.messages()).hasSize(1);
         verify(provider).chat(eq(session.id()), eq(profile), any());
+    }
+
+    @Test
+    void cancellationDuringSummaryPreventsMainRequest() {
+        var profile = profile(2);
+        var summary = mock(SessionSummarizer.class);
+        when(summary.compact(session, profile, 0)).thenAnswer(invocation -> {
+            Thread.currentThread().interrupt();
+            return false;
+        });
+        var withSummary = new ReActLoop(prompts, provider, tools, summary);
+        try {
+            assertThatThrownBy(() -> withSummary.run(session, "work", profile))
+                    .isInstanceOf(CancellationException.class);
+        } finally {
+            Thread.interrupted();
+        }
+        verify(provider, never()).chat(any(), any(), any());
+        verify(tools, never()).execute(any(), any());
     }
 }

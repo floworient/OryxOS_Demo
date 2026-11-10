@@ -182,7 +182,8 @@ class MultiAgentScheduleTest {
 
     private static ChatResponse respond(Prompt prompt, String weatherUrl) {
         var turn = prompt.getInstructions().reversed();
-        String text = turn.stream().filter(UserMessage.class::isInstance).findFirst().orElseThrow().getText();
+        String text = turn.stream().filter(UserMessage.class::isInstance).map(UserMessage.class::cast)
+                .map(io.oryxos.core.context.PromptBuilder::userText).findFirst().orElseThrow();
         if ("fail".equals(text)) {
             throw new IllegalStateException("故意失败");
         }

@@ -1,14 +1,18 @@
 package io.oryxos.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CancellationException;
 
 import io.oryxos.core.audit.LlmCallRecord;
+import io.oryxos.core.audit.LlmCallPurpose;
 import io.oryxos.core.profile.Profile;
 import io.oryxos.provider.support.StubChatModel;
 import org.junit.jupiter.api.Test;
@@ -16,6 +20,37 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.DefaultToolCallingChatOptions;
 
 class DefaultProviderServiceChatTest {
+
+    @Test
+    void sendsTheOutputLimitAsCompletionTokensForDirectOpenAi() {
+        var definition = new ProviderDefinition("official", ProviderDefinition.Type.OPENAI_COMPATIBLE,
+                "o3", "https://api.openai.com", "test-key");
+        var model = StubChatModel.text("ok", "o3");
+        var provider = new DefaultProviderService(new ProviderRegistry(List.of(definition), Map.of("official", model)),
+                record -> record);
+        var options = DefaultToolCallingChatOptions.builder().maxTokens(384).build();
+        provider.chat("s", profile("agent", "official", "o3", null), new Prompt("输入", options));
+        assertThat(model.lastPrompt().getOptions()).isInstanceOfSatisfying(
+                org.springframework.ai.openai.OpenAiChatOptions.class, captured -> {
+                    assertThat(captured.getMaxCompletionTokens()).isEqualTo(384);
+                    assertThat(captured.getMaxTokens()).isNull();
+                    assertThat(captured.getInternalToolExecutionEnabled()).isFalse();
+                });
+    }
+
+    @Test
+    void auditsExplicitModelCancellationAndPropagatesItToRuntime() {
+        var cancellation = new CancellationException("stop");
+        var audit = new ArrayList<LlmCallRecord>();
+        var service = service(Map.of("alpha", request -> { throw cancellation; }), audit);
+        var profile = profile("agent", "alpha", "model", null);
+        assertThatThrownBy(() -> service.chat("session-1", profile, new Prompt("old history"),
+                profile.provider(), LlmCallPurpose.SUMMARY)).isSameAs(cancellation);
+        assertThat(audit).singleElement().satisfies(record -> {
+            assertThat(record.purpose()).isEqualTo(LlmCallPurpose.SUMMARY);
+            assertThat(record.errorCode()).isEqualTo("CANCELLED");
+        });
+    }
 
     @Test
     void mapsResponseAndWritesAudit() {
@@ -44,7 +79,8 @@ class DefaultProviderServiceChatTest {
     void requestOptionsDoNotLeakAcrossConcurrentAgents() {
         var alpha = StubChatModel.text("a", "alpha-default");
         var beta = StubChatModel.text("b", "beta-default");
-        var service = service(Map.of("alpha", alpha, "beta", beta), new ArrayList<>());
+        var audit = Collections.synchronizedList(new ArrayList<LlmCallRecord>());
+        var service = service(Map.of("alpha", alpha, "beta", beta), audit);
 
         var first = CompletableFuture.supplyAsync(() -> service.chat(null,
                 profile("agent-a", "alpha", "model-a", 0.1), new Prompt("a")));
@@ -57,6 +93,7 @@ class DefaultProviderServiceChatTest {
         assertThat(alpha.lastPrompt().getOptions().getTemperature()).isEqualTo(0.1);
         assertThat(beta.lastPrompt().getOptions().getModel()).isEqualTo("model-b");
         assertThat(beta.lastPrompt().getOptions().getTemperature()).isEqualTo(0.9);
+        assertThat(audit).hasSize(2);
         assertThat(alpha.lastPrompt().getOptions()).isInstanceOfSatisfying(
                 DefaultToolCallingChatOptions.class,
                 options -> assertThat(options.getInternalToolExecutionEnabled()).isFalse());
