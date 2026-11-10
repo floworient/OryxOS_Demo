@@ -10,11 +10,18 @@
 | `main-max-output-tokens` | 2048 | 主请求最大输出，正整数 |
 | `summary-input-budget` | 4096 | 摘要输入上限，正整数且小于主预算 |
 | `summary-max-output-tokens` | 384 | 摘要请求最大输出，正整数 |
+<<<<<<< HEAD
 | `summary-text-bytes` | 768 | 已存摘要正文上限，至少 128。摘要输入上限必须额外预留 640 单位给指令、消息封装和新增历史 |
 | `archival-text-bytes` | 1024 | 主请求中归档记忆正文的上限，非负且小于主预算 |
 | `tool-result-bytes` | 2048 | 单个工具结果发送副本上限，至少 128 且小于主预算 |
 | `summary-trigger-turns` | 4 | 待摘要完整轮数，正整数 |
 | `summary-trigger-units` | 2048 | 待摘要内容的 UTF-8 字节阈值，正整数且不超过摘要输入上限 |
+=======
+| `summary-text-bytes` | 768 | 已存摘要正文上限，至少 128 且小于摘要输入上限 |
+| `archival-text-bytes` | 1024 | 主请求中归档记忆正文的上限，非负且小于主预算 |
+| `tool-result-bytes` | 2048 | 单个工具结果发送副本上限，至少 128 且小于主预算 |
+| `summary-trigger-turns` | 4 | 待摘要完整轮数，正整数 |
+| `summary-trigger-units` | 2048 | 待摘要原文估算阈值，正整数且不超过摘要输入上限 |
 | `summary-provider`、`summary-model` | 未配置 | 同时填写或同时省略。省略时使用当前 Agent 的 Provider 和模型 |
 
 部署方按实际模型窗口调低输入与输出配额，使两者之和留在模型窗口内。启动校验组合配额，并沿用现有 Provider 注册和显式解析。已配置的独立路由运行失败时进入普通摘要降级。

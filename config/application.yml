@@ -16,8 +16,10 @@ oryxos:
       api-key: "sk-7c2695d162ec4960ba97d4bc28cd486a" # ← 填入你的 DeepSeek API Key（留空且被 Agent 引用时，启动会报错）
 
     # 可按同样格式追加其他 OpenAI 兼容供应商，例如 Kimi。
+    # 注意：Spring AI 的 OpenAiApi 会在 base-url 后自动追加 /v1/chat/completions，
+    # 因此 base-url 不要以 /v1 结尾，否则路径重复会返回 404。
     - name: qwen
-      type: DASHSCOPE
+      type: OPENAI_COMPATIBLE
       model: qwen3.8-27b
-      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      base-url: https://dashscope.aliyuncs.com/compatible-mode
       api-key: "sk-ws-H.YERRDDD.QuCw.MEQCIBvIqE0o2-5SSEXZ747TCfMsk0mXGrbT_0f4snh1rK6MAiAQXMIr5A8kY73TE1k7RIgwrI-HaElLyjcF5EDyt9_KQw"
